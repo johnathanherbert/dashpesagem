@@ -1,0 +1,57 @@
+{
+  "arquivo": "C:\\development\\dashpesagem\\ajutes.xlsx",
+  "data_analise": "2025-12-03T22:44:51.717Z",
+  "planilhas": [
+    {
+      "nome": "Data",
+      "total_linhas": 689,
+      "colunas": [
+        "Estoques WM com texto breve de material",
+        "__EMPTY",
+        "__EMPTY_1",
+        "__EMPTY_2",
+        "__EMPTY_3",
+        "__EMPTY_4",
+        "__EMPTY_5",
+        "__EMPTY_6",
+        "__EMPTY_7",
+        "__EMPTY_8",
+        "__EMPTY_9",
+        "__EMPTY_10",
+        "__EMPTY_11"
+      ],
+      "exemplo_dados": [
+        {
+          "Estoques WM com texto breve de material": "Nº depósito",
+          "__EMPTY": "WNM",
+          "__EMPTY_1": "",
+          "__EMPTY_2": "",
+          "__EMPTY_3": "",
+          "__EMPTY_4": "",
+          "__EMPTY_5": "",
+          "__EMPTY_6": "",
+          "__EMPTY_7": "",
+          "__EMPTY_8": "",
+          "__EMPTY_9": "",
+          "__EMPTY_10": "",
+          "__EMPTY_11": ""
+        },
+        {
+          "Estoques WM com texto breve de material": "Material",
+          "__EMPTY": "Texto breve material",
+          "__EMPTY_1": "UMB",
+          "__EMPTY_2": "Lote",
+          "__EMPTY_3": "Centro",
+          "__EMPTY_4": "Depósito",
+          "__EMPTY_5": "Tipo de depósito",
+          "__EMPTY_6": "Posição no depósito",
+          "__EMPTY_7": "Estoque disponível",
+          "__EMPTY_8": "Data do vencimento",
+          "__EMPTY_9": "Último movimento",
+          "__EMPTY_10": "Tipo de estoque",
+          "__EMPTY_11": "Última entrada dep."
+        }
+      ]
+    }
+  ]
+}
