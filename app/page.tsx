@@ -178,8 +178,8 @@ export default function Home() {
               </TabsContent>
 
               <TabsContent value="settings" className="space-y-6">
-                <div className="max-w-2xl">
-                  <h2 className="text-2xl font-bold mb-4">Configurações do Sistema</h2>
+                <div className="max-w-2xl space-y-6">
+                  <h2 className="text-2xl font-bold">Configurações do Sistema</h2>
                   <ValorUpload />
                 </div>
               </TabsContent>

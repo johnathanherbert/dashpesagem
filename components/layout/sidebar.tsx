@@ -18,9 +18,11 @@ import {
   Settings,
   FileSpreadsheet,
   TrendingUp,
-  Package
+  Package,
+  LogOut
 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
+import { signOut } from '@/lib/auth';
 
 interface SidebarProps {
   activeTab?: string;
@@ -29,6 +31,7 @@ interface SidebarProps {
 
 export function Sidebar({ activeTab = 'overview', onTabChange }: SidebarProps) {
   const [open, setOpen] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
 
   const menuItems = [
     { id: 'overview', label: 'Visão Geral', icon: Home },
@@ -41,6 +44,11 @@ export function Sidebar({ activeTab = 'overview', onTabChange }: SidebarProps) {
       onTabChange(itemId);
     }
     setOpen(false);
+  };
+
+  const handleLogout = async () => {
+    setLoggingOut(true);
+    await signOut();
   };
 
   return (
@@ -111,6 +119,15 @@ export function Sidebar({ activeTab = 'overview', onTabChange }: SidebarProps) {
             >
               <Settings className="h-4 w-4 mr-3" />
               Configurações
+            </Button>
+            <Button
+              variant="ghost"
+              className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950"
+              onClick={handleLogout}
+              disabled={loggingOut}
+            >
+              <LogOut className="h-4 w-4 mr-3" />
+              {loggingOut ? "Saindo..." : "Sair"}
             </Button>
           </div>
 
