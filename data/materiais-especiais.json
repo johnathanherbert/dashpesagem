@@ -1,0 +1,40 @@
+{
+  "inf": {
+    "nome": "INF - Inflamáveis",
+    "descricao": "Materiais inflamáveis que requerem armazenamento especial",
+    "cor": "#ef4444",
+    "icone": "flame",
+    "materiais": [
+      "011370",
+      "010047",
+      "010720",
+      "010276",
+      "011393",
+      "011362",
+      "011142",
+      "010010"
+    ]
+  },
+  "cfa": {
+    "nome": "CFA 2-8°C",
+    "descricao": "Materiais que requerem refrigeração entre 2 e 8 graus Celsius",
+    "cor": "#3b82f6",
+    "icone": "thermometer-snowflake",
+    "materiais": [
+      "011748",
+      "011776",
+      "013368",
+      "011454",
+      "012367",
+      "302042",
+      "012173",
+      "016331",
+      "011645",
+      "011384",
+      "016016",
+      "016364",
+      "019419",
+      "301958"
+    ]
+  }
+}

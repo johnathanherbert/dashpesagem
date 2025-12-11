@@ -13,7 +13,9 @@ import { FilterPanel } from '@/components/layout/filter-panel';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, BarChart3, Settings, TrendingUp } from 'lucide-react';
+import { Loader2, BarChart3, Settings, TrendingUp, Search, X } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 
 export default function Home() {
   const [data, setData] = useState<AgingData[]>([]);
@@ -22,6 +24,8 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('financial');
   const [selectedTipoDeposito, setSelectedTipoDeposito] = useState<string>('all');
+  const [selectedMaterialEspecial, setSelectedMaterialEspecial] = useState<'inf' | 'cfa' | null>(null);
+  const [globalSearch, setGlobalSearch] = useState<string>('');
 
   const loadData = async () => {
     try {
@@ -67,10 +71,27 @@ export default function Home() {
     new Set(data.map(item => item.tipo_deposito).filter(Boolean))
   ).sort();
 
-  // Filtrar dados por tipo de depósito selecionado
-  const filteredData = selectedTipoDeposito === 'all' 
-    ? data 
-    : data.filter(item => item.tipo_deposito === selectedTipoDeposito);
+  // Filtrar dados por tipo de depósito e busca global
+  const filteredData = data.filter(item => {
+    // Filtro por tipo de depósito
+    if (selectedTipoDeposito !== 'all' && item.tipo_deposito !== selectedTipoDeposito) {
+      return false;
+    }
+    
+    // Filtro por busca global
+    if (globalSearch.trim()) {
+      const search = globalSearch.toLowerCase();
+      return (
+        item.material?.toLowerCase().includes(search) ||
+        item.texto_breve_material?.toLowerCase().includes(search) ||
+        item.lote?.toLowerCase().includes(search) ||
+        item.deposito?.toLowerCase().includes(search) ||
+        item.centro?.toLowerCase().includes(search)
+      );
+    }
+    
+    return true;
+  });
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900">
@@ -148,7 +169,11 @@ export default function Home() {
         {!loading && !error && data.length > 0 && (
           <>
             {/* Statistics Cards */}
-            <AgingStats data={filteredData} />
+            <AgingStats 
+              data={filteredData} 
+              onMaterialEspecialClick={setSelectedMaterialEspecial}
+              selectedMaterialEspecial={selectedMaterialEspecial}
+            />
 
             {/* Tabs */}
             <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
@@ -165,7 +190,14 @@ export default function Home() {
 
               <TabsContent value="financial" className="space-y-6">
                 {Object.keys(valores).length > 0 ? (
-                  <AgingFinancial data={filteredData} valores={valores} selectedTipoDeposito={selectedTipoDeposito} />
+                  <AgingFinancial 
+                    data={filteredData} 
+                    valores={valores} 
+                    selectedTipoDeposito={selectedTipoDeposito}
+                    selectedMaterialEspecial={selectedMaterialEspecial}
+                    globalSearch={globalSearch}
+                    onGlobalSearchChange={setGlobalSearch}
+                  />
                 ) : (
                   <div className="flex flex-col items-center justify-center py-20 text-center">
                     <TrendingUp className="h-12 w-12 text-muted-foreground mb-4" />

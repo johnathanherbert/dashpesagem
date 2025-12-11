@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import ReactECharts from 'echarts-for-react';
 import { AgingData } from '@/types/aging';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -17,18 +17,24 @@ import {
   ChevronDown,
   ChevronUp,
   Calendar,
-  Box
+  Box,
+  Flame,
+  Thermometer
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { getMaterialEspecialBadge } from '@/lib/materiais-especiais';
 
 interface AgingFinancialProps {
   data: AgingData[];
   valores: Record<string, number>; // Mapeamento material -> valor_unitario
   selectedTipoDeposito?: string;
+  selectedMaterialEspecial?: 'inf' | 'cfa' | null;
+  globalSearch?: string;
+  onGlobalSearchChange?: (value: string) => void;
 }
 
-export function AgingFinancial({ data, valores, selectedTipoDeposito = 'all' }: AgingFinancialProps) {
+export function AgingFinancial({ data, valores, selectedTipoDeposito = 'all', selectedMaterialEspecial = null, globalSearch = '', onGlobalSearchChange }: AgingFinancialProps) {
   const [sortField, setSortField] = useState<'valorTotal' | 'dias' | 'peso' | 'criticidade' | 'tipoEstoque'>('valorTotal');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [tableSearchTerms, setTableSearchTerms] = useState<Record<string, string>>({});
@@ -37,18 +43,35 @@ export function AgingFinancial({ data, valores, selectedTipoDeposito = 'all' }: 
   const [viewMode, setViewMode] = useState<'geral' | 'ajustes'>('geral');
   const [selectedMaterial, setSelectedMaterial] = useState<string | null>(null);
 
-  // Filtrar dados com base no modo de visualização
+  // Desativar modo ajustes quando mudar de depósito (se não for PES)
+  useEffect(() => {
+    if (selectedTipoDeposito !== 'PES' && viewMode === 'ajustes') {
+      setViewMode('geral');
+    }
+  }, [selectedTipoDeposito, viewMode]);
+
+  // Filtrar dados com base no modo de visualização e material especial
   const filteredDataByMode = useMemo(() => {
+    let filtered = data;
+    
     if (viewMode === 'ajustes') {
       // Filtrar apenas PES/PES com tipo_estoque = "S"
-      return data.filter(item => 
+      filtered = filtered.filter(item => 
         item.deposito === 'PES' && 
         item.tipo_deposito === 'PES' && 
         item.tipo_estoque === 'S'
       );
     }
-    return data;
-  }, [data, viewMode]);
+    
+    // Aplicar filtro de material especial se selecionado
+    if (selectedMaterialEspecial) {
+      const materiaisEspeciais = require('@/data/materiais-especiais.json');
+      const materiaisList = materiaisEspeciais[selectedMaterialEspecial].materiais;
+      filtered = filtered.filter(item => materiaisList.includes(item.material));
+    }
+    
+    return filtered;
+  }, [data, viewMode, selectedMaterialEspecial]);
 
   // Estatísticas financeiras gerais
   const financialStats = useMemo(() => {
@@ -462,62 +485,62 @@ export function AgingFinancial({ data, valores, selectedTipoDeposito = 'all' }: 
   return (
     <div className="space-y-6">
       {/* Cards de Estatísticas Financeiras */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         <Card className="bg-gradient-to-br from-green-500 to-teal-600 border-0 text-white">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-4">
             <CardTitle className="text-sm font-medium opacity-90">Valor Total</CardTitle>
-            <div className="p-2 bg-white/20 rounded-lg">
-              <DollarSign className="h-5 w-5" />
+            <div className="p-1.5 bg-white/20 rounded-lg">
+              <DollarSign className="h-4 w-4" />
             </div>
           </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">{formatCurrency(financialStats.totalValorizado)}</div>
-            <p className="text-xs opacity-80 mt-1">
+          <CardContent className="pb-4">
+            <div className="text-2xl font-bold leading-tight">{formatCurrency(financialStats.totalValorizado)}</div>
+            <p className="text-[10px] opacity-80 mt-0.5">
               {financialStats.itensComValor} de {financialStats.totalItens} itens valorados
             </p>
           </CardContent>
         </Card>
 
         <Card className="bg-gradient-to-br from-blue-500 to-cyan-600 border-0 text-white">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-4">
             <CardTitle className="text-sm font-medium opacity-90">Cobertura de Valores</CardTitle>
-            <div className="p-2 bg-white/20 rounded-lg">
-              <Package className="h-5 w-5" />
+            <div className="p-1.5 bg-white/20 rounded-lg">
+              <Package className="h-4 w-4" />
             </div>
           </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">{financialStats.coberturaValores}%</div>
-            <p className="text-xs opacity-80 mt-1">
+          <CardContent className="pb-4">
+            <div className="text-2xl font-bold leading-tight">{financialStats.coberturaValores}%</div>
+            <p className="text-[10px] opacity-80 mt-0.5">
               Materiais com valor cadastrado
             </p>
           </CardContent>
         </Card>
 
         <Card className="bg-gradient-to-br from-yellow-500 to-orange-600 border-0 text-white">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-4">
             <CardTitle className="text-sm font-medium opacity-90">Valor em Alerta</CardTitle>
-            <div className="p-2 bg-white/20 rounded-lg">
-              <AlertCircle className="h-5 w-5" />
+            <div className="p-1.5 bg-white/20 rounded-lg">
+              <AlertCircle className="h-4 w-4" />
             </div>
           </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">{formatCurrency(financialStats.valorAlerta)}</div>
-            <p className="text-xs opacity-80 mt-1">
+          <CardContent className="pb-4">
+            <div className="text-2xl font-bold leading-tight">{formatCurrency(financialStats.valorAlerta)}</div>
+            <p className="text-[10px] opacity-80 mt-0.5">
               10-20 dias de aging
             </p>
           </CardContent>
         </Card>
 
         <Card className="bg-gradient-to-br from-red-500 to-rose-600 border-0 text-white">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-4">
             <CardTitle className="text-sm font-medium opacity-90">Valor Crítico</CardTitle>
-            <div className="p-2 bg-white/20 rounded-lg">
-              <TrendingUp className="h-5 w-5" />
+            <div className="p-1.5 bg-white/20 rounded-lg">
+              <TrendingUp className="h-4 w-4" />
             </div>
           </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">{formatCurrency(financialStats.valorCritico)}</div>
-            <p className="text-xs opacity-80 mt-1">
+          <CardContent className="pb-4">
+            <div className="text-2xl font-bold leading-tight">{formatCurrency(financialStats.valorCritico)}</div>
+            <p className="text-[10px] opacity-80 mt-0.5">
               Mais de 20 dias de aging
             </p>
           </CardContent>
@@ -685,6 +708,51 @@ export function AgingFinancial({ data, valores, selectedTipoDeposito = 'all' }: 
         </Card>
       </div>
 
+      {/* Barra de Busca Global */}
+      {onGlobalSearchChange && (
+        <Card className="bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-950/20 dark:to-blue-950/20 border-purple-200 dark:border-purple-800">
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-purple-600 dark:text-purple-400" />
+                <Input
+                  type="text"
+                  placeholder="Buscar em todos os depósitos: material, descrição, lote, centro..."
+                  value={globalSearch}
+                  onChange={(e) => onGlobalSearchChange(e.target.value)}
+                  className="pl-11 pr-11 h-12 text-base border-purple-300 dark:border-purple-700 focus:ring-purple-500"
+                />
+                {globalSearch && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 p-0 hover:bg-purple-100 dark:hover:bg-purple-900"
+                    onClick={() => onGlobalSearchChange('')}
+                  >
+                    <ChevronDown className="h-5 w-5 rotate-45" />
+                  </Button>
+                )}
+              </div>
+              {globalSearch && (
+                <Badge className="bg-purple-600 text-white px-4 py-2 text-sm whitespace-nowrap">
+                  {financialByTipo.reduce((sum, { materiaisAll }) => {
+                    return sum + materiaisAll.filter(item => {
+                      const search = globalSearch.toLowerCase();
+                      return (
+                        item?.material?.toLowerCase().includes(search) ||
+                        item?.descricao?.toLowerCase().includes(search) ||
+                        item?.lote?.toLowerCase().includes(search) ||
+                        item?.centro?.toLowerCase().includes(search)
+                      );
+                    }).length;
+                  }, 0)} resultados
+                </Badge>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Tabelas Detalhadas por Tipo de Depósito */}
       {financialByTipo.map(({ tipo, materiaisAll, totalValor }) => {
         const { filtered, displayed } = getFilteredMaterials(tipo, materiaisAll);
@@ -807,7 +875,31 @@ export function AgingFinancial({ data, valores, selectedTipoDeposito = 'all' }: 
                               : 'hover:bg-slate-50 dark:hover:bg-slate-800/50'
                           }`}
                         >
-                          <td className="py-3 px-3 font-mono text-xs font-semibold">{item?.material}</td>
+                          <td className="py-3 px-3">
+                            <div className="flex items-center gap-2">
+                              <span className="font-mono text-xs font-semibold">{item?.material}</span>
+                              {(() => {
+                                const especial = getMaterialEspecialBadge(item?.material || '');
+                                if (especial) {
+                                  return (
+                                    <Badge 
+                                      className="text-[10px] flex items-center gap-1 whitespace-nowrap" 
+                                      style={{ 
+                                        backgroundColor: especial.config.cor,
+                                        color: 'white',
+                                        border: 'none'
+                                      }}
+                                    >
+                                      {especial.tipo === 'inf' && <Flame className="h-3 w-3" />}
+                                      {especial.tipo === 'cfa' && <Thermometer className="h-3 w-3" />}
+                                      {especial.tipo.toUpperCase()}
+                                    </Badge>
+                                  );
+                                }
+                                return null;
+                              })()}
+                            </div>
+                          </td>
                         <td className="py-3 px-3 max-w-xs truncate" title={item?.descricao}>{item?.descricao}</td>
                         <td className="py-3 px-3 font-mono text-xs">{item?.lote || '-'}</td>
                         <td className="py-3 px-3 text-center text-xs">{item?.centro || '-'}</td>
