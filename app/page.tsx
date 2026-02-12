@@ -1,42 +1,60 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { AgingData } from '@/types/aging';
-import { fetchAgingData, fetchMaterialValores } from '@/lib/supabase';
+import { AgingData, RemessaData, ConfiguracaoResiduais } from '@/types/aging';
+import { isMaterialEspecial } from '@/lib/materiais-especiais';
+import { fetchAgingData, fetchMaterialValores, fetchRemessas, fetchConfiguracaoResiduais } from '@/lib/supabase';
 import { AgingStats } from '@/components/aging-stats';
-import { AgingCharts } from '@/components/aging-charts';
 import { AgingFinancial } from '@/components/aging-financial';
 import { ValorUpload } from '@/components/valor-upload';
+import { RemessaUpload } from '@/components/remessa-upload';
+import { ResiduaisView } from '@/components/residuais-view';
+import { ConfiguracaoResiduaisComponent } from '@/components/configuracao-residuais';
 import { Sidebar } from '@/components/layout/sidebar';
 import { UploadButton } from '@/components/layout/upload-button';
 import { FilterPanel } from '@/components/layout/filter-panel';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, BarChart3, Settings, TrendingUp, Search, X } from 'lucide-react';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
+import { Loader2, Settings, TrendingUp, Package, AlertTriangle } from 'lucide-react';
 
 export default function Home() {
   const [data, setData] = useState<AgingData[]>([]);
   const [valores, setValores] = useState<Record<string, number>>({});
+  const [remessas, setRemessas] = useState<RemessaData[]>([]);
+  const [configResiduais, setConfigResiduais] = useState<ConfiguracaoResiduais>({
+    limite_verde: 100,
+    limite_amarelo: 900,
+    limite_maximo: 999,
+    materiais_alto_valor: [],
+  });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('financial');
   const [selectedTipoDeposito, setSelectedTipoDeposito] = useState<string>('all');
   const [selectedMaterialEspecial, setSelectedMaterialEspecial] = useState<'inf' | 'cfa' | null>(null);
-  const [globalSearch, setGlobalSearch] = useState<string>('');
+  const [selectedCriticality, setSelectedCriticality] = useState<'Normal' | 'Alerta' | 'Crítico' | null>(null);
+  const [viewMode, setViewMode] = useState<'geral' | 'ajustes'>('geral');
 
   const loadData = async () => {
     try {
       setLoading(true);
       setError(null);
-      const [agingData, valoresData] = await Promise.all([
+      const [agingData, valoresData, remessasData, configData] = await Promise.all([
         fetchAgingData(),
         fetchMaterialValores(),
+        fetchRemessas().catch(() => []), // Não falhar se remessas não existir
+        fetchConfiguracaoResiduais().catch(() => ({
+          limite_verde: 100,
+          limite_amarelo: 900,
+          limite_maximo: 999,
+          materiais_alto_valor: [],
+        })),
       ]);
       setData(agingData);
       setValores(valoresData);
+      setRemessas(remessasData);
+      setConfigResiduais(configData);
     } catch (err) {
       console.error('Erro ao carregar dados:', err);
       setError('Erro ao carregar dados. Verifique a configuração do Supabase.');
@@ -71,27 +89,41 @@ export default function Home() {
     new Set(data.map(item => item.tipo_deposito).filter(Boolean))
   ).sort();
 
-  // Filtrar dados por tipo de depósito e busca global
+  // Filtrar dados por tipo de depósito
   const filteredData = data.filter(item => {
-    // Filtro por tipo de depósito
     if (selectedTipoDeposito !== 'all' && item.tipo_deposito !== selectedTipoDeposito) {
       return false;
     }
-    
-    // Filtro por busca global
-    if (globalSearch.trim()) {
-      const search = globalSearch.toLowerCase();
-      return (
-        item.material?.toLowerCase().includes(search) ||
-        item.texto_breve_material?.toLowerCase().includes(search) ||
-        item.lote?.toLowerCase().includes(search) ||
-        item.deposito?.toLowerCase().includes(search) ||
-        item.centro?.toLowerCase().includes(search)
-      );
-    }
-    
     return true;
   });
+
+  // Filtrar dados para tabela (depósito + material especial + criticidade + modo)
+  const tableFilteredData = (() => {
+    let result = filteredData;
+
+    if (selectedMaterialEspecial) {
+      result = result.filter(item => isMaterialEspecial(item.material) === selectedMaterialEspecial);
+    }
+
+    if (viewMode === 'ajustes') {
+      result = result.filter(item =>
+        item.deposito === 'PES' &&
+        item.tipo_deposito === 'PES' &&
+        item.tipo_estoque === 'S'
+      );
+    }
+
+    if (selectedCriticality) {
+      result = result.filter(item => {
+        const dias = item.dias_aging || 0;
+        if (selectedCriticality === 'Normal') return dias < 10;
+        if (selectedCriticality === 'Alerta') return dias >= 10 && dias <= 20;
+        return dias > 20; // Crítico
+      });
+    }
+
+    return result;
+  })();
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900">
@@ -112,24 +144,15 @@ export default function Home() {
         />
       )}
       
-      <div className="container mx-auto py-8 px-4 space-y-8 pt-24 lg:pt-8">
-        {/* Header */}
-        <div className="flex flex-col gap-4 lg:pl-12">
-          <div className="flex items-center justify-between pr-16">
-            <div>
-              <h1 className="text-4xl font-bold tracking-tight">Dashboard de Aging</h1>
-              <p className="text-muted-foreground mt-2">
-                Gestão inteligente do estoque Pesagem
-              </p>
-              {selectedTipoDeposito !== 'all' && (
-                <div className="mt-3">
-                  <Badge className="bg-blue-600 hover:bg-blue-700 text-white">
-                    Filtrado depósito: {selectedTipoDeposito}
-                  </Badge>
-                </div>
-              )}
-            </div>
-          </div>
+      <div className="w-full py-3 px-3 space-y-3 pt-16 lg:pt-3">
+        {/* Header compacto */}
+        <div className="flex items-center gap-4 lg:pl-12">
+          <h1 className="text-lg font-bold tracking-tight whitespace-nowrap">Dashboard de Aging</h1>
+          {selectedTipoDeposito !== 'all' && (
+            <Badge className="bg-blue-600 hover:bg-blue-700 text-white text-xs">
+              Dep: {selectedTipoDeposito}
+            </Badge>
+          )}
         </div>
 
         {/* Loading State */}
@@ -176,28 +199,46 @@ export default function Home() {
             />
 
             {/* Tabs */}
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-              <TabsList className="grid w-full max-w-xl grid-cols-2">
-                <TabsTrigger value="financial" className="flex items-center gap-2">
-                  <TrendingUp className="h-4 w-4" />
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-3">
+              <TabsList className="grid w-full max-w-2xl grid-cols-4 h-8">
+                <TabsTrigger value="financial" className="flex items-center gap-1.5 text-xs">
+                  <TrendingUp className="h-3 w-3" />
                   Financeiro
                 </TabsTrigger>
-                <TabsTrigger value="settings" className="flex items-center gap-2">
-                  <Settings className="h-4 w-4" />
+                <TabsTrigger value="residuais" className="flex items-center gap-1.5 text-xs">
+                  <AlertTriangle className="h-3 w-3" />
+                  Residuais
+                </TabsTrigger>
+                <TabsTrigger value="remessas" className="flex items-center gap-1.5 text-xs">
+                  <Package className="h-3 w-3" />
+                  Remessas
+                </TabsTrigger>
+                <TabsTrigger value="settings" className="flex items-center gap-1.5 text-xs">
+                  <Settings className="h-3 w-3" />
                   Config
                 </TabsTrigger>
               </TabsList>
 
-              <TabsContent value="financial" className="space-y-6">
+              <TabsContent value="financial" className="space-y-3">
                 {Object.keys(valores).length > 0 ? (
-                  <AgingFinancial 
-                    data={filteredData} 
-                    valores={valores} 
-                    selectedTipoDeposito={selectedTipoDeposito}
-                    selectedMaterialEspecial={selectedMaterialEspecial}
-                    globalSearch={globalSearch}
-                    onGlobalSearchChange={setGlobalSearch}
-                  />
+                  <>
+                    <AgingFinancial
+                      data={filteredData}
+                      valores={valores}
+                      selectedTipoDeposito={selectedTipoDeposito}
+                      selectedMaterialEspecial={selectedMaterialEspecial}
+                      selectedCriticality={selectedCriticality}
+                      onCriticalityChange={setSelectedCriticality}
+                      viewMode={viewMode}
+                      onViewModeChange={setViewMode}
+                    />
+                    <ResiduaisView
+                      agingData={tableFilteredData}
+                      valores={valores}
+                      remessas={remessas}
+                      configResiduais={configResiduais}
+                    />
+                  </>
                 ) : (
                   <div className="flex flex-col items-center justify-center py-20 text-center">
                     <TrendingUp className="h-12 w-12 text-muted-foreground mb-4" />
@@ -209,10 +250,54 @@ export default function Home() {
                 )}
               </TabsContent>
 
-              <TabsContent value="settings" className="space-y-6">
-                <div className="max-w-2xl space-y-6">
-                  <h2 className="text-2xl font-bold">Configurações do Sistema</h2>
-                  <ValorUpload />
+              <TabsContent value="settings" className="space-y-4">
+                <div className="max-w-4xl space-y-4">
+                  <h2 className="text-lg font-bold">Configuracoes do Sistema</h2>
+
+                  <div className="space-y-4">
+                    <ValorUpload onUploadComplete={loadData} />
+                    <RemessaUpload onUploadComplete={loadData} />
+                  </div>
+
+                  <div className="pt-4">
+                    <h3 className="text-base font-semibold mb-3">Configuracao de Residuais</h3>
+                    <ConfiguracaoResiduaisComponent onConfigChange={loadData} />
+                  </div>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="residuais">
+                <ResiduaisView
+                  agingData={tableFilteredData}
+                  valores={valores}
+                  remessas={remessas}
+                  configResiduais={configResiduais}
+                />
+              </TabsContent>
+
+              <TabsContent value="remessas" className="space-y-6">
+                <div>
+                  <h2 className="text-2xl font-bold mb-2">Gestão de Remessas</h2>
+                  <p className="text-muted-foreground mb-6">
+                    {remessas.length > 0
+                      ? `${remessas.length} itens de remessa carregados do SAP`
+                      : 'Nenhuma remessa carregada. Faça upload da planilha de remessas na aba Configurações'}
+                  </p>
+                  {remessas.length > 0 ? (
+                    <div className="border rounded-lg p-4">
+                      <p className="text-sm text-muted-foreground">
+                        Funcionalidade de visualização e análise de remessas em desenvolvimento.
+                        {remessas.length} remessas disponíveis no sistema.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="border rounded-lg p-8 text-center">
+                      <Package className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                      <p className="text-muted-foreground">
+                        Faça upload da planilha de remessas do SAP na aba Configurações
+                      </p>
+                    </div>
+                  )}
                 </div>
               </TabsContent>
             </Tabs>
