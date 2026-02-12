@@ -427,11 +427,11 @@ export function RemessasView({ remessas, materialFilter }: RemessasViewProps) {
         </div>
 
         {materialFilter && (
-          <Badge variant="secondary" className="flex items-center gap-1">
+          <Badge className="flex items-center gap-1 bg-blue-600 hover:bg-blue-700 text-white border-0">
             Material: {materialFilter}
             <button
               onClick={() => setColumnFilters(columnFilters.filter(f => f.id !== 'material'))}
-              className="ml-1 hover:bg-black/10 rounded-full p-0.5"
+              className="ml-1 hover:bg-white/20 rounded-full p-0.5 transition-colors"
             >
               <X className="h-3 w-3" />
             </button>

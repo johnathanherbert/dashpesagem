@@ -36,6 +36,7 @@ export default function Home() {
   const [selectedTipoDeposito, setSelectedTipoDeposito] = useState<string>('all');
   const [selectedMaterialEspecial, setSelectedMaterialEspecial] = useState<'inf' | 'cfa' | null>(null);
   const [selectedCriticality, setSelectedCriticality] = useState<'Normal' | 'Alerta' | 'Crítico' | null>(null);
+  const [selectedVencimento, setSelectedVencimento] = useState<'vencidos' | 'proximos30' | null>(null);
   const [viewMode, setViewMode] = useState<'geral' | 'ajustes'>('geral');
 
   const loadData = async () => {
@@ -99,12 +100,56 @@ export default function Home() {
     return true;
   });
 
-  // Filtrar dados para tabela (depósito + material especial + criticidade + modo)
+  // Filtrar dados para tabela (depósito + material especial + criticidade + vencimento + modo)
   const tableFilteredData = (() => {
     let result = filteredData;
 
     if (selectedMaterialEspecial) {
       result = result.filter(item => isMaterialEspecial(item.material) === selectedMaterialEspecial);
+    }
+
+    if (selectedVencimento) {
+      // Função auxiliar para parsear datas de forma robusta
+      const parseDate = (dateStr: string): Date | null => {
+        if (!dateStr || dateStr.trim() === '') return null;
+
+        // Tentar formato DD/MM/YYYY
+        const ddmmyyyyMatch = dateStr.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+        if (ddmmyyyyMatch) {
+          const [, day, month, year] = ddmmyyyyMatch;
+          const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+          date.setHours(0, 0, 0, 0);
+          return isNaN(date.getTime()) ? null : date;
+        }
+
+        // Tentar ISO ou outros formatos nativos
+        const date = new Date(dateStr);
+        if (!isNaN(date.getTime())) {
+          date.setHours(0, 0, 0, 0);
+          return date;
+        }
+
+        return null;
+      };
+
+      const hoje = new Date();
+      hoje.setHours(0, 0, 0, 0); // Zerar horas para comparar apenas datas
+
+      const em30Dias = new Date(hoje);
+      em30Dias.setDate(hoje.getDate() + 30);
+
+      result = result.filter(item => {
+        if (!item.data_vencimento) return false;
+        const dataVencimento = parseDate(item.data_vencimento);
+        if (!dataVencimento) return false;
+
+        if (selectedVencimento === 'vencidos') {
+          return dataVencimento < hoje;
+        } else if (selectedVencimento === 'proximos30') {
+          return dataVencimento >= hoje && dataVencimento <= em30Dias;
+        }
+        return false;
+      });
     }
 
     if (viewMode === 'ajustes') {
@@ -194,10 +239,12 @@ export default function Home() {
         {!loading && !error && data.length > 0 && (
           <>
             {/* Statistics Cards */}
-            <AgingStats 
-              data={filteredData} 
+            <AgingStats
+              data={filteredData}
               onMaterialEspecialClick={setSelectedMaterialEspecial}
               selectedMaterialEspecial={selectedMaterialEspecial}
+              onVencimentoClick={setSelectedVencimento}
+              selectedVencimento={selectedVencimento}
             />
 
             {/* Tabs */}
