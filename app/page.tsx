@@ -9,6 +9,7 @@ import { AgingFinancial } from '@/components/aging-financial';
 import { ValorUpload } from '@/components/valor-upload';
 import { RemessaUpload } from '@/components/remessa-upload';
 import { ResiduaisView } from '@/components/residuais-view';
+import { RemessasView } from '@/components/remessas-view';
 import { ConfiguracaoResiduaisComponent } from '@/components/configuracao-residuais';
 import { Sidebar } from '@/components/layout/sidebar';
 import { UploadButton } from '@/components/layout/upload-button';
@@ -31,6 +32,7 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('financial');
+  const [materialFilter, setMaterialFilter] = useState<string | undefined>(undefined);
   const [selectedTipoDeposito, setSelectedTipoDeposito] = useState<string>('all');
   const [selectedMaterialEspecial, setSelectedMaterialEspecial] = useState<'inf' | 'cfa' | null>(null);
   const [selectedCriticality, setSelectedCriticality] = useState<'Normal' | 'Alerta' | 'Crítico' | null>(null);
@@ -237,6 +239,10 @@ export default function Home() {
                       valores={valores}
                       remessas={remessas}
                       configResiduais={configResiduais}
+                      onNavigateToRemessas={(material) => {
+                        setMaterialFilter(material);
+                        setActiveTab('remessas');
+                      }}
                     />
                   </>
                 ) : (
@@ -272,33 +278,18 @@ export default function Home() {
                   valores={valores}
                   remessas={remessas}
                   configResiduais={configResiduais}
+                  onNavigateToRemessas={(material) => {
+                    setMaterialFilter(material);
+                    setActiveTab('remessas');
+                  }}
                 />
               </TabsContent>
 
-              <TabsContent value="remessas" className="space-y-6">
-                <div>
-                  <h2 className="text-2xl font-bold mb-2">Gestão de Remessas</h2>
-                  <p className="text-muted-foreground mb-6">
-                    {remessas.length > 0
-                      ? `${remessas.length} itens de remessa carregados do SAP`
-                      : 'Nenhuma remessa carregada. Faça upload da planilha de remessas na aba Configurações'}
-                  </p>
-                  {remessas.length > 0 ? (
-                    <div className="border rounded-lg p-4">
-                      <p className="text-sm text-muted-foreground">
-                        Funcionalidade de visualização e análise de remessas em desenvolvimento.
-                        {remessas.length} remessas disponíveis no sistema.
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="border rounded-lg p-8 text-center">
-                      <Package className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                      <p className="text-muted-foreground">
-                        Faça upload da planilha de remessas do SAP na aba Configurações
-                      </p>
-                    </div>
-                  )}
-                </div>
+              <TabsContent value="remessas">
+                <RemessasView
+                  remessas={remessas}
+                  materialFilter={materialFilter}
+                />
               </TabsContent>
             </Tabs>
           </>

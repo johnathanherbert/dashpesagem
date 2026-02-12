@@ -36,14 +36,19 @@ function determinarNivelResidual(
   quantidadeGramas: number,
   config: ConfiguracaoResiduais
 ): NivelResidual | null {
+  // Valores padrão caso config não esteja definido
+  const limiteMaximo = config?.limite_maximo ?? 999;
+  const limiteVerde = config?.limite_verde ?? 100;
+  const limiteAmarelo = config?.limite_amarelo ?? 900;
+
   // Acima do limite máximo não é considerado residual
-  if (quantidadeGramas > config.limite_maximo) {
+  if (quantidadeGramas > limiteMaximo) {
     return null;
   }
 
-  if (quantidadeGramas <= config.limite_verde) {
+  if (quantidadeGramas <= limiteVerde) {
     return 'verde';
-  } else if (quantidadeGramas <= config.limite_amarelo) {
+  } else if (quantidadeGramas <= limiteAmarelo) {
     return 'amarelo';
   } else {
     return 'vermelho';
@@ -54,11 +59,11 @@ function determinarNivelResidual(
  * Verifica se um material é de alto valor (extrema atenção)
  */
 function ehMaterialAltoValor(material: string, config: ConfiguracaoResiduais): boolean {
-  return config.materiais_alto_valor.includes(material);
+  return config?.materiais_alto_valor?.includes(material) ?? false;
 }
 
 /**
- * Verifica se um lote é único no depósito PES
+ * Verifica se é o único resquício daquele lote específico em todas as posições do PES
  */
 function verificarLoteUnico(
   material: string,
@@ -70,14 +75,15 @@ function verificarLoteUnico(
     return false;
   }
 
-  // Conta quantos lotes diferentes existem para este material no depósito PES
-  const lotesNoPES = new Set(
-    todosOsDados
-      .filter(item => item.material === material && item.deposito === 'PES')
-      .map(item => item.lote)
-  );
+  // Conta quantas posições existem para este material+lote específico no depósito PES
+  const posicoesDoLote = todosOsDados.filter(
+    item => item.material === material && 
+            item.lote === lote && 
+            item.deposito === 'PES'
+  ).length;
 
-  return lotesNoPES.size === 1;
+  // É lote único se existe em apenas uma posição (único resquício)
+  return posicoesDoLote === 1;
 }
 
 /**
@@ -247,18 +253,17 @@ export function enriquecerAgingComAnalise(
 ): AgingTableRow[] {
   // Pré-computar contagem de remessas por material
   const remessasPorMaterial: Record<string, number> = {};
-  for (const r of remessas) {
+  const remessasArray = remessas || [];
+  for (const r of remessasArray) {
     remessasPorMaterial[r.material] = (remessasPorMaterial[r.material] || 0) + 1;
   }
 
-  // Pré-computar lotes por material no PES para performance
-  const lotesPorMaterialPES: Record<string, Set<string>> = {};
+  // Pré-computar contagem de posições por material+lote no PES para performance
+  const posicoesDoLoteNoPES: Record<string, number> = {};
   for (const item of agingData) {
     if (item.deposito === 'PES') {
-      if (!lotesPorMaterialPES[item.material]) {
-        lotesPorMaterialPES[item.material] = new Set();
-      }
-      lotesPorMaterialPES[item.material].add(item.lote);
+      const chave = `${item.material}|${item.lote}`;
+      posicoesDoLoteNoPES[chave] = (posicoesDoLoteNoPES[chave] || 0) + 1;
     }
   }
 
@@ -267,8 +272,11 @@ export function enriquecerAgingComAnalise(
     const quantidadeGramas = converterParaGramas(item.estoque_disponivel, item.unidade_medida);
     const nivel = item.deposito === 'PES' ? determinarNivelResidual(quantidadeGramas, config) : null;
     const materialAltoValor = ehMaterialAltoValor(item.material, config);
+    
+    // Lote único = apenas uma posição para aquele material+lote específico no PES
+    const chave = `${item.material}|${item.lote}`;
     const ehLoteUnico = item.deposito === 'PES'
-      ? (lotesPorMaterialPES[item.material]?.size === 1)
+      ? (posicoesDoLoteNoPES[chave] === 1)
       : false;
 
     return {

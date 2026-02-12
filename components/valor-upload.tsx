@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { parseValorExcelFile, MaterialValor } from '@/lib/valor-parser';
-import { supabase } from '@/lib/supabase';
+import { supabase, invalidateMaterialValoresCache } from '@/lib/supabase';
 
 const ADMIN_PASSWORD = '070594';
 
@@ -22,6 +22,11 @@ export function ValorUpload({ onUploadComplete }: ValorUploadProps = {}) {
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  const handleClearCache = () => {
+    invalidateMaterialValoresCache();
+    setMessage({ type: 'success', text: '🗑️ Cache limpo! Os valores serão recarregados do banco.' });
+  };
 
   const handlePasswordSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -54,33 +59,46 @@ export function ValorUpload({ onUploadComplete }: ValorUploadProps = {}) {
       // Parse do arquivo Excel
       const valoresData = await parseValorExcelFile(file);
 
-      console.log(`📊 Processados ${valoresData.length} materiais`);
+      console.log(`📊 Processados ${valoresData.length} materiais da planilha`);
+      console.log(`📝 Exemplo:`, valoresData.slice(0, 3));
 
-      // Deleta dados antigos
-      const { error: deleteError } = await supabase
+      // Verifica quantos registros existem antes
+      const { count: countBefore } = await supabase
+        .from('material_valores')
+        .select('*', { count: 'exact', head: true });
+      
+      console.log(`📦 Registros no banco ANTES: ${countBefore || 0}`);
+
+      // Deleta dados antigos - usando uma query que sempre funciona
+      console.log('🗑️ Deletando registros antigos...');
+      const { error: deleteError, count: deletedCount } = await supabase
         .from('material_valores')
         .delete()
-        .neq('material', ''); // Deleta tudo
+        .gte('created_at', '2000-01-01'); // Delete todos desde 2000
 
-      if (deleteError && deleteError.code !== 'PGRST116') {
+      if (deleteError) {
+        console.error('❌ Erro no delete:', deleteError);
         throw new Error(`Erro ao limpar dados antigos: ${deleteError.message}`);
       }
 
-      // Insere novos dados em lotes de 1000 registros
-      const batchSize = 1000;
+      console.log(`✅ Deletados: ${deletedCount || 'todos'} registros`);
+
+      // Insere novos dados em lotes de 500 registros (reduzido para evitar timeout)
+      const batchSize = 500;
       let insertedCount = 0;
 
       for (let i = 0; i < valoresData.length; i += batchSize) {
         const batch = valoresData.slice(i, i + batchSize);
         
-        const { error: insertError } = await supabase
+        console.log(`📤 Inserindo lote ${Math.floor(i / batchSize) + 1}/${Math.ceil(valoresData.length / batchSize)}...`);
+        
+        const { data: insertData, error: insertError } = await supabase
           .from('material_valores')
-          .upsert(batch, { 
-            onConflict: 'material',
-            ignoreDuplicates: false 
-          });
+          .insert(batch)
+          .select();
 
         if (insertError) {
+          console.error(`❌ Erro ao inserir lote ${Math.floor(i / batchSize) + 1}:`, insertError);
           throw new Error(`Erro ao inserir lote ${Math.floor(i / batchSize) + 1}: ${insertError.message}`);
         }
 
@@ -88,9 +106,19 @@ export function ValorUpload({ onUploadComplete }: ValorUploadProps = {}) {
         console.log(`✅ Inseridos ${insertedCount}/${valoresData.length} materiais`);
       }
 
+      // Verifica quantos registros existem depois
+      const { count: countAfter } = await supabase
+        .from('material_valores')
+        .select('*', { count: 'exact', head: true });
+      
+      console.log(`📦 Registros no banco DEPOIS: ${countAfter || 0}`);
+
+      // Invalidar cache para forçar nova busca
+      invalidateMaterialValoresCache();
+
       setMessage({
         type: 'success',
-        text: `✅ Upload concluído! ${insertedCount} materiais atualizados com sucesso.`
+        text: `✅ Upload concluído! ${insertedCount} materiais inseridos. Total no banco: ${countAfter || insertedCount}`
       });
       setFile(null);
 
@@ -106,7 +134,7 @@ export function ValorUpload({ onUploadComplete }: ValorUploadProps = {}) {
       }
 
     } catch (error) {
-      console.error('Erro no upload:', error);
+      console.error('❌ Erro no upload:', error);
       setMessage({ 
         type: 'error', 
         text: `Erro: ${error instanceof Error ? error.message : 'Erro desconhecido'}` 
@@ -194,6 +222,24 @@ export function ValorUpload({ onUploadComplete }: ValorUploadProps = {}) {
             <li>• Os nomes das colunas são detectados automaticamente</li>
             <li>• A primeira linha deve conter os cabeçalhos</li>
           </ul>
+        </div>
+
+        <div className="bg-blue-50 dark:bg-blue-950/20 p-4 rounded-md border border-blue-200 dark:border-blue-800">
+          <h4 className="font-semibold text-sm mb-2 flex items-center gap-2 text-blue-900 dark:text-blue-100">
+            💾 Cache Inteligente
+          </h4>
+          <p className="text-xs text-blue-800 dark:text-blue-200 mb-2">
+            Os valores são armazenados localmente por 24 horas para melhor performance. 
+            Após o upload, o cache é automaticamente atualizado.
+          </p>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleClearCache}
+            className="text-xs h-7"
+          >
+            🗑️ Limpar Cache Manualmente
+          </Button>
         </div>
 
         {message && (

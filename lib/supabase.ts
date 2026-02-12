@@ -6,6 +6,66 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
+// Configuração do cache
+const CACHE_KEY = 'material_valores_cache';
+const CACHE_EXPIRY_MS = 24 * 60 * 60 * 1000; // 24 horas
+
+interface CacheData {
+  valores: Record<string, number>;
+  timestamp: number;
+  count: number;
+}
+
+// Função para salvar cache
+function saveCacheToStorage(valores: Record<string, number>): void {
+  if (typeof window === 'undefined') return;
+  
+  const cacheData: CacheData = {
+    valores,
+    timestamp: Date.now(),
+    count: Object.keys(valores).length
+  };
+  
+  try {
+    localStorage.setItem(CACHE_KEY, JSON.stringify(cacheData));
+    console.log('💾 Cache salvo:', cacheData.count, 'materiais');
+  } catch (error) {
+    console.warn('⚠️ Erro ao salvar cache:', error);
+  }
+}
+
+// Função para carregar cache
+function loadCacheFromStorage(): Record<string, number> | null {
+  if (typeof window === 'undefined') return null;
+  
+  try {
+    const cached = localStorage.getItem(CACHE_KEY);
+    if (!cached) return null;
+    
+    const cacheData: CacheData = JSON.parse(cached);
+    const age = Date.now() - cacheData.timestamp;
+    
+    if (age > CACHE_EXPIRY_MS) {
+      console.log('⏰ Cache expirado (idade: ' + Math.round(age / 1000 / 60 / 60) + 'h)');
+      localStorage.removeItem(CACHE_KEY);
+      return null;
+    }
+    
+    console.log('✅ Cache carregado:', cacheData.count, 'materiais (idade: ' + Math.round(age / 1000 / 60) + 'min)');
+    return cacheData.valores;
+  } catch (error) {
+    console.warn('⚠️ Erro ao carregar cache:', error);
+    return null;
+  }
+}
+
+// Função para invalidar cache
+export function invalidateMaterialValoresCache(): void {
+  if (typeof window === 'undefined') return;
+  localStorage.removeItem(CACHE_KEY);
+  console.log('🗑️ Cache invalidado');
+}
+
 // Função para buscar todos os dados de aging
 export async function fetchAgingData(): Promise<AgingData[]> {
   const { data, error } = await supabase
@@ -23,24 +83,66 @@ export async function fetchAgingData(): Promise<AgingData[]> {
   return data || [];
 }
 
-// Função para buscar valores unitários dos materiais
-export async function fetchMaterialValores(): Promise<Record<string, number>> {
-  const { data, error } = await supabase
-    .from('material_valores')
-    .select('material, valor_unitario');
-
-  if (error) {
-    if (typeof window !== 'undefined') {
-      console.error('Erro ao buscar valores:', error);
+// Função para buscar valores unitários dos materiais (com cache)
+export async function fetchMaterialValores(forceRefresh: boolean = false): Promise<Record<string, number>> {
+  // Tentar carregar do cache primeiro
+  if (!forceRefresh) {
+    const cachedValues = loadCacheFromStorage();
+    if (cachedValues) {
+      return cachedValues;
     }
-    return {}; // Retorna objeto vazio se houver erro
+  }
+
+  console.log('🔄 Buscando valores do banco de dados...');
+  
+  // Buscar TODOS os registros (sem limite padrão de 1000)
+  // Supabase tem limite de 1000 por padrão, precisamos buscar todos
+  let allData: any[] = [];
+  let page = 0;
+  const pageSize = 1000;
+  let hasMore = true;
+
+  while (hasMore) {
+    const { data, error } = await supabase
+      .from('material_valores')
+      .select('material, valor_unitario')
+      .range(page * pageSize, (page + 1) * pageSize - 1);
+
+    if (error) {
+      if (typeof window !== 'undefined') {
+        console.error('Erro ao buscar valores:', error);
+      }
+      return {}; // Retorna objeto vazio se houver erro
+    }
+
+    if (data && data.length > 0) {
+      allData = [...allData, ...data];
+      page++;
+      hasMore = data.length === pageSize; // Se retornou menos que pageSize, acabou
+    } else {
+      hasMore = false;
+    }
   }
 
   // Converte array para objeto { material: valor_unitario }
   const valoresMap: Record<string, number> = {};
-  data?.forEach(item => {
+  allData.forEach(item => {
     valoresMap[item.material] = item.valor_unitario;
   });
+
+  if (typeof window !== 'undefined') {
+    console.log('💰 Valores carregados do Supabase:');
+    console.log(`  Total: ${Object.keys(valoresMap).length} materiais (${page} páginas)`);
+    if (Object.keys(valoresMap).length > 0) {
+      const exemplos = Object.entries(valoresMap).slice(0, 5);
+      exemplos.forEach(([mat, val]) => {
+        console.log(`    ${mat} = R$ ${val.toFixed(2)}`);
+      });
+    }
+  }
+
+  // Salvar no cache
+  saveCacheToStorage(valoresMap);
 
   return valoresMap;
 }
