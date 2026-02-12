@@ -55,6 +55,40 @@ const numberRangeFilter: FilterFn<RemessaData> = (row, columnId, filterValue) =>
   return true;
 };
 
+// Custom filter for date range [start, end]
+const dateRangeFilter: FilterFn<RemessaData> = (row, columnId, filterValue) => {
+  const dateStr = row.getValue<string>(columnId);
+  if (!dateStr) return false;
+
+  const [startDate, endDate] = filterValue as [string | undefined, string | undefined];
+  if (!startDate && !endDate) return true;
+
+  // Parse date in DD/MM/YYYY format
+  const parseDateStr = (str: string): Date | null => {
+    const match = str.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if (!match) return null;
+    const [, day, month, year] = match;
+    return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+  };
+
+  const rowDate = parseDateStr(dateStr);
+  if (!rowDate) return false;
+
+  if (startDate) {
+    const start = new Date(startDate);
+    start.setHours(0, 0, 0, 0);
+    if (rowDate < start) return false;
+  }
+
+  if (endDate) {
+    const end = new Date(endDate);
+    end.setHours(23, 59, 59, 999);
+    if (rowDate > end) return false;
+  }
+
+  return true;
+};
+
 interface RemessasViewProps {
   remessas: RemessaData[];
   materialFilter?: string;
@@ -68,7 +102,7 @@ function ColumnFilterWidget({
 }: {
   column: Column<RemessaData, unknown>;
   table: TanstackTable<RemessaData>;
-  filterType: 'text' | 'select' | 'range';
+  filterType: 'text' | 'select' | 'range' | 'date';
 }) {
   if (filterType === 'text') {
     return (
@@ -147,6 +181,40 @@ function ColumnFilterWidget({
     );
   }
 
+  if (filterType === 'date') {
+    const currentFilter = column.getFilterValue() as [string | undefined, string | undefined] | undefined;
+    return (
+      <div className="flex gap-1">
+        <Input
+          type="date"
+          placeholder="De"
+          className="h-7 text-xs w-[110px]"
+          value={currentFilter?.[0] ?? ''}
+          onChange={(e) => {
+            const val = e.target.value;
+            column.setFilterValue((old: [string | undefined, string | undefined] | undefined) => [
+              val || undefined,
+              old?.[1],
+            ]);
+          }}
+        />
+        <Input
+          type="date"
+          placeholder="Até"
+          className="h-7 text-xs w-[110px]"
+          value={currentFilter?.[1] ?? ''}
+          onChange={(e) => {
+            const val = e.target.value;
+            column.setFilterValue((old: [string | undefined, string | undefined] | undefined) => [
+              old?.[0],
+              val || undefined,
+            ]);
+          }}
+        />
+      </div>
+    );
+  }
+
   return null;
 }
 
@@ -159,7 +227,7 @@ function SortIcon({ column }: { column: Column<RemessaData, unknown> }) {
 }
 
 // Filter type map per column
-type FilterType = 'text' | 'select' | 'range' | 'none';
+type FilterType = 'text' | 'select' | 'range' | 'date' | 'none';
 
 const COLUMN_FILTER_TYPES: Record<string, FilterType> = {
   select: 'none',
@@ -171,8 +239,8 @@ const COLUMN_FILTER_TYPES: Record<string, FilterType> = {
   deposito: 'select',
   quantidade: 'range',
   unidade_medida: 'select',
-  data_disponibilidade: 'text',
-  data_picking: 'text',
+  data_disponibilidade: 'date',
+  data_picking: 'date',
   peso_total_remessa: 'range',
 };
 
@@ -326,6 +394,7 @@ export function RemessasView({ remessas, materialFilter }: RemessasViewProps) {
         cell: ({ getValue }) => (
           <span className="text-xs text-muted-foreground">{getValue<string>()}</span>
         ),
+        filterFn: dateRangeFilter,
         size: 110,
       },
       {
@@ -336,6 +405,7 @@ export function RemessasView({ remessas, materialFilter }: RemessasViewProps) {
           if (!data) return <span className="text-muted-foreground text-center block">-</span>;
           return <span className="text-xs text-muted-foreground">{data}</span>;
         },
+        filterFn: dateRangeFilter,
         size: 110,
       },
       {
@@ -376,6 +446,7 @@ export function RemessasView({ remessas, materialFilter }: RemessasViewProps) {
     enableRowSelection: true,
     filterFns: {
       numberRange: numberRangeFilter,
+      dateRange: dateRangeFilter,
     },
   });
 

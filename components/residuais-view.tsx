@@ -226,6 +226,8 @@ export function ResiduaisView({ agingData, valores, remessas, configResiduais, o
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
   const [globalFilter, setGlobalFilter] = useState('');
   const [copied, setCopied] = useState(false);
+  const [copiedMIGO, setCopiedMIGO] = useState(false);
+  const [copiedLote, setCopiedLote] = useState(false);
   const [copiedCell, setCopiedCell] = useState<string | null>(null);
   const [nivelFilter, setNivelFilter] = useState<NivelResidual | null>(null);
 
@@ -500,15 +502,18 @@ export function ResiduaisView({ agingData, valores, remessas, configResiduais, o
           const material = row.getValue<string>('material');
           if (count === 0) return <span className="text-muted-foreground text-center block">-</span>;
           return (
-            <Badge 
-              variant="secondary" 
-              className="bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 cursor-pointer hover:bg-blue-200 dark:hover:bg-blue-800/40 transition-colors"
-              onClick={() => onNavigateToRemessas?.(material)}
-              title="Clique para ver remessas deste material"
-            >
-              <Package className="h-3.5 w-3.5 mr-1.5" />
-              {count}
-            </Badge>
+            <div className="relative group">
+              <Badge
+                variant="secondary"
+                className="bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white border-0 cursor-pointer transition-all duration-300 hover:scale-110 hover:shadow-lg font-semibold px-2.5 py-0.5"
+                onClick={() => onNavigateToRemessas?.(material)}
+                title="Clique para ver remessas deste material"
+              >
+                <Package className="h-3 w-3 mr-1 animate-pulse" />
+                <span className="font-mono text-xs">{count}</span>
+              </Badge>
+              <div className="absolute inset-0 bg-blue-400 opacity-0 group-hover:opacity-30 blur-md transition-opacity duration-300 rounded pointer-events-none" />
+            </div>
           );
         },
         filterFn: numberRangeFilter,
@@ -580,6 +585,57 @@ export function ResiduaisView({ agingData, valores, remessas, configResiduais, o
     });
   };
 
+  // Copy selected rows for MIGO transaction
+  const handleCopyMIGO = () => {
+    const selectedRows = table.getFilteredSelectedRowModel().rows;
+    if (selectedRows.length === 0) return;
+
+    const lines = selectedRows.map((row) => {
+      const d = row.original;
+      // Sequência exata: codigo[2tabs]qtd[2tabs]umr[2tabs]Y84[1tab]centro[3tabs]pes[2tabs]pes[1tab]9000
+      return [
+        d.material,           // codigo
+        '',                   // tab vazio
+        d.estoque_disponivel.toLocaleString('pt-BR', {
+          minimumFractionDigits: 0,
+          maximumFractionDigits: 3,
+          useGrouping: false  // Remove separador de milhares
+        }),                   // qtd (quantidade com vírgula decimal)
+        '',                   // tab vazio
+        d.unidade_medida,     // umr (KG, G, etc)
+        '',                   // tab vazio
+        '',                   // tab vazio (Y84 já preenchido aqui)
+        '600',                // centro
+        '',                   // tab vazio
+        '',                   // tab vazio
+        'PES',                // pes
+        '',                   // tab vazio
+        'PES',                // pes
+        '9000',               // 9000
+      ].join('\t');
+    });
+
+    const text = lines.join('\n');
+    navigator.clipboard.writeText(text).then(() => {
+      setCopiedMIGO(true);
+      setTimeout(() => setCopiedMIGO(false), 2000);
+    });
+  };
+
+  // Copy selected rows for Lote bloqueio transaction
+  const handleCopyLote = () => {
+    const selectedRows = table.getFilteredSelectedRowModel().rows;
+    if (selectedRows.length === 0) return;
+
+    const lotes = selectedRows.map((row) => row.original.lote);
+    const text = lotes.join('\n');
+
+    navigator.clipboard.writeText(text).then(() => {
+      setCopiedLote(true);
+      setTimeout(() => setCopiedLote(false), 2000);
+    });
+  };
+
   // Clear all filters
   const handleClearFilters = () => {
     setColumnFilters([]);
@@ -646,6 +702,28 @@ export function ResiduaisView({ agingData, valores, remessas, configResiduais, o
         >
           <Copy className="h-4 w-4 mr-2" />
           {copied ? 'Copiado!' : `Copiar ${selectedCount > 0 ? selectedCount : ''} selecionados`}
+        </Button>
+
+        <Button
+          variant="default"
+          size="sm"
+          onClick={handleCopyMIGO}
+          disabled={selectedCount === 0}
+          className="bg-gradient-to-r from-green-600 to-emerald-700 hover:from-green-700 hover:to-emerald-800 text-white border-0 shadow-md hover:shadow-lg transition-all duration-300"
+        >
+          <Copy className="h-4 w-4 mr-2" />
+          {copiedMIGO ? 'Copiado MIGO!' : 'MIGO'}
+        </Button>
+
+        <Button
+          variant="default"
+          size="sm"
+          onClick={handleCopyLote}
+          disabled={selectedCount === 0}
+          className="bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white border-0 shadow-md hover:shadow-lg transition-all duration-300"
+        >
+          <Copy className="h-4 w-4 mr-2" />
+          {copiedLote ? 'Copiado Lote!' : 'Lote'}
         </Button>
 
         <Badge variant="outline" className="shrink-0">
