@@ -65,77 +65,65 @@ export function AgingStats({ data, onMaterialEspecialClick, selectedMaterialEspe
   };
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-2">
       <Card className="bg-gradient-to-br from-purple-500 to-indigo-600 border-0 text-white">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-4">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-0 pt-2">
           <CardTitle className="text-sm font-medium opacity-90">Total de Itens</CardTitle>
-          <div className="p-1.5 bg-white/20 rounded-lg">
-            <Package className="h-4 w-4" />
+          <div className="p-1 bg-white/20 rounded-lg">
+            <Package className="h-3 w-3" />
           </div>
         </CardHeader>
-        <CardContent className="pb-4">
-          <div className="text-2xl font-bold leading-tight">{formatNumber(stats.totalItens)}</div>
-          <p className="text-[10px] opacity-80 mt-0.5">
-            Registros no estoque
-          </p>
+        <CardContent className="pb-2">
+          <div className="text-lg font-bold leading-tight">{formatNumber(stats.totalItens)}</div>
         </CardContent>
       </Card>
 
       <Card className="bg-gradient-to-br from-green-500 to-teal-600 border-0 text-white">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-4">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-0 pt-2">
           <CardTitle className="text-sm font-medium opacity-90">Média de Aging</CardTitle>
-          <div className="p-1.5 bg-white/20 rounded-lg">
-            <Calendar className="h-4 w-4" />
+          <div className="p-1 bg-white/20 rounded-lg">
+            <Calendar className="h-3 w-3" />
           </div>
         </CardHeader>
-        <CardContent className="pb-4">
-          <div className="text-2xl font-bold leading-tight">{Math.round(stats.mediaAging)} dias</div>
-          <div className="mt-1">
+        <CardContent className="pb-2">
+          <div className="text-lg font-bold leading-tight">{Math.round(stats.mediaAging)} dias</div>
+          <div className="mt-0.5">
             {getCriticalityBadge(Math.round(stats.mediaAging))}
           </div>
-          <p className="text-[10px] opacity-80 mt-0.5">
-            Tempo médio no estoque
-          </p>
         </CardContent>
       </Card>
 
       <Card className="bg-gradient-to-br from-yellow-500 to-orange-600 border-0 text-white">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-4">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-0 pt-2">
           <CardTitle className="text-sm font-medium opacity-90">Itens em Alerta</CardTitle>
-          <div className="p-1.5 bg-white/20 rounded-lg">
-            <AlertCircle className="h-4 w-4" />
+          <div className="p-1 bg-white/20 rounded-lg">
+            <AlertCircle className="h-3 w-3" />
           </div>
         </CardHeader>
-        <CardContent className="pb-4">
-          <div className="text-2xl font-bold leading-tight">{formatNumber(stats.itensAlerta)}</div>
-          <div className="mt-1">
+        <CardContent className="pb-2">
+          <div className="text-lg font-bold leading-tight">{formatNumber(stats.itensAlerta)}</div>
+          <div className="mt-0.5">
             <Badge className="bg-white/20 hover:bg-white/30 text-[10px] py-0 px-2">
               10-20 dias
             </Badge>
           </div>
-          <p className="text-[10px] opacity-80 mt-0.5">
-            Requerem atenção
-          </p>
         </CardContent>
       </Card>
 
       <Card className="bg-gradient-to-br from-orange-500 to-red-600 border-0 text-white">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-4">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-0 pt-2">
           <CardTitle className="text-sm font-medium opacity-90">Itens Críticos</CardTitle>
-          <div className="p-1.5 bg-white/20 rounded-lg">
-            <TrendingUp className="h-4 w-4" />
+          <div className="p-1 bg-white/20 rounded-lg">
+            <TrendingUp className="h-3 w-3" />
           </div>
         </CardHeader>
-        <CardContent className="pb-4">
-          <div className="text-2xl font-bold leading-tight">{formatNumber(stats.itensCriticos)}</div>
-          <div className="mt-1 flex items-center gap-2">
+        <CardContent className="pb-2">
+          <div className="text-lg font-bold leading-tight">{formatNumber(stats.itensCriticos)}</div>
+          <div className="mt-0.5 flex items-center gap-2">
             <Badge className="bg-white/20 hover:bg-white/30 text-[10px] py-0 px-2">
               Máx: {stats.maxAging}d
             </Badge>
           </div>
-          <p className="text-[10px] opacity-80 mt-0.5">
-            Aging &gt; 20 dias
-          </p>
         </CardContent>
       </Card>
 
@@ -146,22 +134,19 @@ export function AgingStats({ data, onMaterialEspecialClick, selectedMaterialEspe
           }`}
           onClick={() => onMaterialEspecialClick?.(selectedMaterialEspecial === 'inf' ? null : 'inf')}
         >
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-4">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-0 pt-2">
             <CardTitle className="text-sm font-medium opacity-90">Inflamáveis (INF)</CardTitle>
-            <div className="p-1.5 bg-white/20 rounded-lg">
-              <Flame className="h-4 w-4" />
+            <div className="p-1 bg-white/20 rounded-lg">
+              <Flame className="h-3 w-3" />
             </div>
           </CardHeader>
-          <CardContent className="pb-4">
-            <div className="text-2xl font-bold leading-tight">{formatNumber(stats.materiaisInf)}</div>
-            <div className="mt-1">
+          <CardContent className="pb-2">
+            <div className="text-lg font-bold leading-tight">{formatNumber(stats.materiaisInf)}</div>
+            <div className="mt-0.5">
               <Badge className="bg-white/20 hover:bg-white/30 text-[10px] py-0 px-2">
                 {selectedMaterialEspecial === 'inf' ? 'Filtrado ✓' : 'Clique para filtrar'}
               </Badge>
             </div>
-            <p className="text-[10px] opacity-80 mt-0.5">
-              Requer armazenamento especial
-            </p>
           </CardContent>
         </Card>
       )}
@@ -173,22 +158,19 @@ export function AgingStats({ data, onMaterialEspecialClick, selectedMaterialEspe
           }`}
           onClick={() => onMaterialEspecialClick?.(selectedMaterialEspecial === 'cfa' ? null : 'cfa')}
         >
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-4">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-0 pt-2">
             <CardTitle className="text-sm font-medium opacity-90">Refrigerados (CFA 2-8°C)</CardTitle>
-            <div className="p-1.5 bg-white/20 rounded-lg">
-              <Thermometer className="h-4 w-4" />
+            <div className="p-1 bg-white/20 rounded-lg">
+              <Thermometer className="h-3 w-3" />
             </div>
           </CardHeader>
-          <CardContent className="pb-4">
-            <div className="text-2xl font-bold leading-tight">{formatNumber(stats.materiaisCfa)}</div>
-            <div className="mt-1">
+          <CardContent className="pb-2">
+            <div className="text-lg font-bold leading-tight">{formatNumber(stats.materiaisCfa)}</div>
+            <div className="mt-0.5">
               <Badge className="bg-white/20 hover:bg-white/30 text-[10px] py-0 px-2">
                 {selectedMaterialEspecial === 'cfa' ? 'Filtrado ✓' : 'Clique para filtrar'}
               </Badge>
             </div>
-            <p className="text-[10px] opacity-80 mt-0.5">
-              Manter refrigerado
-            </p>
           </CardContent>
         </Card>
       )}

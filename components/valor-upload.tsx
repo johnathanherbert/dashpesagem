@@ -12,7 +12,11 @@ import { supabase } from '@/lib/supabase';
 
 const ADMIN_PASSWORD = '070594';
 
-export function ValorUpload() {
+interface ValorUploadProps {
+  onUploadComplete?: () => void;
+}
+
+export function ValorUpload({ onUploadComplete }: ValorUploadProps = {}) {
   const [password, setPassword] = useState('');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [file, setFile] = useState<File | null>(null);
@@ -84,15 +88,22 @@ export function ValorUpload() {
         console.log(`✅ Inseridos ${insertedCount}/${valoresData.length} materiais`);
       }
 
-      setMessage({ 
-        type: 'success', 
-        text: `✅ Upload concluído! ${insertedCount} materiais atualizados com sucesso.` 
+      setMessage({
+        type: 'success',
+        text: `✅ Upload concluído! ${insertedCount} materiais atualizados com sucesso.`
       });
       setFile(null);
-      
+
       // Reset file input
       const fileInput = document.getElementById('valor-file-input') as HTMLInputElement;
       if (fileInput) fileInput.value = '';
+
+      // Notifica o componente pai
+      if (onUploadComplete) {
+        setTimeout(() => {
+          onUploadComplete();
+        }, 1000);
+      }
 
     } catch (error) {
       console.error('Erro no upload:', error);
