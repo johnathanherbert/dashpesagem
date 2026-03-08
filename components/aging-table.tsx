@@ -37,6 +37,7 @@ export function AgingTable({ data }: AgingTableProps) {
   const [tipoDepositoFilter, setTipoDepositoFilter] = useState<string>('all');
   const [centroFilter, setCentroFilter] = useState<string>('all');
   const [unidadeFilter, setUnidadeFilter] = useState<string>('all');
+  const [tipoEstoqueFilter, setTipoEstoqueFilter] = useState<string>('all');
 
   // Função para alternar ordenação
   const handleSort = (field: SortField) => {
@@ -83,6 +84,15 @@ export function AgingTable({ data }: AgingTableProps) {
       filtered = filtered.filter(item => item.unidade_medida === unidadeFilter);
     }
 
+    // Aplicar filtro por tipo de estoque
+    if (tipoEstoqueFilter === 'S') {
+      filtered = filtered.filter(item => item.tipo_estoque?.trim().toUpperCase() === 'S');
+    }
+
+    if (tipoEstoqueFilter === 'empty') {
+      filtered = filtered.filter(item => !item.tipo_estoque?.trim());
+    }
+
     // Aplicar busca
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
@@ -116,7 +126,7 @@ export function AgingTable({ data }: AgingTableProps) {
         return bStr.localeCompare(aStr);
       }
     });
-  }, [data, searchTerm, sortField, sortOrder, tipoDepositoFilter, centroFilter, unidadeFilter]);
+  }, [data, searchTerm, sortField, sortOrder, tipoDepositoFilter, centroFilter, unidadeFilter, tipoEstoqueFilter]);
 
   // Função para limpar todos os filtros
   const clearFilters = () => {
@@ -124,9 +134,10 @@ export function AgingTable({ data }: AgingTableProps) {
     setTipoDepositoFilter('all');
     setCentroFilter('all');
     setUnidadeFilter('all');
+    setTipoEstoqueFilter('all');
   };
 
-  const hasActiveFilters = searchTerm || tipoDepositoFilter !== 'all' || centroFilter !== 'all' || unidadeFilter !== 'all';
+  const hasActiveFilters = searchTerm || tipoDepositoFilter !== 'all' || centroFilter !== 'all' || unidadeFilter !== 'all' || tipoEstoqueFilter !== 'all';
 
   // Função para obter cor do badge baseado no aging
   const getAgingBadgeVariant = (dias: number | undefined) => {
@@ -222,6 +233,20 @@ export function AgingTable({ data }: AgingTableProps) {
                   {unidades.map(unidade => (
                     <SelectItem key={unidade} value={unidade}>{unidade}</SelectItem>
                   ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex-1 min-w-[200px]">
+              <Select value={tipoEstoqueFilter} onValueChange={setTipoEstoqueFilter}>
+                <SelectTrigger>
+                  <Filter className="h-4 w-4 mr-2" />
+                  <SelectValue placeholder="Tipo de Estoque" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os Tipos de Estoque</SelectItem>
+                  <SelectItem value="S">Somente S</SelectItem>
+                  <SelectItem value="empty">Somente Vazios</SelectItem>
                 </SelectContent>
               </Select>
             </div>

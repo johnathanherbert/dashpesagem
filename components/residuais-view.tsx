@@ -69,6 +69,19 @@ const statusAgingFilter: FilterFn<AgingTableRow> = (row, columnId, filterValue) 
   return status === filterValue;
 };
 
+const tipoEstoqueFilter: FilterFn<AgingTableRow> = (row, columnId, filterValue) => {
+  if (!filterValue || filterValue === '__all__') return true;
+
+  const raw = row.getValue<string | null | undefined>(columnId);
+  const normalized = (raw ?? '').trim().toUpperCase();
+
+  if (filterValue === '__empty__') {
+    return normalized === '';
+  }
+
+  return normalized === String(filterValue).trim().toUpperCase();
+};
+
 interface ResiduaisViewProps {
   agingData: AgingData[];
   valores: Record<string, number>;
@@ -114,6 +127,30 @@ function ColumnFilterWidget({
             <SelectItem value="Normal">Normal</SelectItem>
             <SelectItem value="Alerta">Alerta</SelectItem>
             <SelectItem value="Crítico">Crítico</SelectItem>
+          </SelectContent>
+        </Select>
+      );
+    }
+
+    if (column.id === 'tipo_estoque') {
+      return (
+        <Select
+          value={(column.getFilterValue() as string) ?? '__all__'}
+          onValueChange={(v) => {
+            if (v === '__all__') {
+              column.setFilterValue(undefined);
+              return;
+            }
+            column.setFilterValue(v);
+          }}
+        >
+          <SelectTrigger className="h-7 text-xs min-w-[70px]" size="sm">
+            <SelectValue placeholder="Todos" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__">Todos</SelectItem>
+            <SelectItem value="S">S</SelectItem>
+            <SelectItem value="__empty__">Vazio</SelectItem>
           </SelectContent>
         </Select>
       );
@@ -492,6 +529,7 @@ export function ResiduaisView({ agingData, valores, remessas, configResiduais, o
       {
         accessorKey: 'tipo_estoque',
         header: 'Tipo Est.',
+        filterFn: tipoEstoqueFilter,
         size: 70,
       },
       {
@@ -543,6 +581,7 @@ export function ResiduaisView({ agingData, valores, remessas, configResiduais, o
     filterFns: {
       numberRange: numberRangeFilter,
       statusAging: statusAgingFilter,
+      tipoEstoque: tipoEstoqueFilter,
     },
   });
 
