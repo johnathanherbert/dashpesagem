@@ -28,6 +28,14 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -265,8 +273,14 @@ export function ResiduaisView({ agingData, valores, remessas, configResiduais, o
   const [copied, setCopied] = useState(false);
   const [copiedMIGO, setCopiedMIGO] = useState(false);
   const [copiedLote, setCopiedLote] = useState(false);
+  const [copiedDevolver, setCopiedDevolver] = useState(false);
   const [copiedCell, setCopiedCell] = useState<string | null>(null);
   const [nivelFilter, setNivelFilter] = useState<NivelResidual | null>(null);
+  const [devolverOpen, setDevolverOpen] = useState(false);
+  const [devolverMaterial, setDevolverMaterial] = useState('');
+  const [devolverLote, setDevolverLote] = useState('');
+  const [devolverQuantidade, setDevolverQuantidade] = useState('1');
+  const [devolverItemCount, setDevolverItemCount] = useState('1');
 
   // Função para copiar texto ao clicar
   const handleCopyText = async (text: string, cellId: string) => {
@@ -675,9 +689,47 @@ export function ResiduaisView({ agingData, valores, remessas, configResiduais, o
     });
   };
 
+  const handleOpenDevolver = () => {
+    const selectedRows = table.getFilteredSelectedRowModel().rows;
+    if (selectedRows.length !== 1) return;
+
+    const selected = selectedRows[0].original;
+    const quantidadeTabela = selected.estoque_disponivel.toLocaleString('pt-BR', {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 3,
+      useGrouping: false,
+    });
+
+    setDevolverMaterial(selected.material);
+    setDevolverLote(selected.lote);
+    setDevolverQuantidade(quantidadeTabela);
+    setDevolverItemCount('1');
+    setDevolverOpen(true);
+  };
+
+  const handleConfirmDevolver = () => {
+    const quantidade = devolverQuantidade.trim();
+    const itemCount = devolverItemCount.trim();
+    if (!quantidade || !itemCount) return;
+
+    const text = [
+      devolverMaterial,
+      devolverLote,
+      quantidade,
+      itemCount,
+      '1',
+    ].join('\t');
+
+    navigator.clipboard.writeText(text).then(() => {
+      setCopiedDevolver(true);
+      setDevolverOpen(false);
+      setTimeout(() => setCopiedDevolver(false), 2000);
+    });
+  };
+
   // Clear all filters
   const handleClearFilters = () => {
-    setColumnFilters([]);
+     setColumnFilters([]);
     setGlobalFilter('');
     setRowSelection({});
     setNivelFilter(null);
@@ -763,6 +815,18 @@ export function ResiduaisView({ agingData, valores, remessas, configResiduais, o
         >
           <Copy className="h-4 w-4 mr-2" />
           {copiedLote ? 'Copiado Lote!' : 'Lote'}
+        </Button>
+
+        <Button
+          variant="default"
+          size="sm"
+          onClick={handleOpenDevolver}
+          disabled={selectedCount !== 1}
+          className="bg-gradient-to-r from-amber-600 to-orange-700 hover:from-amber-700 hover:to-orange-800 text-white border-0 shadow-md hover:shadow-lg transition-all duration-300"
+          title="Selecione exatamente 1 item"
+        >
+          <Copy className="h-4 w-4 mr-2" />
+          {copiedDevolver ? 'Copiado Devolver!' : 'Devolver'}
         </Button>
 
         <Badge variant="outline" className="shrink-0">
@@ -899,6 +963,61 @@ export function ResiduaisView({ agingData, valores, remessas, configResiduais, o
           </TableBody>
         </Table>
       </div>
+
+      <Dialog open={devolverOpen} onOpenChange={setDevolverOpen}>
+        <DialogContent className="sm:max-w-[460px]">
+          <DialogHeader>
+            <DialogTitle>Devolver</DialogTitle>
+            <DialogDescription>
+              Confirme os dados para copiar a linha tabulada para o SAP. O ultimo campo sempre sera 1.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid gap-3">
+            <div className="grid gap-1">
+              <span className="text-sm font-medium">Material</span>
+              <Input value={devolverMaterial} readOnly className="font-mono" />
+            </div>
+
+            <div className="grid gap-1">
+              <span className="text-sm font-medium">Lote</span>
+              <Input value={devolverLote} readOnly className="font-mono" />
+            </div>
+
+            <div className="grid gap-1">
+              <span className="text-sm font-medium">Quantidade</span>
+              <Input
+                value={devolverQuantidade}
+                onChange={(e) => setDevolverQuantidade(e.target.value)}
+                placeholder="Ex: 1"
+                className="font-mono"
+              />
+            </div>
+
+            <div className="grid gap-1">
+              <span className="text-sm font-medium">Primeiro 1 (editavel)</span>
+              <Input
+                value={devolverItemCount}
+                onChange={(e) => setDevolverItemCount(e.target.value)}
+                placeholder="Ex: 1 ou 2"
+                className="font-mono"
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setDevolverOpen(false)}
+            >
+              Cancelar
+            </Button>
+            <Button onClick={handleConfirmDevolver} disabled={!devolverQuantidade.trim() || !devolverItemCount.trim()}>
+              Confirmar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
