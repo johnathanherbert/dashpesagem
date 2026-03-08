@@ -420,32 +420,6 @@ export function AgingFinancial({
         </Card>
       </div>
 
-      {/* Botoes de Alternancia de Modo */}
-      {selectedTipoDeposito === 'PES' && (
-        <div className="flex items-center justify-center gap-2">
-          <Button
-            variant={viewMode === 'geral' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => {
-              onViewModeChange?.('geral');
-              onCriticalityChange?.(null);
-            }}
-          >
-            Visao Geral
-          </Button>
-          <Button
-            variant={viewMode === 'ajustes' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => {
-              onViewModeChange?.('ajustes');
-              onCriticalityChange?.(null);
-            }}
-          >
-            Ajustes (PES/S)
-          </Button>
-        </div>
-      )}
-
       {/* Graficos */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
         <Card className="cursor-pointer hover:shadow-lg transition-shadow">
