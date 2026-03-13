@@ -4,8 +4,56 @@ import { useMemo } from 'react';
 import { AgingData } from '@/types/aging';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Package, Calendar, TrendingUp, AlertCircle, Flame, Thermometer, CalendarClock } from 'lucide-react';
+import { Package, Calendar, TrendingUp, AlertCircle, Flame, Thermometer, CalendarClock, TrendingDown, Minus } from 'lucide-react';
 import { isMaterialEspecial, getMateriaisEspeciaisData } from '@/lib/materiais-especiais';
+import { DashboardSnapshot } from '@/lib/supabase';
+
+// Indica se subir é bom (true) ou ruim (false) para a métrica
+type TrendDirection = 'up-good' | 'up-bad' | 'neutral';
+
+function TrendBadge({
+  current,
+  previous,
+  direction = 'up-bad',
+  format = 'number',
+}: {
+  current: number;
+  previous: number | null | undefined;
+  direction?: TrendDirection;
+  format?: 'number' | 'days' | 'percent';
+}) {
+  if (previous === null || previous === undefined || previous === 0) return null;
+
+  const delta = current - previous;
+  const pct = Math.abs((delta / previous) * 100);
+
+  if (pct < 0.5) {
+    return (
+      <span className="inline-flex items-center gap-0.5 text-[9px] font-medium text-white/70">
+        <Minus className="h-2.5 w-2.5" />
+        estável
+      </span>
+    );
+  }
+
+  const isUp = delta > 0;
+  const isGood = direction === 'up-good' ? isUp : direction === 'up-bad' ? !isUp : true;
+  const color = isGood ? 'text-green-200' : 'text-red-200';
+  const label = format === 'days'
+    ? `${Math.abs(Math.round(delta))}d`
+    : format === 'percent'
+    ? `${pct.toFixed(1)}%`
+    : `${Math.abs(Math.round(delta))}`;
+
+  return (
+    <span className={`inline-flex items-center gap-0.5 text-[9px] font-semibold ${color}`}>
+      {isUp
+        ? <TrendingUp className="h-2.5 w-2.5" />
+        : <TrendingDown className="h-2.5 w-2.5" />}
+      {label}
+    </span>
+  );
+}
 
 interface AgingStatsProps {
   data: AgingData[];
@@ -13,9 +61,10 @@ interface AgingStatsProps {
   selectedMaterialEspecial?: 'inf' | 'cfa' | null;
   onVencimentoClick?: (tipo: 'vencidos' | 'proximos30' | null) => void;
   selectedVencimento?: 'vencidos' | 'proximos30' | null;
+  previousSnapshot?: DashboardSnapshot | null;
 }
 
-export function AgingStats({ data, onMaterialEspecialClick, selectedMaterialEspecial, onVencimentoClick, selectedVencimento }: AgingStatsProps) {
+export function AgingStats({ data, onMaterialEspecialClick, selectedMaterialEspecial, onVencimentoClick, selectedVencimento, previousSnapshot }: AgingStatsProps) {
   const stats = useMemo(() => {
     const totalItens = data.length;
 
@@ -122,6 +171,7 @@ export function AgingStats({ data, onMaterialEspecialClick, selectedMaterialEspe
           <div className="flex flex-col min-w-0">
             <span className="text-[10px] opacity-90 leading-none whitespace-nowrap">Total</span>
             <span className="text-base font-bold leading-none mt-0.5">{formatNumber(stats.totalItens)}</span>
+            <TrendBadge current={stats.totalItens} previous={previousSnapshot?.total_itens} direction="neutral" />
           </div>
         </div>
       </Card>
@@ -132,6 +182,7 @@ export function AgingStats({ data, onMaterialEspecialClick, selectedMaterialEspe
           <div className="flex flex-col min-w-0">
             <span className="text-[10px] opacity-90 leading-none whitespace-nowrap">Aging</span>
             <span className="text-base font-bold leading-none mt-0.5">{Math.round(stats.mediaAging)}d</span>
+            <TrendBadge current={stats.mediaAging} previous={previousSnapshot?.media_aging} direction="up-bad" format="days" />
           </div>
         </div>
       </Card>
@@ -142,6 +193,7 @@ export function AgingStats({ data, onMaterialEspecialClick, selectedMaterialEspe
           <div className="flex flex-col min-w-0">
             <span className="text-[10px] opacity-90 leading-none whitespace-nowrap">Alerta</span>
             <span className="text-base font-bold leading-none mt-0.5">{formatNumber(stats.itensAlerta)}</span>
+            <TrendBadge current={stats.itensAlerta} previous={previousSnapshot?.itens_alerta} direction="up-bad" />
           </div>
         </div>
       </Card>
@@ -152,6 +204,7 @@ export function AgingStats({ data, onMaterialEspecialClick, selectedMaterialEspe
           <div className="flex flex-col min-w-0">
             <span className="text-[10px] opacity-90 leading-none whitespace-nowrap">Críticos</span>
             <span className="text-base font-bold leading-none mt-0.5">{formatNumber(stats.itensCriticos)}</span>
+            <TrendBadge current={stats.itensCriticos} previous={previousSnapshot?.itens_criticos} direction="up-bad" />
           </div>
         </div>
       </Card>

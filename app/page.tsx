@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { AgingData, RemessaData, ConfiguracaoResiduais } from '@/types/aging';
 import { isMaterialEspecial } from '@/lib/materiais-especiais';
-import { fetchAgingData, fetchMaterialValores, fetchRemessas, fetchConfiguracaoResiduais } from '@/lib/supabase';
+import { fetchAgingData, fetchMaterialValores, fetchRemessas, fetchConfiguracaoResiduais, fetchDashboardHistorico, DashboardSnapshot } from '@/lib/supabase';
 import { AgingStats } from '@/components/aging-stats';
 import { AgingFinancial } from '@/components/aging-financial';
 import { ValorUpload } from '@/components/valor-upload';
@@ -37,12 +37,13 @@ export default function Home() {
   const [selectedCriticality, setSelectedCriticality] = useState<'Normal' | 'Alerta' | 'Crítico' | null>(null);
   const [selectedVencimento, setSelectedVencimento] = useState<'vencidos' | 'proximos30' | null>(null);
   const [viewMode, setViewMode] = useState<'geral' | 'ajustes'>('geral');
+  const [previousSnapshot, setPreviousSnapshot] = useState<DashboardSnapshot | null>(null);
 
   const loadData = async () => {
     try {
       setLoading(true);
       setError(null);
-      const [agingData, valoresData, remessasData, configData] = await Promise.all([
+      const [agingData, valoresData, remessasData, configData, historico] = await Promise.all([
         fetchAgingData(),
         fetchMaterialValores(),
         fetchRemessas().catch(() => []), // Não falhar se remessas não existir
@@ -52,11 +53,14 @@ export default function Home() {
           limite_maximo: 999,
           materiais_alto_valor: [],
         })),
+        fetchDashboardHistorico(2).catch(() => []),
       ]);
       setData(agingData);
       setValores(valoresData);
       setRemessas(remessasData);
       setConfigResiduais(configData);
+      // O snapshot mais recente é o [0] (ordenado desc); o anterior é o [1]
+      setPreviousSnapshot(historico[1] ?? null);
     } catch (err) {
       console.error('Erro ao carregar dados:', err);
       setError('Erro ao carregar dados. Verifique a configuração do Supabase.');
@@ -237,6 +241,7 @@ export default function Home() {
               selectedMaterialEspecial={selectedMaterialEspecial}
               onVencimentoClick={setSelectedVencimento}
               selectedVencimento={selectedVencimento}
+              previousSnapshot={previousSnapshot}
             />
 
             {/* Tabs */}
@@ -302,6 +307,7 @@ export default function Home() {
                       onCriticalityChange={setSelectedCriticality}
                       viewMode={viewMode}
                       onViewModeChange={setViewMode}
+                      previousSnapshot={previousSnapshot}
                     />
                     <ResiduaisView
                       agingData={tableFilteredData}

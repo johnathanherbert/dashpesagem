@@ -3,16 +3,52 @@
 import { useMemo, useEffect } from 'react';
 import ReactECharts from 'echarts-for-react';
 import { AgingData } from '@/types/aging';
+import { DashboardSnapshot } from '@/lib/supabase';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
   DollarSign,
   TrendingUp,
+  TrendingDown,
   AlertCircle,
   RefreshCw,
   ArrowUpRight,
+  Minus,
 } from 'lucide-react';
+
+function TrendBadge({
+  current,
+  previous,
+  lowerIsBetter = true,
+}: {
+  current: number;
+  previous: number | null | undefined;
+  lowerIsBetter?: boolean;
+}) {
+  if (previous === null || previous === undefined || previous === 0) return null;
+  const delta = current - previous;
+  const pct = Math.abs((delta / previous) * 100);
+  if (pct < 0.5) {
+    return (
+      <span className="inline-flex items-center gap-0.5 text-[9px] font-medium text-white/60">
+        <Minus className="h-2.5 w-2.5" /> estável
+      </span>
+    );
+  }
+  const isUp = delta > 0;
+  const isGood = lowerIsBetter ? !isUp : isUp;
+  const color = isGood ? 'text-green-200' : 'text-red-200';
+  const label = pct >= 100
+    ? `${Math.abs(Math.round(delta / 1000))}k`
+    : `${pct.toFixed(1)}%`;
+  return (
+    <span className={`inline-flex items-center gap-0.5 text-[9px] font-semibold ${color}`}>
+      {isUp ? <TrendingUp className="h-2.5 w-2.5" /> : <TrendingDown className="h-2.5 w-2.5" />}
+      {label}
+    </span>
+  );
+}
 
 interface AgingFinancialProps {
   data: AgingData[];
@@ -24,6 +60,7 @@ interface AgingFinancialProps {
   onCriticalityChange?: (value: 'Normal' | 'Alerta' | 'Crítico' | null) => void;
   viewMode?: 'geral' | 'ajustes';
   onViewModeChange?: (value: 'geral' | 'ajustes') => void;
+  previousSnapshot?: DashboardSnapshot | null;
 }
 
 export function AgingFinancial({
@@ -36,6 +73,7 @@ export function AgingFinancial({
   onCriticalityChange,
   viewMode = 'geral',
   onViewModeChange,
+  previousSnapshot = null,
 }: AgingFinancialProps) {
 
   useEffect(() => {
@@ -407,9 +445,12 @@ export function AgingFinancial({
           </CardHeader>
           <CardContent className="pb-2">
             <div className="text-lg font-bold leading-tight">{formatCurrency(financialStats.totalValorizado)}</div>
-            <p className="text-[10px] opacity-80 mt-0.5">
-              {financialStats.itensComValor} de {financialStats.totalItens} itens valorados
-            </p>
+            <div className="flex items-center justify-between mt-0.5">
+              <p className="text-[10px] opacity-80">
+                {financialStats.itensComValor} de {financialStats.totalItens} itens valorados
+              </p>
+              <TrendBadge current={financialStats.totalValorizado} previous={previousSnapshot?.total_valorizado} lowerIsBetter={false} />
+            </div>
           </CardContent>
         </Card>
 
@@ -422,9 +463,12 @@ export function AgingFinancial({
           </CardHeader>
           <CardContent className="pb-2">
             <div className="text-lg font-bold leading-tight">{formatCurrency(depositoStats.valorAjuste)}</div>
-            <p className="text-[10px] opacity-80 mt-0.5">
-              {depositoStats.itensAjuste} iten{depositoStats.itensAjuste !== 1 ? 's' : ''} valorado{depositoStats.itensAjuste !== 1 ? 's' : ''}
-            </p>
+            <div className="flex items-center justify-between mt-0.5">
+              <p className="text-[10px] opacity-80">
+                {depositoStats.itensAjuste} iten{depositoStats.itensAjuste !== 1 ? 's' : ''} valorado{depositoStats.itensAjuste !== 1 ? 's' : ''}
+              </p>
+              <TrendBadge current={depositoStats.valorAjuste} previous={previousSnapshot?.valor_ajuste} lowerIsBetter={false} />
+            </div>
           </CardContent>
         </Card>
 
@@ -437,9 +481,12 @@ export function AgingFinancial({
           </CardHeader>
           <CardContent className="pb-2">
             <div className="text-lg font-bold leading-tight">{formatCurrency(depositoStats.valorAjuSaida)}</div>
-            <p className="text-[10px] opacity-80 mt-0.5">
-              {depositoStats.itensAjuSaida} iten{depositoStats.itensAjuSaida !== 1 ? 's' : ''} valorado{depositoStats.itensAjuSaida !== 1 ? 's' : ''}
-            </p>
+            <div className="flex items-center justify-between mt-0.5">
+              <p className="text-[10px] opacity-80">
+                {depositoStats.itensAjuSaida} iten{depositoStats.itensAjuSaida !== 1 ? 's' : ''} valorado{depositoStats.itensAjuSaida !== 1 ? 's' : ''}
+              </p>
+              <TrendBadge current={depositoStats.valorAjuSaida} previous={previousSnapshot?.valor_aju_saida} lowerIsBetter={false} />
+            </div>
           </CardContent>
         </Card>
 
@@ -452,6 +499,9 @@ export function AgingFinancial({
           </CardHeader>
           <CardContent className="pb-2">
             <div className="text-lg font-bold leading-tight">{formatCurrency(financialStats.valorAlerta)}</div>
+            <div className="mt-0.5">
+              <TrendBadge current={financialStats.valorAlerta} previous={previousSnapshot?.valor_alerta} lowerIsBetter={true} />
+            </div>
           </CardContent>
         </Card>
 
@@ -464,6 +514,9 @@ export function AgingFinancial({
           </CardHeader>
           <CardContent className="pb-2">
             <div className="text-lg font-bold leading-tight">{formatCurrency(financialStats.valorCritico)}</div>
+            <div className="mt-0.5">
+              <TrendBadge current={financialStats.valorCritico} previous={previousSnapshot?.valor_critico} lowerIsBetter={true} />
+            </div>
           </CardContent>
         </Card>
       </div>
