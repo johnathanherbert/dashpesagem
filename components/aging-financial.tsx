@@ -467,7 +467,7 @@ export function AgingFinancial({
               <p className="text-[10px] opacity-80">
                 {depositoStats.itensAjuste} iten{depositoStats.itensAjuste !== 1 ? 's' : ''} valorado{depositoStats.itensAjuste !== 1 ? 's' : ''}
               </p>
-              <TrendBadge current={depositoStats.valorAjuste} previous={previousSnapshot?.valor_ajuste} lowerIsBetter={false} />
+              <TrendBadge current={depositoStats.valorAjuste} previous={previousSnapshot?.valor_ajuste} lowerIsBetter={true} />
             </div>
           </CardContent>
         </Card>
@@ -485,7 +485,7 @@ export function AgingFinancial({
               <p className="text-[10px] opacity-80">
                 {depositoStats.itensAjuSaida} iten{depositoStats.itensAjuSaida !== 1 ? 's' : ''} valorado{depositoStats.itensAjuSaida !== 1 ? 's' : ''}
               </p>
-              <TrendBadge current={depositoStats.valorAjuSaida} previous={previousSnapshot?.valor_aju_saida} lowerIsBetter={false} />
+              <TrendBadge current={depositoStats.valorAjuSaida} previous={previousSnapshot?.valor_aju_saida} lowerIsBetter={true} />
             </div>
           </CardContent>
         </Card>
