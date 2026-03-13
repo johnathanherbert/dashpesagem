@@ -313,6 +313,131 @@ export async function fetchConfiguracaoResiduais(): Promise<ConfiguracaoResiduai
   };
 }
 
+// ===== HISTÓRICO DO DASHBOARD =====
+
+export interface DashboardSnapshot {
+  total_itens: number;
+  media_aging: number;
+  max_aging: number;
+  itens_criticos: number;
+  itens_alerta: number;
+  total_valorizado: number;
+  valor_critico: number;
+  valor_alerta: number;
+  itens_com_valor: number;
+  valor_ajuste: number;
+  itens_ajuste: number;
+  valor_aju_saida: number;
+  itens_aju_saida: number;
+  itens_vencidos: number;
+  itens_vencendo_30d: number;
+  materiais_inf: number;
+  materiais_cfa: number;
+}
+
+export async function saveSnapshotHistorico(
+  data: AgingData[],
+  valores: Record<string, number>
+): Promise<void> {
+  if (data.length === 0) return;
+
+  const hoje = new Date();
+  hoje.setHours(0, 0, 0, 0);
+  const em30Dias = new Date(hoje);
+  em30Dias.setDate(hoje.getDate() + 30);
+
+  const parseDate = (s: string): Date | null => {
+    if (!s) return null;
+    const m = s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if (m) {
+      const d = new Date(+m[3], +m[2] - 1, +m[1]);
+      return isNaN(d.getTime()) ? null : d;
+    }
+    const d = new Date(s);
+    return isNaN(d.getTime()) ? null : d;
+  };
+
+  let totalValorizado = 0, valorCritico = 0, valorAlerta = 0, itensComValor = 0;
+  let valorAjuste = 0, itensAjuste = 0, valorAjuSaida = 0, itensAjuSaida = 0;
+  let itensCriticos = 0, itensAlerta = 0, itensVencidos = 0, itensVencendo30d = 0;
+  let materiaisInf = 0, materiaisCfa = 0;
+  const { isMaterialEspecial } = await import('@/lib/materiais-especiais');
+
+  const totalDias = data.reduce((s, i) => s + (i.dias_aging || 0), 0);
+  const mediaAging = totalDias / data.length;
+  const maxAging = Math.max(...data.map(i => i.dias_aging || 0));
+
+  data.forEach(item => {
+    const dias = item.dias_aging || 0;
+    if (dias > 20) itensCriticos++;
+    else if (dias >= 10) itensAlerta++;
+
+    const esp = isMaterialEspecial(item.material);
+    if (esp === 'inf') materiaisInf++;
+    else if (esp === 'cfa') materiaisCfa++;
+
+    const dv = item.data_vencimento ? parseDate(item.data_vencimento) : null;
+    if (dv) {
+      if (dv < hoje) itensVencidos++;
+      else if (dv <= em30Dias) itensVencendo30d++;
+    }
+
+    const valor = valores[item.material];
+    if (valor) {
+      const vt = (item.estoque_disponivel || 0) * valor;
+      totalValorizado += vt;
+      itensComValor++;
+      if (dias > 20) valorCritico += vt;
+      else if (dias >= 10) valorAlerta += vt;
+
+      const tipo = item.tipo_deposito?.toUpperCase() ?? '';
+      const pos = item.posicao_deposito?.toUpperCase() ?? '';
+      if (tipo === '999' && pos === 'AJUSTE') { valorAjuste += vt; itensAjuste++; }
+      else if (tipo === '999' && pos === 'AJU-SAIDA') { valorAjuSaida += vt; itensAjuSaida++; }
+    }
+  });
+
+  const snapshot: DashboardSnapshot = {
+    total_itens: data.length,
+    media_aging: Math.round(mediaAging * 100) / 100,
+    max_aging: maxAging,
+    itens_criticos: itensCriticos,
+    itens_alerta: itensAlerta,
+    total_valorizado: Math.round(totalValorizado * 100) / 100,
+    valor_critico: Math.round(valorCritico * 100) / 100,
+    valor_alerta: Math.round(valorAlerta * 100) / 100,
+    itens_com_valor: itensComValor,
+    valor_ajuste: Math.round(valorAjuste * 100) / 100,
+    itens_ajuste: itensAjuste,
+    valor_aju_saida: Math.round(valorAjuSaida * 100) / 100,
+    itens_aju_saida: itensAjuSaida,
+    itens_vencidos: itensVencidos,
+    itens_vencendo_30d: itensVencendo30d,
+    materiais_inf: materiaisInf,
+    materiais_cfa: materiaisCfa,
+  };
+
+  const { error } = await supabase.from('dashboard_historico').insert(snapshot);
+  if (error && typeof window !== 'undefined') {
+    console.warn('Aviso: não foi possível salvar snapshot de histórico:', error.message);
+  }
+}
+
+// Buscar histórico do dashboard
+export async function fetchDashboardHistorico(limit = 90): Promise<(DashboardSnapshot & { id: string; snapshot_at: string })[]> {
+  const { data, error } = await supabase
+    .from('dashboard_historico')
+    .select('*')
+    .order('snapshot_at', { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    if (typeof window !== 'undefined') console.error('Erro ao buscar histórico:', error);
+    return [];
+  }
+  return data || [];
+}
+
 // Salvar configuração de residuais
 export async function saveConfiguracaoResiduais(config: ConfiguracaoResiduais): Promise<void> {
   const { error } = await supabase

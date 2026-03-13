@@ -217,7 +217,7 @@ export function AgingStats({ data, onMaterialEspecialClick, selectedMaterialEspe
           <div className="flex items-center gap-2 px-3 py-1.5">
             <CalendarClock className="h-4 w-4 flex-shrink-0" />
             <div className="flex flex-col min-w-0">
-              <span className="text-[10px] opacity-90 leading-none whitespace-nowrap">Próx 30d</span>
+              <span className="text-[10px] opacity-90 leading-none whitespace-nowrap">Vence dentro de 30 dias</span>
               <span className="text-base font-bold leading-none mt-0.5">{formatNumber(stats.vencimentoEm30Dias)}</span>
             </div>
           </div>

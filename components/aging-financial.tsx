@@ -10,11 +10,13 @@ import {
   DollarSign,
   TrendingUp,
   AlertCircle,
-  Package,
+  RefreshCw,
+  ArrowUpRight,
 } from 'lucide-react';
 
 interface AgingFinancialProps {
   data: AgingData[];
+  allData?: AgingData[];
   valores: Record<string, number>;
   selectedTipoDeposito?: string;
   selectedMaterialEspecial?: 'inf' | 'cfa' | null;
@@ -26,6 +28,7 @@ interface AgingFinancialProps {
 
 export function AgingFinancial({
   data,
+  allData,
   valores,
   selectedTipoDeposito = 'all',
   selectedMaterialEspecial = null,
@@ -89,9 +92,36 @@ export function AgingFinancial({
       valorAlerta,
       itensComValor,
       totalItens: filteredDataByMode.length,
-      coberturaValores: filteredDataByMode.length > 0 ? ((itensComValor / filteredDataByMode.length) * 100).toFixed(1) : '0',
     };
   }, [filteredDataByMode, valores]);
+
+  const depositoStats = useMemo(() => {
+    let valorAjuste = 0;
+    let itensAjuste = 0;
+    let valorAjuSaida = 0;
+    let itensAjuSaida = 0;
+
+    const source = allData ?? data;
+
+    source.forEach(item => {
+      const valor = valores[item.material];
+      if (!valor) return;
+      if (item.tipo_deposito !== '999') return;
+
+      const posicao = item.posicao_deposito?.toUpperCase() ?? '';
+      const valorTotal = (item.estoque_disponivel || 0) * valor;
+
+      if (posicao === 'AJUSTE') {
+        valorAjuste += valorTotal;
+        itensAjuste++;
+      } else if (posicao === 'AJU-SAIDA') {
+        valorAjuSaida += valorTotal;
+        itensAjuSaida++;
+      }
+    });
+
+    return { valorAjuste, itensAjuste, valorAjuSaida, itensAjuSaida };
+  }, [allData, data, valores]);
 
   const tiposDeposito = useMemo(() => {
     const tipos = new Set(filteredDataByMode.map(item => item.tipo_deposito).filter(Boolean));
@@ -367,7 +397,7 @@ export function AgingFinancial({
   return (
     <div className="space-y-3">
       {/* Cards de Estatisticas Financeiras */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2">
         <Card className="bg-gradient-to-br from-green-500 to-teal-600 border-0 text-white">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-0 pt-2">
             <CardTitle className="text-sm font-medium opacity-90">Valor Total</CardTitle>
@@ -383,15 +413,33 @@ export function AgingFinancial({
           </CardContent>
         </Card>
 
-        <Card className="bg-gradient-to-br from-blue-500 to-cyan-600 border-0 text-white">
+        <Card className="bg-gradient-to-br from-violet-500 to-purple-600 border-0 text-white">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-0 pt-2">
-            <CardTitle className="text-sm font-medium opacity-90">Cobertura de Valores</CardTitle>
+            <CardTitle className="text-sm font-medium opacity-90">Valorização AJUSTE</CardTitle>
             <div className="p-1 bg-white/20 rounded-lg">
-              <Package className="h-3 w-3" />
+              <RefreshCw className="h-3 w-3" />
             </div>
           </CardHeader>
           <CardContent className="pb-2">
-            <div className="text-lg font-bold leading-tight">{financialStats.coberturaValores}%</div>
+            <div className="text-lg font-bold leading-tight">{formatCurrency(depositoStats.valorAjuste)}</div>
+            <p className="text-[10px] opacity-80 mt-0.5">
+              {depositoStats.itensAjuste} iten{depositoStats.itensAjuste !== 1 ? 's' : ''} valorado{depositoStats.itensAjuste !== 1 ? 's' : ''}
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gradient-to-br from-indigo-500 to-blue-600 border-0 text-white">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-0 pt-2">
+            <CardTitle className="text-sm font-medium opacity-90">Valorização AJU-SAIDA</CardTitle>
+            <div className="p-1 bg-white/20 rounded-lg">
+              <ArrowUpRight className="h-3 w-3" />
+            </div>
+          </CardHeader>
+          <CardContent className="pb-2">
+            <div className="text-lg font-bold leading-tight">{formatCurrency(depositoStats.valorAjuSaida)}</div>
+            <p className="text-[10px] opacity-80 mt-0.5">
+              {depositoStats.itensAjuSaida} iten{depositoStats.itensAjuSaida !== 1 ? 's' : ''} valorado{depositoStats.itensAjuSaida !== 1 ? 's' : ''}
+            </p>
           </CardContent>
         </Card>
 

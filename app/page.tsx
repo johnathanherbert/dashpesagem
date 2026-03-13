@@ -13,7 +13,6 @@ import { RemessasView } from '@/components/remessas-view';
 import { ConfiguracaoResiduaisComponent } from '@/components/configuracao-residuais';
 import { Sidebar } from '@/components/layout/sidebar';
 import { UploadButton } from '@/components/layout/upload-button';
-import { FilterPanel } from '@/components/layout/filter-panel';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
@@ -182,16 +181,9 @@ export default function Home() {
         <UploadButton onUploadComplete={handleUploadComplete} />
       </div>
 
-      {/* Filter Panel */}
-      {!loading && !error && data.length > 0 && (
-        <FilterPanel
-          tiposDeposito={tiposDeposito}
-          selectedTipo={selectedTipoDeposito}
-          onTipoChange={setSelectedTipoDeposito}
-        />
-      )}
+
       
-      <div className="w-full py-3 px-3 space-y-3 pt-16 lg:pt-3">
+      <div className="w-full py-3 px-3 space-y-3">
         {/* Header compacto */}
         <div className="flex items-center gap-4 lg:pl-12">
           <h1 className="text-lg font-bold tracking-tight whitespace-nowrap">Dashboard de Aging</h1>
@@ -249,30 +241,60 @@ export default function Home() {
 
             {/* Tabs */}
             <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-3">
-              <TabsList className="grid w-full max-w-2xl grid-cols-4 h-8">
-                <TabsTrigger value="financial" className="flex items-center gap-1.5 text-xs">
-                  <TrendingUp className="h-3 w-3" />
-                  Financeiro
-                </TabsTrigger>
-                <TabsTrigger value="residuais" className="flex items-center gap-1.5 text-xs">
-                  <AlertTriangle className="h-3 w-3" />
-                  Residuais
-                </TabsTrigger>
-                <TabsTrigger value="remessas" className="flex items-center gap-1.5 text-xs">
-                  <Package className="h-3 w-3" />
-                  Remessas
-                </TabsTrigger>
-                <TabsTrigger value="settings" className="flex items-center gap-1.5 text-xs">
-                  <Settings className="h-3 w-3" />
-                  Config
-                </TabsTrigger>
-              </TabsList>
+              <div className="flex items-center gap-2 flex-wrap">
+                <TabsList className="grid grid-cols-4 h-8">
+                  <TabsTrigger value="financial" className="flex items-center gap-1.5 text-xs">
+                    <TrendingUp className="h-3 w-3" />
+                    Financeiro
+                  </TabsTrigger>
+                  <TabsTrigger value="residuais" className="flex items-center gap-1.5 text-xs">
+                    <AlertTriangle className="h-3 w-3" />
+                    Residuais
+                  </TabsTrigger>
+                  <TabsTrigger value="remessas" className="flex items-center gap-1.5 text-xs">
+                    <Package className="h-3 w-3" />
+                    Remessas
+                  </TabsTrigger>
+                  <TabsTrigger value="settings" className="flex items-center gap-1.5 text-xs">
+                    <Settings className="h-3 w-3" />
+                    Config
+                  </TabsTrigger>
+                </TabsList>
+
+                {/* Filtro de Depósito */}
+                <div className="flex items-center gap-1 flex-wrap">
+                  <button
+                    onClick={() => setSelectedTipoDeposito('all')}
+                    className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
+                      selectedTipoDeposito === 'all'
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                    }`}
+                  >
+                    Todos
+                  </button>
+                  {tiposDeposito.map((tipo) => (
+                    <button
+                      key={tipo}
+                      onClick={() => setSelectedTipoDeposito(selectedTipoDeposito === tipo ? 'all' : tipo)}
+                      className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
+                        selectedTipoDeposito === tipo
+                          ? 'bg-emerald-600 text-white'
+                          : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                      }`}
+                    >
+                      {tipo}
+                    </button>
+                  ))}
+                </div>
+              </div>
 
               <TabsContent value="financial" className="space-y-3">
                 {Object.keys(valores).length > 0 ? (
                   <>
                     <AgingFinancial
                       data={filteredData}
+                      allData={data}
                       valores={valores}
                       selectedTipoDeposito={selectedTipoDeposito}
                       selectedMaterialEspecial={selectedMaterialEspecial}

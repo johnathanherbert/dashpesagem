@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Upload, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
 import { parseExcelFile } from '@/lib/excel-parser';
-import { replaceAllAgingData } from '@/lib/supabase';
+import { replaceAllAgingData, saveSnapshotHistorico, fetchMaterialValores } from '@/lib/supabase';
 import { AgingData } from '@/types/aging';
 
 interface ExcelUploadProps {
@@ -66,6 +66,15 @@ export function ExcelUpload({ onUploadComplete }: ExcelUploadProps) {
         await replaceAllAgingData(data);
       } catch (uploadError) {
         throw new Error(`Erro ao salvar no banco: ${uploadError instanceof Error ? uploadError.message : 'Falha na conexão'}`);
+      }
+
+      // Salvar snapshot de histórico (silencioso — não bloqueia o fluxo)
+      setMessage('Salvando snapshot de histórico...');
+      try {
+        const valores = await fetchMaterialValores();
+        await saveSnapshotHistorico(data, valores);
+      } catch {
+        // Falha no histórico não interrompe o upload
       }
 
       setStatus('success');
