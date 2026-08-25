@@ -117,3 +117,23 @@ export interface AgingTableRow {
   material_alto_valor: boolean;
   is_residual: boolean;
 }
+
+export interface DashboardSnapshot {
+  total_itens: number;
+  media_aging: number;
+  max_aging: number;
+  itens_criticos: number;
+  itens_alerta: number;
+  total_valorizado: number;
+  valor_critico: number;
+  valor_alerta: number;
+  itens_com_valor: number;
+  valor_ajuste: number;
+  itens_ajuste: number;
+  valor_aju_saida: number;
+  itens_aju_saida: number;
+  itens_vencidos: number;
+  itens_vencendo_30d: number;
+  materiais_inf: number;
+  materiais_cfa: number;
+}

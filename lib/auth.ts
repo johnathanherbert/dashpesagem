@@ -1,14 +1,7 @@
-import { supabase } from "./supabase"
-
 export async function signOut() {
-  const { error } = await supabase.auth.signOut()
-  if (!error) {
-    window.location.href = "/"
-  }
-  return { error }
+  window.location.href = '/';
 }
 
 export async function getCurrentUser() {
-  const { data: { user } } = await supabase.auth.getUser()
-  return user
+  return null;
 }

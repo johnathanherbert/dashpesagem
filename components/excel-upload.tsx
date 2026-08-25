@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Upload, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
 import { parseExcelFile } from '@/lib/excel-parser';
-import { replaceAllAgingData, saveSnapshotHistorico, fetchMaterialValores } from '@/lib/supabase';
+import { replaceAllAgingData, saveSnapshotHistorico, fetchMaterialValores } from '@/lib/api';
 import { AgingData } from '@/types/aging';
 
 interface ExcelUploadProps {
@@ -166,15 +166,6 @@ export function ExcelUpload({ onUploadComplete }: ExcelUploadProps) {
         Centro, Depósito, Tipo de depósito, Posição no depósito, Estoque disponível, 
         Data do vencimento, Último movimento, Tipo de estoque, Última entrada dep.
       </p>
-
-      {typeof window !== 'undefined' && (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) && (
-        <div className="flex items-center gap-2 p-3 rounded-md text-sm bg-yellow-50 text-yellow-700 border border-yellow-200">
-          <AlertCircle className="h-4 w-4" />
-          <span>
-            ⚠️ Supabase não configurado. Configure as variáveis de ambiente no arquivo .env.local
-          </span>
-        </div>
-      )}
     </div>
   );
 }

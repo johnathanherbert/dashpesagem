@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { parseValorExcelFile, MaterialValor } from '@/lib/valor-parser';
-import { supabase, invalidateMaterialValoresCache } from '@/lib/supabase';
+import { replaceAllMaterialValores, invalidateMaterialValoresCache } from '@/lib/api';
 
 const ADMIN_PASSWORD = '070594';
 
@@ -62,63 +62,20 @@ export function ValorUpload({ onUploadComplete }: ValorUploadProps = {}) {
       console.log(`📊 Processados ${valoresData.length} materiais da planilha`);
       console.log(`📝 Exemplo:`, valoresData.slice(0, 3));
 
-      // Verifica quantos registros existem antes
-      const { count: countBefore } = await supabase
-        .from('material_valores')
-        .select('*', { count: 'exact', head: true });
-      
-      console.log(`📦 Registros no banco ANTES: ${countBefore || 0}`);
+      // Substitui todos os valores via API Route (DELETE + INSERT em transação)
+      console.log('🗑️ Enviando para o banco...');
+      await replaceAllMaterialValores(
+        valoresData.map((v: MaterialValor) => ({
+          material: v.material,
+          valor_unitario: v.valor_unitario,
+        }))
+      );
 
-      // Deleta dados antigos - usando uma query que sempre funciona
-      console.log('🗑️ Deletando registros antigos...');
-      const { error: deleteError, count: deletedCount } = await supabase
-        .from('material_valores')
-        .delete()
-        .gte('created_at', '2000-01-01'); // Delete todos desde 2000
-
-      if (deleteError) {
-        console.error('❌ Erro no delete:', deleteError);
-        throw new Error(`Erro ao limpar dados antigos: ${deleteError.message}`);
-      }
-
-      console.log(`✅ Deletados: ${deletedCount || 'todos'} registros`);
-
-      // Insere novos dados em lotes de 500 registros (reduzido para evitar timeout)
-      const batchSize = 500;
-      let insertedCount = 0;
-
-      for (let i = 0; i < valoresData.length; i += batchSize) {
-        const batch = valoresData.slice(i, i + batchSize);
-        
-        console.log(`📤 Inserindo lote ${Math.floor(i / batchSize) + 1}/${Math.ceil(valoresData.length / batchSize)}...`);
-        
-        const { data: insertData, error: insertError } = await supabase
-          .from('material_valores')
-          .insert(batch)
-          .select();
-
-        if (insertError) {
-          console.error(`❌ Erro ao inserir lote ${Math.floor(i / batchSize) + 1}:`, insertError);
-          throw new Error(`Erro ao inserir lote ${Math.floor(i / batchSize) + 1}: ${insertError.message}`);
-        }
-
-        insertedCount += batch.length;
-        console.log(`✅ Inseridos ${insertedCount}/${valoresData.length} materiais`);
-      }
-
-      // Verifica quantos registros existem depois
-      const { count: countAfter } = await supabase
-        .from('material_valores')
-        .select('*', { count: 'exact', head: true });
-      
-      console.log(`📦 Registros no banco DEPOIS: ${countAfter || 0}`);
-
-      // Invalidar cache para forçar nova busca
-      invalidateMaterialValoresCache();
+      console.log(`✅ Inseridos: ${valoresData.length} materiais`);
 
       setMessage({
         type: 'success',
-        text: `✅ Upload concluído! ${insertedCount} materiais inseridos. Total no banco: ${countAfter || insertedCount}`
+        text: `✅ Upload concluído! ${valoresData.length} materiais inseridos.`
       });
       setFile(null);
 

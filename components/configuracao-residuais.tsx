@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Settings, Plus, X, Save, Loader2, AlertTriangle } from 'lucide-react';
 import { ConfiguracaoResiduais } from '@/types/aging';
-import { fetchConfiguracaoResiduais, saveConfiguracaoResiduais } from '@/lib/supabase';
+import { fetchConfiguracaoResiduais, saveConfiguracaoResiduais } from '@/lib/api';
 
 interface ConfiguracaoResiduaisProps {
   onConfigChange?: () => void;

@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Upload, Loader2, CheckCircle, AlertCircle, Package } from 'lucide-react';
 import { parseRemessasExcel } from '@/lib/remessa-parser';
-import { replaceAllRemessas } from '@/lib/supabase';
+import { replaceAllRemessas } from '@/lib/api';
 import { RemessaData } from '@/types/aging';
 
 interface RemessaUploadProps {
@@ -59,7 +59,7 @@ export function RemessaUpload({ onUploadComplete }: RemessaUploadProps) {
         throw new Error('Dados inválidos: campos obrigatórios (Remessa, Material) não encontrados.');
       }
 
-      // Upload para Supabase
+      // Upload para o banco
       setMessage(`Enviando ${data.length} itens de remessa para o banco de dados...`);
 
       try {
@@ -157,15 +157,6 @@ export function RemessaUpload({ onUploadComplete }: RemessaUploadProps) {
         Remessa, Data picking, Item, Data disponibilidade, Quantidade, Unidade,
         Material, Centro, Depósito, Denominação.
       </p>
-
-      {typeof window !== 'undefined' && (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) && (
-        <div className="flex items-center gap-2 p-3 rounded-md text-sm bg-yellow-50 text-yellow-700 border border-yellow-200">
-          <AlertCircle className="h-4 w-4" />
-          <span>
-            ⚠️ Supabase não configurado. Configure as variáveis de ambiente no arquivo .env.local
-          </span>
-        </div>
-      )}
     </div>
   );
 }

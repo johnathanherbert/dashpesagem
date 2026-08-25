@@ -6,11 +6,13 @@ import {
   getCoreRowModel,
   getFilteredRowModel,
   getSortedRowModel,
+  getPaginationRowModel,
   flexRender,
   type ColumnDef,
   type ColumnFiltersState,
   type SortingState,
   type RowSelectionState,
+  type PaginationState,
   type FilterFn,
   type Column,
   type Table as TanstackTable,
@@ -40,11 +42,15 @@ import {
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
   X,
   Package,
 } from 'lucide-react';
 import { RemessaData } from '@/types/aging';
-import { cn } from '@/lib/utils';
+import { cn, copyToClipboard } from '@/lib/utils';
 
 // Custom filter for numeric range [min, max]
 const numberRangeFilter: FilterFn<RemessaData> = (row, columnId, filterValue) => {
@@ -249,6 +255,10 @@ export function RemessasView({ remessas, materialFilter }: RemessasViewProps) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
   const [globalFilter, setGlobalFilter] = useState('');
+  const [pagination, setPagination] = useState<PaginationState>({
+    pageIndex: 0,
+    pageSize: 50,
+  });
   const [copied, setCopied] = useState(false);
   const [copiedCell, setCopiedCell] = useState<string | null>(null);
 
@@ -263,12 +273,10 @@ export function RemessasView({ remessas, materialFilter }: RemessasViewProps) {
 
   // Função para copiar texto ao clicar
   const handleCopyText = async (text: string, cellId: string) => {
-    try {
-      await navigator.clipboard.writeText(text);
+    const success = await copyToClipboard(text);
+    if (success) {
       setCopiedCell(cellId);
       setTimeout(() => setCopiedCell(null), 1500);
-    } catch (err) {
-      console.error('Erro ao copiar:', err);
     }
   };
 
@@ -362,14 +370,18 @@ export function RemessasView({ remessas, materialFilter }: RemessasViewProps) {
       {
         accessorKey: 'quantidade',
         header: 'Quantidade',
-        cell: ({ getValue }) => (
-          <span className="text-right block font-semibold">
-            {getValue<number>().toLocaleString('pt-BR', {
-              minimumFractionDigits: 2,
-              maximumFractionDigits: 3,
-            })}
-          </span>
-        ),
+        cell: ({ getValue }) => {
+          const raw = getValue<number | string>();
+          const num = typeof raw === 'number' ? raw : parseFloat(String(raw).replace(',', '.')) || 0;
+          return (
+            <span className="text-right block font-semibold font-mono">
+              {num.toLocaleString('pt-BR', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 3,
+              })}
+            </span>
+          );
+        },
         filterFn: numberRangeFilter,
         size: 110,
       },
@@ -412,11 +424,13 @@ export function RemessasView({ remessas, materialFilter }: RemessasViewProps) {
         accessorKey: 'peso_total_remessa',
         header: 'Peso Total',
         cell: ({ getValue }) => {
-          const peso = getValue<number | undefined>();
-          if (!peso) return <span className="text-muted-foreground text-center block">-</span>;
+          const raw = getValue<number | string | undefined>();
+          if (raw === undefined || raw === null || raw === '') return <span className="text-muted-foreground text-center block">-</span>;
+          const peso = typeof raw === 'number' ? raw : parseFloat(String(raw).replace(',', '.'));
+          if (isNaN(peso)) return <span className="text-muted-foreground text-center block">-</span>;
           return (
-            <span className="text-right block">
-              {peso.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+            <span className="text-right block font-mono">
+              {peso.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 3 })}
             </span>
           );
         },
@@ -435,14 +449,17 @@ export function RemessasView({ remessas, materialFilter }: RemessasViewProps) {
       columnFilters,
       rowSelection,
       globalFilter,
+      pagination,
     },
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
     onRowSelectionChange: setRowSelection,
     onGlobalFilterChange: setGlobalFilter,
+    onPaginationChange: setPagination,
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getSortedRowModel: getSortedRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
     enableRowSelection: true,
     filterFns: {
       numberRange: numberRangeFilter,
@@ -465,15 +482,20 @@ export function RemessasView({ remessas, materialFilter }: RemessasViewProps) {
         .filter(col => col.id !== 'select' && col.getIsVisible())
         .map(col => {
           const cellValue = row.getValue(col.id);
+          if (typeof cellValue === 'number') {
+            return cellValue.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 3 });
+          }
           return cellValue != null ? String(cellValue) : '';
         })
         .join('\t');
     }).join('\n');
 
     const text = `${headers}\n${rows}`;
-    navigator.clipboard.writeText(text).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+    copyToClipboard(text).then((success) => {
+      if (success) {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      }
     });
   };
 
@@ -487,6 +509,8 @@ export function RemessasView({ remessas, materialFilter }: RemessasViewProps) {
   const hasActiveFilters = columnFilters.length > 0 || globalFilter !== '';
   const selectedCount = Object.keys(rowSelection).length;
   const filteredCount = table.getFilteredRowModel().rows.length;
+  const totalPages = table.getPageCount();
+  const currentPage = table.getState().pagination.pageIndex + 1;
 
   return (
     <div className="flex flex-col h-[calc(100vh-10rem)]">
@@ -613,6 +637,82 @@ export function RemessasView({ remessas, materialFilter }: RemessasViewProps) {
             )}
           </TableBody>
         </Table>
+      </div>
+
+      {/* Pagination Footer */}
+      <div className="flex items-center justify-between px-4 py-2 border-t bg-background shrink-0 text-xs gap-3 flex-wrap">
+        <div className="flex items-center gap-2 text-muted-foreground">
+          <span>Linhas por página:</span>
+          <Select
+            value={String(table.getState().pagination.pageSize)}
+            onValueChange={(val) => {
+              table.setPageSize(Number(val));
+            }}
+          >
+            <SelectTrigger className="h-7 w-[70px] text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="25">25</SelectItem>
+              <SelectItem value="50">50</SelectItem>
+              <SelectItem value="100">100</SelectItem>
+              <SelectItem value="250">250</SelectItem>
+              <SelectItem value="500">500</SelectItem>
+            </SelectContent>
+          </Select>
+          <span className="ml-2">
+            Mostrando {filteredCount === 0 ? 0 : table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1} a{' '}
+            {Math.min((table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize, filteredCount)} de {filteredCount}
+          </span>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <span className="text-muted-foreground">
+            Página {totalPages === 0 ? 0 : currentPage} de {totalPages}
+          </span>
+          <div className="flex items-center gap-1">
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-7 w-7"
+              onClick={() => table.setPageIndex(0)}
+              disabled={!table.getCanPreviousPage()}
+              title="Primeira página"
+            >
+              <ChevronsLeft className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-7 w-7"
+              onClick={() => table.previousPage()}
+              disabled={!table.getCanPreviousPage()}
+              title="Página anterior"
+            >
+              <ChevronLeft className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-7 w-7"
+              onClick={() => table.nextPage()}
+              disabled={!table.getCanNextPage()}
+              title="Próxima página"
+            >
+              <ChevronRight className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-7 w-7"
+              onClick={() => table.setPageIndex(table.getPageCount() - 1)}
+              disabled={!table.getCanNextPage()}
+              title="Última página"
+            >
+              <ChevronsRight className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        </div>
       </div>
     </div>
   );

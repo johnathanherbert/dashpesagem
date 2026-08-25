@@ -6,11 +6,13 @@ import {
   getCoreRowModel,
   getFilteredRowModel,
   getSortedRowModel,
+  getPaginationRowModel,
   flexRender,
   type ColumnDef,
   type ColumnFiltersState,
   type SortingState,
   type RowSelectionState,
+  type PaginationState,
   type FilterFn,
   type Column,
   type Table as TanstackTable,
@@ -51,12 +53,16 @@ import {
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
   X,
   Package,
 } from 'lucide-react';
 import { AgingData, RemessaData, ConfiguracaoResiduais, AgingTableRow, NivelResidual } from '@/types/aging';
 import { enriquecerAgingComAnalise } from '@/lib/residuais-analyzer';
-import { cn } from '@/lib/utils';
+import { cn, copyToClipboard } from '@/lib/utils';
 
 // Custom filter for numeric range [min, max]
 const numberRangeFilter: FilterFn<AgingTableRow> = (row, columnId, filterValue) => {
@@ -69,10 +75,22 @@ const numberRangeFilter: FilterFn<AgingTableRow> = (row, columnId, filterValue) 
 
 // Custom filter for aging status
 const statusAgingFilter: FilterFn<AgingTableRow> = (row, columnId, filterValue) => {
-  if (!filterValue) return true;
-  const dias = row.getValue<number>('dias_aging');
+  if (!filterValue || filterValue === '__all__') return true;
+  const item = row.original;
   
-  const status = dias <= 10 ? 'Normal' : dias <= 19 ? 'Alerta' : 'Crítico';
+  // Se for residual com nível
+  if (item.is_residual && item.nivel) {
+    const nivelLabelMap: Record<string, string> = {
+      verde: 'Atenção',
+      amarelo: 'Alerta',
+      vermelho: 'Crítico',
+    };
+    const residualStatus = nivelLabelMap[item.nivel] || 'Normal';
+    if (residualStatus === filterValue) return true;
+  }
+
+  const dias = item.dias_aging ?? 0;
+  const status = dias >= 20 ? 'Crítico' : dias >= 10 ? 'Alerta' : 'Normal';
   
   return status === filterValue;
 };
@@ -133,6 +151,7 @@ function ColumnFilterWidget({
           <SelectContent>
             <SelectItem value="__all__">Todos</SelectItem>
             <SelectItem value="Normal">Normal</SelectItem>
+            <SelectItem value="Atenção">Atenção</SelectItem>
             <SelectItem value="Alerta">Alerta</SelectItem>
             <SelectItem value="Crítico">Crítico</SelectItem>
           </SelectContent>
@@ -270,6 +289,10 @@ export function ResiduaisView({ agingData, valores, remessas, configResiduais, o
   const [sorting, setSorting] = useState<SortingState>([]);
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
   const [globalFilter, setGlobalFilter] = useState('');
+  const [pagination, setPagination] = useState<PaginationState>({
+    pageIndex: 0,
+    pageSize: 50,
+  });
   const [copied, setCopied] = useState(false);
   const [copiedMIGO, setCopiedMIGO] = useState(false);
   const [copiedLote, setCopiedLote] = useState(false);
@@ -284,12 +307,10 @@ export function ResiduaisView({ agingData, valores, remessas, configResiduais, o
 
   // Função para copiar texto ao clicar
   const handleCopyText = async (text: string, cellId: string) => {
-    try {
-      await navigator.clipboard.writeText(text);
+    const success = await copyToClipboard(text);
+    if (success) {
       setCopiedCell(cellId);
       setTimeout(() => setCopiedCell(null), 1500);
-    } catch (err) {
-      console.error('Erro ao copiar:', err);
     }
   };
 
@@ -304,12 +325,12 @@ export function ResiduaisView({ agingData, valores, remessas, configResiduais, o
     
     // Filtrar por modo de análise (apenas residuais)
     if (analysisMode) {
-      filtered = filtered.filter((r) => r.is_residual);
+      filtered = filtered.filter(item => item.is_residual);
     }
     
     // Filtrar por nível (se houver filtro ativo)
     if (nivelFilter) {
-      filtered = filtered.filter((r) => r.nivel === nivelFilter);
+      filtered = filtered.filter(item => item.nivel === nivelFilter);
     }
     
     return filtered;
@@ -375,7 +396,7 @@ export function ResiduaisView({ agingData, valores, remessas, configResiduais, o
       },
       {
         accessorKey: 'texto_breve_material',
-        header: 'Descricao',
+        header: 'Descrição',
         cell: ({ getValue }) => (
           <span className="truncate block max-w-[200px]" title={getValue<string>()}>
             {getValue<string>()}
@@ -404,7 +425,7 @@ export function ResiduaisView({ agingData, valores, remessas, configResiduais, o
             </button>
           );
         },
-        size: 120,
+        size: 110,
       },
       {
         accessorKey: 'centro',
@@ -413,7 +434,7 @@ export function ResiduaisView({ agingData, valores, remessas, configResiduais, o
       },
       {
         accessorKey: 'deposito',
-        header: 'Deposito',
+        header: 'Depósito',
         size: 80,
       },
       {
@@ -423,20 +444,24 @@ export function ResiduaisView({ agingData, valores, remessas, configResiduais, o
       },
       {
         accessorKey: 'posicao_deposito',
-        header: 'Posicao',
-        size: 80,
+        header: 'Posição',
+        size: 90,
       },
       {
         accessorKey: 'estoque_disponivel',
         header: 'Quantidade',
-        cell: ({ getValue }) => (
-          <span className="text-right block font-semibold">
-            {getValue<number>().toLocaleString('pt-BR', {
-              minimumFractionDigits: 2,
-              maximumFractionDigits: 3,
-            })}
-          </span>
-        ),
+        cell: ({ getValue }) => {
+          const raw = getValue<number | string>();
+          const num = typeof raw === 'number' ? raw : parseFloat(String(raw).replace(',', '.')) || 0;
+          return (
+            <span className="text-right block font-semibold font-mono">
+              {num.toLocaleString('pt-BR', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 3,
+              })}
+            </span>
+          );
+        },
         filterFn: numberRangeFilter,
         size: 110,
       },
@@ -467,7 +492,7 @@ export function ResiduaisView({ agingData, valores, remessas, configResiduais, o
           const val = getValue<number>();
           if (val === 0) return <span className="text-muted-foreground text-right block">-</span>;
           return (
-            <span className="text-right block font-semibold text-purple-700 dark:text-purple-400">
+            <span className="text-right block font-semibold text-emerald-600 dark:text-emerald-400">
               {val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
             </span>
           );
@@ -479,12 +504,15 @@ export function ResiduaisView({ agingData, valores, remessas, configResiduais, o
         accessorKey: 'dias_aging',
         header: 'Dias Aging',
         cell: ({ getValue }) => {
-          const dias = getValue<number>();
-          let badgeClass = 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300';
-          if (dias > 19) badgeClass = 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400';
-          else if (dias > 10) badgeClass = 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400';
+          const dias = getValue<number | null>();
+          if (dias === null) return <span className="text-muted-foreground text-right block">-</span>;
           return (
-            <span className={cn('px-2 py-0.5 rounded text-xs font-medium text-right block w-fit ml-auto', badgeClass)}>
+            <span className={cn(
+              "text-right block font-medium",
+              dias > 365 ? "text-red-600 dark:text-red-400" :
+              dias > 180 ? "text-yellow-600 dark:text-yellow-400" :
+              "text-green-600 dark:text-green-400"
+            )}>
               {dias}
             </span>
           );
@@ -493,44 +521,68 @@ export function ResiduaisView({ agingData, valores, remessas, configResiduais, o
         size: 90,
       },
       {
-        accessorKey: 'status_aging',
+        id: 'status_aging',
         header: 'Status',
-        cell: ({ row }) => {
-          const dias = row.getValue<number>('dias_aging');
-          let statusConfig: { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline'; icon: React.ReactNode; className: string };
-          
-          if (dias <= 10) {
-            statusConfig = {
-              label: 'Normal',
-              variant: 'default',
-              icon: <CheckCircle className="h-3 w-3" />,
-              className: 'bg-green-500 hover:bg-green-600 text-white'
+        accessorFn: (row) => {
+          if (analysisMode && row.is_residual && row.nivel) {
+            const nivelLabelMap: Record<string, string> = {
+              verde: 'Atenção',
+              amarelo: 'Alerta',
+              vermelho: 'Crítico',
             };
-          } else if (dias <= 19) {
-            statusConfig = {
-              label: 'Alerta',
-              variant: 'default',
-              icon: <AlertTriangle className="h-3 w-3" />,
-              className: 'bg-yellow-500 hover:bg-yellow-600 text-white'
-            };
-          } else {
-            statusConfig = {
-              label: 'Crítico',
-              variant: 'destructive',
-              icon: <AlertCircle className="h-3 w-3" />,
-              className: 'bg-red-500 hover:bg-red-600 text-white'
-            };
+            return nivelLabelMap[row.nivel] || 'Normal';
           }
-          
-          return (
-            <Badge className={cn(statusConfig.className, 'gap-1 font-medium')}>
-              {statusConfig.icon}
-              {statusConfig.label}
-            </Badge>
-          );
+          const dias = row.dias_aging ?? 0;
+          return dias >= 20 ? 'Crítico' : dias >= 10 ? 'Alerta' : 'Normal';
+        },
+        cell: ({ row }) => {
+          const item = row.original;
+
+          // Se estiver em modo de análise ou for residual com nível definido
+          if (analysisMode && item.is_residual) {
+            const nivel = item.nivel || 'normal';
+            const configs = {
+              vermelho: { label: 'Crítico', variant: 'destructive' as const, icon: AlertCircle, className: '' },
+              amarelo: { label: 'Alerta', variant: 'default' as const, icon: AlertTriangle, className: 'bg-yellow-500 hover:bg-yellow-600' },
+              verde: { label: 'Atenção', variant: 'default' as const, icon: CheckCircle, className: 'bg-green-600 hover:bg-green-700' },
+              normal: { label: 'Normal', variant: 'outline' as const, icon: CheckCircle, className: '' },
+            };
+            const config = configs[nivel] || configs.normal;
+            const Icon = config.icon;
+            return (
+              <Badge variant={config.variant} className={config.className || ''}>
+                <Icon className="h-3 w-3 mr-1" />
+                {config.label}
+              </Badge>
+            );
+          }
+
+          const dias = item.dias_aging ?? 0;
+          if (dias >= 20) {
+            return (
+              <Badge variant="destructive" className="gap-1 font-medium">
+                <AlertCircle className="h-3 w-3" />
+                Crítico
+              </Badge>
+            );
+          } else if (dias >= 10) {
+            return (
+              <Badge className="bg-yellow-500 hover:bg-yellow-600 text-white gap-1 font-medium">
+                <AlertTriangle className="h-3 w-3" />
+                Alerta
+              </Badge>
+            );
+          } else {
+            return (
+              <Badge className="bg-green-500 hover:bg-green-600 text-white gap-1 font-medium">
+                <CheckCircle className="h-3 w-3" />
+                Normal
+              </Badge>
+            );
+          }
         },
         filterFn: statusAgingFilter,
-        size: 110,
+        size: 100,
       },
       {
         accessorKey: 'ultimo_movimento',
@@ -583,14 +635,17 @@ export function ResiduaisView({ agingData, valores, remessas, configResiduais, o
       columnFilters,
       rowSelection,
       globalFilter,
+      pagination,
     },
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
     onRowSelectionChange: setRowSelection,
     onGlobalFilterChange: setGlobalFilter,
+    onPaginationChange: setPagination,
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getSortedRowModel: getSortedRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
     enableRowSelection: true,
     filterFns: {
       numberRange: numberRangeFilter,
@@ -632,9 +687,11 @@ export function ResiduaisView({ agingData, valores, remessas, configResiduais, o
     });
 
     const text = [headers.join('\t'), ...lines].join('\n');
-    navigator.clipboard.writeText(text).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+    copyToClipboard(text).then((success) => {
+      if (success) {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      }
     });
   };
 
@@ -669,9 +726,11 @@ export function ResiduaisView({ agingData, valores, remessas, configResiduais, o
     });
 
     const text = lines.join('\n');
-    navigator.clipboard.writeText(text).then(() => {
-      setCopiedMIGO(true);
-      setTimeout(() => setCopiedMIGO(false), 2000);
+    copyToClipboard(text).then((success) => {
+      if (success) {
+        setCopiedMIGO(true);
+        setTimeout(() => setCopiedMIGO(false), 2000);
+      }
     });
   };
 
@@ -683,9 +742,11 @@ export function ResiduaisView({ agingData, valores, remessas, configResiduais, o
     const lotes = selectedRows.map((row) => row.original.lote);
     const text = lotes.join('\n');
 
-    navigator.clipboard.writeText(text).then(() => {
-      setCopiedLote(true);
-      setTimeout(() => setCopiedLote(false), 2000);
+    copyToClipboard(text).then((success) => {
+      if (success) {
+        setCopiedLote(true);
+        setTimeout(() => setCopiedLote(false), 2000);
+      }
     });
   };
 
@@ -720,10 +781,12 @@ export function ResiduaisView({ agingData, valores, remessas, configResiduais, o
       '1',
     ].join('\t');
 
-    navigator.clipboard.writeText(text).then(() => {
-      setCopiedDevolver(true);
-      setDevolverOpen(false);
-      setTimeout(() => setCopiedDevolver(false), 2000);
+    copyToClipboard(text).then((success) => {
+      if (success) {
+        setCopiedDevolver(true);
+        setDevolverOpen(false);
+        setTimeout(() => setCopiedDevolver(false), 2000);
+      }
     });
   };
 
@@ -962,6 +1025,82 @@ export function ResiduaisView({ agingData, valores, remessas, configResiduais, o
             )}
           </TableBody>
         </Table>
+      </div>
+
+      {/* Pagination Footer */}
+      <div className="flex items-center justify-between px-4 py-2 border-t bg-background shrink-0 text-xs gap-3 flex-wrap">
+        <div className="flex items-center gap-2 text-muted-foreground">
+          <span>Linhas por página:</span>
+          <Select
+            value={String(table.getState().pagination.pageSize)}
+            onValueChange={(val) => {
+              table.setPageSize(Number(val));
+            }}
+          >
+            <SelectTrigger className="h-7 w-[70px] text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="25">25</SelectItem>
+              <SelectItem value="50">50</SelectItem>
+              <SelectItem value="100">100</SelectItem>
+              <SelectItem value="250">250</SelectItem>
+              <SelectItem value="500">500</SelectItem>
+            </SelectContent>
+          </Select>
+          <span className="ml-2">
+            Mostrando {table.getFilteredRowModel().rows.length === 0 ? 0 : table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1} a{' '}
+            {Math.min((table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize, table.getFilteredRowModel().rows.length)} de {table.getFilteredRowModel().rows.length}
+          </span>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <span className="text-muted-foreground">
+            Página {table.getPageCount() === 0 ? 0 : table.getState().pagination.pageIndex + 1} de {table.getPageCount()}
+          </span>
+          <div className="flex items-center gap-1">
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-7 w-7"
+              onClick={() => table.setPageIndex(0)}
+              disabled={!table.getCanPreviousPage()}
+              title="Primeira página"
+            >
+              <ChevronsLeft className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-7 w-7"
+              onClick={() => table.previousPage()}
+              disabled={!table.getCanPreviousPage()}
+              title="Página anterior"
+            >
+              <ChevronLeft className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-7 w-7"
+              onClick={() => table.nextPage()}
+              disabled={!table.getCanNextPage()}
+              title="Próxima página"
+            >
+              <ChevronRight className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-7 w-7"
+              onClick={() => table.setPageIndex(table.getPageCount() - 1)}
+              disabled={!table.getCanNextPage()}
+              title="Última página"
+            >
+              <ChevronsRight className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        </div>
       </div>
 
       <Dialog open={devolverOpen} onOpenChange={setDevolverOpen}>

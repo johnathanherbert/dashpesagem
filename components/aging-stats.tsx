@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Package, Calendar, TrendingUp, AlertCircle, Flame, Thermometer, CalendarClock, TrendingDown, Minus } from 'lucide-react';
 import { isMaterialEspecial, getMateriaisEspeciaisData } from '@/lib/materiais-especiais';
-import { DashboardSnapshot } from '@/lib/supabase';
+import { DashboardSnapshot } from '@/lib/api';
 
 // Indica se subir é bom (true) ou ruim (false) para a métrica
 type TrendDirection = 'up-good' | 'up-bad' | 'neutral';

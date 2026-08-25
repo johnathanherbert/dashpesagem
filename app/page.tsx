@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { AgingData, RemessaData, ConfiguracaoResiduais } from '@/types/aging';
 import { isMaterialEspecial } from '@/lib/materiais-especiais';
-import { fetchAgingData, fetchMaterialValores, fetchRemessas, fetchConfiguracaoResiduais, fetchDashboardHistorico, DashboardSnapshot } from '@/lib/supabase';
+import { fetchAgingData, fetchMaterialValores, fetchRemessas, fetchConfiguracaoResiduais, fetchDashboardHistorico, DashboardSnapshot } from '@/lib/api';
 import { AgingStats } from '@/components/aging-stats';
 import { AgingFinancial } from '@/components/aging-financial';
 import { ValorUpload } from '@/components/valor-upload';
@@ -16,7 +16,7 @@ import { UploadButton } from '@/components/layout/upload-button';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Settings, TrendingUp, Package, AlertTriangle } from 'lucide-react';
+import { Loader2, Settings, TrendingUp, Package, AlertTriangle, X } from 'lucide-react';
 
 export default function Home() {
   const [data, setData] = useState<AgingData[]>([]);
@@ -189,11 +189,72 @@ export default function Home() {
       
       <div className="w-full py-3 px-3 space-y-3">
         {/* Header compacto */}
-        <div className="flex items-center gap-4 lg:pl-12">
+        <div className="flex items-center gap-3 lg:pl-12 flex-wrap">
           <h1 className="text-lg font-bold tracking-tight whitespace-nowrap">Dashboard de Aging</h1>
+          
+          {/* Badges de filtros ativos */}
           {selectedTipoDeposito !== 'all' && (
-            <Badge className="bg-blue-600 hover:bg-blue-700 text-white text-xs">
+            <Badge className="bg-blue-600 hover:bg-blue-700 text-white text-xs flex items-center gap-1">
               Dep: {selectedTipoDeposito}
+              <button
+                onClick={() => setSelectedTipoDeposito('all')}
+                className="hover:bg-white/20 rounded-full p-0.5"
+                title="Remover filtro"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </Badge>
+          )}
+
+          {selectedMaterialEspecial && (
+            <Badge className="bg-purple-600 hover:bg-purple-700 text-white text-xs flex items-center gap-1">
+              Especial: {selectedMaterialEspecial.toUpperCase()}
+              <button
+                onClick={() => setSelectedMaterialEspecial(null)}
+                className="hover:bg-white/20 rounded-full p-0.5"
+                title="Remover filtro"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </Badge>
+          )}
+
+          {selectedCriticality && (
+            <Badge className="bg-orange-600 hover:bg-orange-700 text-white text-xs flex items-center gap-1">
+              Criticidade: {selectedCriticality}
+              <button
+                onClick={() => setSelectedCriticality(null)}
+                className="hover:bg-white/20 rounded-full p-0.5"
+                title="Remover filtro"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </Badge>
+          )}
+
+          {selectedVencimento && (
+            <Badge className="bg-red-600 hover:bg-red-700 text-white text-xs flex items-center gap-1">
+              {selectedVencimento === 'vencidos' ? 'Vencidos' : 'Vencendo em 30d'}
+              <button
+                onClick={() => setSelectedVencimento(null)}
+                className="hover:bg-white/20 rounded-full p-0.5"
+                title="Remover filtro"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </Badge>
+          )}
+
+          {materialFilter && (
+            <Badge className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs flex items-center gap-1">
+              Material: {materialFilter}
+              <button
+                onClick={() => setMaterialFilter(undefined)}
+                className="hover:bg-white/20 rounded-full p-0.5"
+                title="Remover filtro"
+              >
+                <X className="h-3 w-3" />
+              </button>
             </Badge>
           )}
         </div>
@@ -214,7 +275,7 @@ export default function Home() {
             <div className="text-center space-y-3 max-w-md">
               <p className="text-red-600 font-medium">{error}</p>
               <p className="text-sm text-muted-foreground">
-                Configure as variáveis NEXT_PUBLIC_SUPABASE_URL e NEXT_PUBLIC_SUPABASE_ANON_KEY no arquivo .env.local
+                Verifique a conexão com o banco de dados PostgreSQL e as variáveis de ambiente no arquivo .env.local
               </p>
             </div>
           </div>

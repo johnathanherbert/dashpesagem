@@ -3,7 +3,7 @@
 import { useMemo, useEffect } from 'react';
 import ReactECharts from 'echarts-for-react';
 import { AgingData } from '@/types/aging';
-import { DashboardSnapshot } from '@/lib/supabase';
+import { DashboardSnapshot } from '@/lib/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
