@@ -8,7 +8,7 @@ import { useRouter } from 'next/navigation';
 import { useFirebase } from '@/components/auth-provider';
 import toast from 'react-hot-toast';
 import Link from 'next/link';
-import { UserPlus, Mail, Lock, User, Loader2, AlertCircle } from 'lucide-react';
+import { UserPlus, Mail, Lock, User, Loader2, AlertCircle, Eye, EyeOff, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 const formSchema = z
@@ -30,6 +30,8 @@ export function RegisterForm() {
   const router = useRouter();
   const { signUp } = useFirebase();
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   
   const {
     register,
@@ -75,7 +77,7 @@ export function RegisterForm() {
         return;
       }
       
-      toast.success('Registro realizado com sucesso! Aguarde aprovação ou faça login.');
+      toast.success('Conta criada com sucesso! Faça login para continuar.');
       router.push('/login');
     } catch (error) {
       console.error('Unexpected error during registration', error);
@@ -86,27 +88,35 @@ export function RegisterForm() {
   };
 
   return (
-    <div className="w-full max-w-md">
-      <div className="p-8 space-y-8 bg-card border border-border rounded-2xl shadow-xl">
-        <div className="text-center space-y-3">
-          <div className="w-14 h-14 mx-auto rounded-xl bg-primary/10 flex items-center justify-center border border-primary/20 text-primary">
-            <UserPlus className="w-7 h-7" />
+    <div className="w-full max-w-[480px] mx-auto">
+      <div className="p-7 sm:p-9 space-y-6 bg-[#13283E]/95 backdrop-blur-xl border border-[#2A4D6E] rounded-3xl shadow-2xl shadow-black/60 relative overflow-hidden">
+        {/* Barra decorativa superior */}
+        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#1B3550] via-[#AEE4FF] to-[#1B3550]" />
+
+        {/* Header com Logo Grupo EMS */}
+        <div className="text-center space-y-4">
+          <div className="inline-flex items-center justify-center p-3 bg-[#1B3550]/80 border border-[#2A4D6E] rounded-2xl shadow-inner mb-1">
+            <img
+              src="https://izishared.blob.core.windows.net/assets/grupo-ems-lp/grupoems-logo.png"
+              alt="Grupo EMS"
+              className="h-10 sm:h-11 w-auto object-contain brightness-0 invert opacity-95"
+            />
           </div>
           
           <div>
-            <h1 className="text-2xl font-black tracking-tight text-foreground">
-              Criar Conta
+            <h1 className="text-xl sm:text-2xl font-black tracking-tight text-white uppercase">
+              Criar Nova Conta
             </h1>
-            <p className="text-muted-foreground mt-1 text-sm font-medium">
-              Registre-se para solicitar acesso ao sistema
+            <p className="text-xs font-medium text-[#608BA6] mt-1">
+              Acesso ao Controle de Estoque PES - Manaus
             </p>
           </div>
         </div>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <label htmlFor="firstName" className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-3.5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <label htmlFor="firstName" className="text-[11px] font-bold text-[#608BA6] uppercase tracking-wider block">
                 Nome
               </label>
               <div className="relative">
@@ -114,98 +124,116 @@ export function RegisterForm() {
                   id="firstName"
                   type="text"
                   {...register('firstName')}
-                  className="w-full px-3.5 py-2.5 bg-background border border-input rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary text-foreground placeholder:text-muted-foreground/60 text-sm font-medium transition-all"
+                  className="w-full px-3.5 py-2.5 bg-[#1B3550]/90 border border-[#2A4D6E] rounded-xl text-white placeholder:text-[#608BA6]/70 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#AEE4FF]/40 focus:border-[#AEE4FF] transition-all"
                   disabled={isLoading}
                   placeholder="João"
                 />
               </div>
               {errors.firstName && (
-                <p className="text-xs text-destructive font-medium flex items-center gap-1">
-                  <AlertCircle className="w-3.5 h-3.5" />
+                <p className="text-xs text-[#E75B5B] font-medium flex items-center gap-1 mt-1">
+                  <AlertCircle className="w-3.5 h-3.5 shrink-0" />
                   {errors.firstName.message}
                 </p>
               )}
             </div>
 
-            <div className="space-y-1.5">
-              <label htmlFor="lastName" className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+            <div className="space-y-1">
+              <label htmlFor="lastName" className="text-[11px] font-bold text-[#608BA6] uppercase tracking-wider block">
                 Sobrenome
               </label>
               <input
                 id="lastName"
                 type="text"
                 {...register('lastName')}
-                className="w-full px-3.5 py-2.5 bg-background border border-input rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary text-foreground placeholder:text-muted-foreground/60 text-sm font-medium transition-all"
+                className="w-full px-3.5 py-2.5 bg-[#1B3550]/90 border border-[#2A4D6E] rounded-xl text-white placeholder:text-[#608BA6]/70 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#AEE4FF]/40 focus:border-[#AEE4FF] transition-all"
                 disabled={isLoading}
                 placeholder="Silva"
               />
               {errors.lastName && (
-                <p className="text-xs text-destructive font-medium flex items-center gap-1">
-                  <AlertCircle className="w-3.5 h-3.5" />
+                <p className="text-xs text-[#E75B5B] font-medium flex items-center gap-1 mt-1">
+                  <AlertCircle className="w-3.5 h-3.5 shrink-0" />
                   {errors.lastName.message}
                 </p>
               )}
             </div>
           </div>
           
-          <div className="space-y-1.5">
-            <label htmlFor="email" className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-              Email
+          <div className="space-y-1">
+            <label htmlFor="email" className="text-[11px] font-bold text-[#608BA6] uppercase tracking-wider block">
+              E-mail Corporativo
             </label>
             <div className="relative">
               <input
                 id="email"
                 type="email"
                 {...register('email')}
-                className="w-full px-4 py-2.5 bg-background border border-input rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary text-foreground placeholder:text-muted-foreground/60 text-sm font-medium transition-all"
+                className="w-full pl-3.5 pr-10 py-2.5 bg-[#1B3550]/90 border border-[#2A4D6E] rounded-xl text-white placeholder:text-[#608BA6]/70 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#AEE4FF]/40 focus:border-[#AEE4FF] transition-all"
                 disabled={isLoading}
-                placeholder="seu@email.com"
+                placeholder="seu.email@ems.com.br"
               />
-              <Mail className="absolute right-3.5 top-3 w-4 h-4 text-muted-foreground/50 pointer-events-none" />
+              <Mail className="absolute right-3.5 top-3 w-4 h-4 text-[#608BA6] pointer-events-none" />
             </div>
             {errors.email && (
-              <p className="text-xs text-destructive font-medium flex items-center gap-1">
-                <AlertCircle className="w-3.5 h-3.5" />
+              <p className="text-xs text-[#E75B5B] font-medium flex items-center gap-1 mt-1">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0" />
                 {errors.email.message}
               </p>
             )}
           </div>
           
-          <div className="space-y-1.5">
-            <label htmlFor="password" className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+          <div className="space-y-1">
+            <label htmlFor="password" className="text-[11px] font-bold text-[#608BA6] uppercase tracking-wider block">
               Senha
             </label>
-            <input
-              id="password"
-              type="password"
-              {...register('password')}
-              className="w-full px-4 py-2.5 bg-background border border-input rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary text-foreground placeholder:text-muted-foreground/60 text-sm font-medium transition-all"
-              disabled={isLoading}
-              placeholder="••••••••"
-            />
+            <div className="relative">
+              <input
+                id="password"
+                type={showPassword ? "text" : "password"}
+                {...register('password')}
+                className="w-full pl-3.5 pr-10 py-2.5 bg-[#1B3550]/90 border border-[#2A4D6E] rounded-xl text-white placeholder:text-[#608BA6]/70 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#AEE4FF]/40 focus:border-[#AEE4FF] transition-all"
+                disabled={isLoading}
+                placeholder="••••••••"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3.5 top-3 text-[#608BA6] hover:text-[#AEE4FF] transition-colors"
+              >
+                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
             {errors.password && (
-              <p className="text-xs text-destructive font-medium flex items-center gap-1">
-                <AlertCircle className="w-3.5 h-3.5" />
+              <p className="text-xs text-[#E75B5B] font-medium flex items-center gap-1 mt-1">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0" />
                 {errors.password.message}
               </p>
             )}
           </div>
           
-          <div className="space-y-1.5">
-            <label htmlFor="confirmPassword" className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+          <div className="space-y-1">
+            <label htmlFor="confirmPassword" className="text-[11px] font-bold text-[#608BA6] uppercase tracking-wider block">
               Confirmar Senha
             </label>
-            <input
-              id="confirmPassword"
-              type="password"
-              {...register('confirmPassword')}
-              className="w-full px-4 py-2.5 bg-background border border-input rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary text-foreground placeholder:text-muted-foreground/60 text-sm font-medium transition-all"
-              disabled={isLoading}
-              placeholder="••••••••"
-            />
+            <div className="relative">
+              <input
+                id="confirmPassword"
+                type={showConfirmPassword ? "text" : "password"}
+                {...register('confirmPassword')}
+                className="w-full pl-3.5 pr-10 py-2.5 bg-[#1B3550]/90 border border-[#2A4D6E] rounded-xl text-white placeholder:text-[#608BA6]/70 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#AEE4FF]/40 focus:border-[#AEE4FF] transition-all"
+                disabled={isLoading}
+                placeholder="••••••••"
+              />
+              <button
+                type="button"
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                className="absolute right-3.5 top-3 text-[#608BA6] hover:text-[#AEE4FF] transition-colors"
+              >
+                {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
             {errors.confirmPassword && (
-              <p className="text-xs text-destructive font-medium flex items-center gap-1">
-                <AlertCircle className="w-3.5 h-3.5" />
+              <p className="text-xs text-[#E75B5B] font-medium flex items-center gap-1 mt-1">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0" />
                 {errors.confirmPassword.message}
               </p>
             )}
@@ -214,27 +242,37 @@ export function RegisterForm() {
           <Button
             type="submit"
             disabled={isLoading}
-            className="w-full rounded-xl py-5 font-bold text-sm tracking-wide mt-2"
+            className="w-full rounded-xl py-5 text-sm font-bold tracking-wide bg-[#AEE4FF] hover:bg-[#86d4fa] text-[#13283E] shadow-md shadow-[#AEE4FF]/10 transition-all active:scale-[0.99] mt-2 border-0 cursor-pointer"
           >
             {isLoading ? (
               <span className="flex items-center justify-center gap-2">
-                <Loader2 className="h-4 w-4 animate-spin" />
+                <Loader2 className="h-4 w-4 animate-spin text-[#13283E]" />
                 Registrando...
               </span>
-            ) : 'Criar Conta'}
+            ) : (
+              <span className="flex items-center justify-center gap-2">
+                <UserPlus className="w-4 h-4" />
+                Cadastrar Conta
+              </span>
+            )}
           </Button>
         </form>
         
-        <div className="text-center pt-4 border-t border-border">
-          <p className="text-xs text-muted-foreground font-medium">
-            Já tem uma conta?{' '}
+        <div className="space-y-3 pt-3 border-t border-[#2A4D6E]/80 text-center">
+          <p className="text-xs text-[#608BA6]">
+            Já possui acesso?{' '}
             <Link 
               href="/login" 
-              className="text-primary font-bold hover:underline"
+              className="text-[#AEE4FF] font-bold hover:underline"
             >
-              Faça login
+              Fazer Login
             </Link>
           </p>
+
+          <div className="flex items-center justify-center gap-1.5 text-[11px] text-[#608BA6]/90 bg-[#1B3550]/50 py-1.5 px-3 rounded-lg border border-[#2A4D6E]/60">
+            <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+            <span>Compatível com contas corporativas Grupo EMS</span>
+          </div>
         </div>
       </div>
     </div>
