@@ -190,7 +190,8 @@ export function OnepageView({
         formatter: (params: any[]) => {
           const p = params[0];
           return `<div class="p-1 font-sans text-xs">
-            <span class="font-bold">${p.name}</span><br/>
+            <span class="font-bold text-sky-300">${p.name}</span><br/>
+            Posição: <b class="text-white">PESAGEM</b><br/>
             Valor: <b>${formatCurrency(p.value)}</b>
           </div>`;
         },
@@ -290,7 +291,8 @@ export function OnepageView({
         trigger: 'axis',
         axisPointer: { type: 'shadow' },
         formatter: (params: any[]) => {
-          let str = `<div class="p-1 font-sans text-xs"><b class="block mb-1">${params[0]?.name}</b>`;
+          let str = `<div class="p-1 font-sans text-xs"><b class="block mb-1 text-sky-300">${params[0]?.name}</b>`;
+          str += `<span class="text-slate-300">Posição: <b class="text-white">AJUSTE</b></span><br/>`;
           let total = 0;
           params.forEach((p) => {
             if (p.value > 0) {
@@ -298,7 +300,7 @@ export function OnepageView({
               total += p.value;
             }
           });
-          str += `<div class="mt-1 pt-1 border-t border-slate-700 font-bold">Total: ${formatCurrency(total)}</div></div>`;
+          str += `<div class="mt-1 pt-1 border-t border-slate-700 font-bold text-white">Total: ${formatCurrency(total)}</div></div>`;
           return str;
         },
       },
@@ -333,25 +335,28 @@ export function OnepageView({
       },
       series: [
         {
-          name: 'Alerta (7-19d)',
+          name: 'Normal (<7d)',
           type: 'bar',
-          stack: 'total',
-          itemStyle: { color: '#E29A36' },
+          stack: 'ajuste',
+          barWidth: '40%',
+          data: [invNormal, chaNormal],
+          itemStyle: { color: '#AEE4FF' },
+        },
+        {
+          name: 'Alerta (7–19d)',
+          type: 'bar',
+          stack: 'ajuste',
+          barWidth: '40%',
           data: [invAlerta, chaAlerta],
+          itemStyle: { color: '#E29A36' },
         },
         {
           name: 'Crítico (≥20d)',
           type: 'bar',
-          stack: 'total',
-          itemStyle: { color: '#E75B5B' },
+          stack: 'ajuste',
+          barWidth: '40%',
           data: [invCritico, chaCritico],
-        },
-        {
-          name: 'Normal (<7d)',
-          type: 'bar',
-          stack: 'total',
-          itemStyle: { color: '#AEE4FF' },
-          data: [invNormal, chaNormal],
+          itemStyle: { color: '#E75B5B', borderRadius: [6, 6, 0, 0] },
         },
       ],
     };
@@ -404,8 +409,10 @@ export function OnepageView({
         color: s.maxDias >= 20 ? '#E75B5B' : s.maxDias >= 7 ? '#E29A36' : '#AEE4FF',
         borderRadius: [0, 4, 4, 0],
       },
+      materialCode: s.material,
       materialName: s.texto,
       dias: s.maxDias,
+      posicao: 'AJU-SAIDA',
     }));
 
     const option = {
@@ -413,8 +420,9 @@ export function OnepageView({
         trigger: 'item',
         formatter: (p: any) => {
           return `<div class="p-1 font-sans text-xs">
-            <b class="block mb-1">${p.data.materialName}</b>
-            Valor: <b>${formatCurrency(p.value)}</b><br/>
+            <b class="block mb-1 text-sky-300">${p.data.materialCode} - ${p.data.materialName}</b>
+            Posição: <b class="text-white">${p.data.posicao}</b><br/>
+            Valor Total: <b>${formatCurrency(p.value)}</b><br/>
             Aging Máximo: <b>${p.data.dias} dias</b>
           </div>`;
         },
@@ -454,17 +462,19 @@ export function OnepageView({
   return (
     <div className="space-y-5">
       {/* Header com estilo elegante */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-ems-card border border-ems-border rounded-xl p-4 shadow-lg">
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-lg bg-ems-navy flex items-center justify-center text-ems-ice font-black border border-ems-border text-base tracking-wider">
-            EMS
-          </div>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-ems-card border border-ems-border rounded-xl p-4 sm:p-5 shadow-lg">
+        <div className="flex items-center gap-4">
+          <img
+            src="https://izishared.blob.core.windows.net/assets/grupo-ems-lp/grupoems-logo.png"
+            alt="Grupo EMS"
+            className="h-10 sm:h-12 w-auto object-contain brightness-0 invert opacity-95 shrink-0"
+          />
           <div>
-            <h2 className="text-base font-black tracking-wide text-ems-ice uppercase">
-              Controle de Estoque & Posições (Onepage)
+            <h2 className="text-base sm:text-lg font-black tracking-wide text-ems-ice uppercase">
+              Controle de Estoque - Pesagem - Manaus
             </h2>
             <p className="text-xs text-ems-steel">
-              Visão consolidada de Pesagem, Ajuste e Aju-Saída baseada em aging do último movimento
+              Visão consolidada do estoque PES.
             </p>
           </div>
         </div>

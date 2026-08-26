@@ -95,6 +95,8 @@ export function AgingCharts({ data }: AgingChartsProps) {
       estoque: number;
       aging: number;
       tipo_deposito: string;
+      posicao?: string;
+      lote?: string;
     }> = [];
     
     // Para cada tipo de depósito, pega os top N (baseado em topLimit)
@@ -115,6 +117,8 @@ export function AgingCharts({ data }: AgingChartsProps) {
           estoque: item.estoque_disponivel || 0,
           aging: item.dias_aging || 0,
           tipo_deposito: tipo,
+          posicao: item.posicao_deposito || 'N/A',
+          lote: item.lote || 'N/A',
         });
       });
     });
@@ -337,8 +341,9 @@ export function AgingCharts({ data }: AgingChartsProps) {
             const desc = item.texto_breve_material || 'Sem descrição';
             const descTrunc = desc.length > 25 ? desc.substring(0, 25) + '...' : desc;
             const peso = Math.round((item.estoque_disponivel || 0) * 100) / 100;
+            const pos = item.posicao_deposito || 'N/A';
             tooltip += `<span style="color: #D1D5DB;">${idx + 1}. ${item.material} - ${descTrunc}</span><br/>`;
-            tooltip += `&nbsp;&nbsp;&nbsp;&nbsp;<span style="color: #9CA3AF;">${peso} kg, ${item.dias_aging || 0} dias</span><br/>`;
+            tooltip += `&nbsp;&nbsp;&nbsp;&nbsp;<span style="color: #9CA3AF;">${peso} kg, ${item.dias_aging || 0}d · Pos: <strong style="color: #E5E7EB;">${pos}</strong> · Lote: ${item.lote || 'N/A'}</span><br/>`;
           });
           
           if (items.length > 10) {
@@ -412,6 +417,8 @@ export function AgingCharts({ data }: AgingChartsProps) {
           ${descTrunc}<br/>
           <strong>Estoque:</strong> ${Math.round(item.estoque * 100) / 100} kg<br/>
           <strong>Aging:</strong> ${item.aging} dias<br/>
+          <strong>Posição:</strong> ${item.posicao || 'N/A'}<br/>
+          <strong>Lote:</strong> ${item.lote || 'N/A'}<br/>
           <strong>Tipo Depósito:</strong> ${item.tipo_deposito}
         `;
       },

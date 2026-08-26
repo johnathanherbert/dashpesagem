@@ -14,15 +14,16 @@ import { RemessasView } from '@/components/remessas-view';
 import { ConfiguracaoResiduaisComponent } from '@/components/configuracao-residuais';
 import { Sidebar } from '@/components/layout/sidebar';
 import { Topbar } from '@/components/layout/topbar';
-import { UploadButton } from '@/components/layout/upload-button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ExcelUpload } from '@/components/excel-upload';
+import { Tabs, TabsContent } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Settings, TrendingUp, Package, AlertTriangle, LayoutDashboard, X } from 'lucide-react';
+import { Loader2, TrendingUp, X } from 'lucide-react';
 import { ProtectedRoute } from '@/components/protected-route';
 import { useFirebase } from '@/components/auth-provider';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
@@ -194,6 +195,10 @@ export default function Home() {
       });
     }
 
+    if (materialFilter) {
+      result = result.filter(item => item.material === materialFilter);
+    }
+
     return result;
   })();
 
@@ -216,26 +221,17 @@ export default function Home() {
           onTabChange={handleTabChange}
         />
 
-        {/* Modal Rápido de Upload */}
+        {/* Modal Rápido de Upload de Planilha Excel */}
         <Dialog open={uploadModalOpen} onOpenChange={setUploadModalOpen}>
-          <DialogContent className="sm:max-w-2xl">
+          <DialogContent className="sm:max-w-lg">
             <DialogHeader>
-              <DialogTitle className="text-base font-bold">Importação de Dados</DialogTitle>
+              <DialogTitle className="text-base font-bold">Upload de Planilha Excel</DialogTitle>
+              <DialogDescription className="text-xs text-muted-foreground">
+                Selecione um arquivo .xlsx ou .xls para atualizar os dados de estoque e aging
+              </DialogDescription>
             </DialogHeader>
-            <div className="space-y-4 pt-2">
-              <UploadButton
-                onUploadComplete={() => {
-                  handleUploadComplete();
-                  setUploadModalOpen(false);
-                }}
-              />
-              <ValorUpload
-                onUploadComplete={() => {
-                  handleUploadComplete();
-                  setUploadModalOpen(false);
-                }}
-              />
-              <RemessaUpload
+            <div className="pt-2">
+              <ExcelUpload
                 onUploadComplete={() => {
                   handleUploadComplete();
                   setUploadModalOpen(false);
@@ -245,7 +241,7 @@ export default function Home() {
           </DialogContent>
         </Dialog>
 
-        <main className="flex-1 w-full max-w-[1700px] mx-auto p-3 sm:p-4 space-y-3">
+        <main className="flex-1 w-full px-3 sm:px-6 py-4 space-y-4">
           {/* Header compacto & Filtros ativos */}
           <div className="flex items-center gap-2 flex-wrap">
           
@@ -364,56 +360,31 @@ export default function Home() {
 
             {/* Tabs */}
             <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-3">
-              <div className="flex items-center gap-2 flex-wrap">
-                <TabsList className="grid grid-cols-5 h-8 bg-ems-card border border-ems-border p-0.5 rounded-lg">
-                  <TabsTrigger value="financial" className="flex items-center gap-1.5 text-xs data-[state=active]:bg-ems-ice data-[state=active]:text-ems-navy data-[state=active]:font-bold text-ems-steel">
-                    <TrendingUp className="h-3 w-3" />
-                    Financeiro
-                  </TabsTrigger>
-                  <TabsTrigger value="onepage" className="flex items-center gap-1.5 text-xs data-[state=active]:bg-ems-ice data-[state=active]:text-ems-navy data-[state=active]:font-bold text-ems-steel">
-                    <LayoutDashboard className="h-3 w-3" />
-                    Onepage
-                  </TabsTrigger>
-                  <TabsTrigger value="residuais" className="flex items-center gap-1.5 text-xs data-[state=active]:bg-ems-ice data-[state=active]:text-ems-navy data-[state=active]:font-bold text-ems-steel">
-                    <AlertTriangle className="h-3 w-3" />
-                    Residuais
-                  </TabsTrigger>
-                  <TabsTrigger value="remessas" className="flex items-center gap-1.5 text-xs data-[state=active]:bg-ems-ice data-[state=active]:text-ems-navy data-[state=active]:font-bold text-ems-steel">
-                    <Package className="h-3 w-3" />
-                    Remessas
-                  </TabsTrigger>
-                  <TabsTrigger value="settings" className="flex items-center gap-1.5 text-xs data-[state=active]:bg-ems-ice data-[state=active]:text-ems-navy data-[state=active]:font-bold text-ems-steel">
-                    <Settings className="h-3 w-3" />
-                    Config
-                  </TabsTrigger>
-                </TabsList>
-
-                {/* Filtro de Depósito */}
-                <div className="flex items-center gap-1 flex-wrap">
+              {/* Filtro de Depósito */}
+              <div className="flex items-center gap-1 flex-wrap">
+                <button
+                  onClick={() => setSelectedTipoDeposito('all')}
+                  className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-colors border ${
+                    selectedTipoDeposito === 'all'
+                      ? 'bg-ems-ice text-ems-navy border-ems-ice font-bold'
+                      : 'bg-ems-card text-ems-steel border-ems-border hover:bg-ems-card-hover hover:text-white'
+                  }`}
+                >
+                  Todos
+                </button>
+                {tiposDeposito.map((tipo) => (
                   <button
-                    onClick={() => setSelectedTipoDeposito('all')}
+                    key={tipo}
+                    onClick={() => setSelectedTipoDeposito(selectedTipoDeposito === tipo ? 'all' : tipo)}
                     className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-colors border ${
-                      selectedTipoDeposito === 'all'
+                      selectedTipoDeposito === tipo
                         ? 'bg-ems-ice text-ems-navy border-ems-ice font-bold'
                         : 'bg-ems-card text-ems-steel border-ems-border hover:bg-ems-card-hover hover:text-white'
                     }`}
                   >
-                    Todos
+                    {tipo}
                   </button>
-                  {tiposDeposito.map((tipo) => (
-                    <button
-                      key={tipo}
-                      onClick={() => setSelectedTipoDeposito(selectedTipoDeposito === tipo ? 'all' : tipo)}
-                      className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-colors border ${
-                        selectedTipoDeposito === tipo
-                          ? 'bg-ems-ice text-ems-navy border-ems-ice font-bold'
-                          : 'bg-ems-card text-ems-steel border-ems-border hover:bg-ems-card-hover hover:text-white'
-                      }`}
-                    >
-                      {tipo}
-                    </button>
-                  ))}
-                </div>
+                ))}
               </div>
 
               <TabsContent value="financial" className="space-y-3">
@@ -427,6 +398,8 @@ export default function Home() {
                       selectedMaterialEspecial={selectedMaterialEspecial}
                       selectedCriticality={selectedCriticality}
                       onCriticalityChange={setSelectedCriticality}
+                      selectedMaterial={materialFilter}
+                      onMaterialChange={setMaterialFilter}
                       viewMode={viewMode}
                       onViewModeChange={setViewMode}
                       previousSnapshot={previousSnapshot}

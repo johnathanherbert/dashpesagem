@@ -15,6 +15,7 @@ import {
   RefreshCw,
   ArrowUpRight,
   Minus,
+  X,
 } from 'lucide-react';
 
 function TrendBadge({
@@ -43,7 +44,7 @@ function TrendBadge({
     ? `${Math.abs(Math.round(delta / 1000))}k`
     : `${pct.toFixed(1)}%`;
   return (
-    <span className={`inline-flex items-center gap-0.5 text-[9px] font-semibold ${color}`}>
+    <span className={`inline-flex items-center gap-0.5 text-[9px] font-bold ${color}`}>
       {isUp ? <TrendingUp className="h-2.5 w-2.5" /> : <TrendingDown className="h-2.5 w-2.5" />}
       {label}
     </span>
@@ -58,6 +59,8 @@ interface AgingFinancialProps {
   selectedMaterialEspecial?: 'inf' | 'cfa' | null;
   selectedCriticality?: 'Normal' | 'Alerta' | 'Crítico' | null;
   onCriticalityChange?: (value: 'Normal' | 'Alerta' | 'Crítico' | null) => void;
+  selectedMaterial?: string;
+  onMaterialChange?: (value: string | undefined) => void;
   viewMode?: 'geral' | 'ajustes';
   onViewModeChange?: (value: 'geral' | 'ajustes') => void;
   previousSnapshot?: DashboardSnapshot | null;
@@ -71,6 +74,8 @@ export function AgingFinancial({
   selectedMaterialEspecial = null,
   selectedCriticality = null,
   onCriticalityChange,
+  selectedMaterial,
+  onMaterialChange,
   viewMode = 'geral',
   onViewModeChange,
   previousSnapshot = null,
@@ -193,6 +198,7 @@ export function AgingFinancial({
             descricao: item.texto_breve_material,
             lote: item.lote,
             tipo_deposito: item.tipo_deposito,
+            posicao_deposito: item.posicao_deposito,
             peso: item.estoque_disponivel,
             unidade: item.unidade_medida,
             dias: item.dias_aging,
@@ -323,8 +329,10 @@ export function AgingFinancial({
           text: 'Top 10 Materiais por Valor Total',
           left: 'center',
           textStyle: { fontSize: 14, color: '#AEE4FF', fontWeight: 'bold' },
-          subtext: 'Clique no grafico ao lado para filtrar por criticidade',
-          subtextStyle: { fontSize: 11, color: '#608BA6' },
+          subtext: selectedMaterial
+            ? `Filtrando por material: ${selectedMaterial} (clique para remover)`
+            : 'Clique em um material para filtrar a tabela abaixo',
+          subtextStyle: { fontSize: 11, color: selectedMaterial ? '#38bdf8' : '#608BA6' },
         },
         tooltip: {
           trigger: 'axis',
@@ -334,11 +342,12 @@ export function AgingFinancial({
           padding: 12,
           formatter: (params: any) => {
             const item = topMaterials[params[0].dataIndex];
+            const qtdStr = Number(item?.peso || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
             return `<strong style="color: #AEE4FF;">${item?.material}</strong><br/>
                     <span style="color: #cbd5e1;">${item?.descricao?.substring(0, 40)}...</span><br/>
-                    <strong style="color: #fff;">${formatCurrency(item?.valorTotal || 0)}</strong><br/>
-                    <span style="color: #608BA6;">Estoque: ${item?.peso} ${item?.unidade || 'kg'}</span><br/>
-                    <span style="color: #608BA6;">Valor Unit.: ${formatCurrency(item?.valorUnitario || 0)}</span><br/>
+                    <strong style="color: #4ade80;">Valor Total: ${formatCurrency(item?.valorTotal || 0)}</strong><br/>
+                    <span style="color: #608BA6;">Estoque: ${qtdStr} ${item?.unidade || 'kg'}</span><br/>
+                    <span style="color: #608BA6;">Posição: <strong style="color: #AEE4FF;">${item?.posicao_deposito || 'N/A'}</strong> · Lote: ${item?.lote || 'N/A'}</span><br/>
                     <span style="color: #608BA6;">Aging: ${item?.dias} dias · ${item?.tipo_deposito}</span>`;
           },
         },
@@ -360,13 +369,25 @@ export function AgingFinancial({
         series: [
           {
             type: 'bar',
-            data: topMaterials.map(m => ({
-              value: m?.valorTotal,
-              itemStyle: {
-                color: m?.criticidade === 'Crítico' ? '#E75B5B' : m?.criticidade === 'Alerta' ? '#E29A36' : '#AEE4FF',
-                borderRadius: [4, 4, 0, 0],
-              },
-            })),
+            data: topMaterials.map(m => {
+              const isSelected = selectedMaterial === m?.material;
+              return {
+                value: m?.valorTotal,
+                material: m?.material,
+                itemStyle: {
+                  color: isSelected
+                    ? '#38bdf8'
+                    : m?.criticidade === 'Crítico'
+                    ? '#E75B5B'
+                    : m?.criticidade === 'Alerta'
+                    ? '#E29A36'
+                    : '#AEE4FF',
+                  borderRadius: [4, 4, 0, 0],
+                  borderWidth: isSelected ? 2 : 0,
+                  borderColor: '#ffffff',
+                },
+              };
+            }),
           },
         ],
       };
@@ -390,8 +411,10 @@ export function AgingFinancial({
         text: `Top 15 Materiais: ${selectedCriticality}`,
         left: 'center',
         textStyle: { fontSize: 14, color: '#AEE4FF', fontWeight: 'bold' },
-        subtext: `${criticalityLabel} · ${formatCurrency(totalValue)}`,
-        subtextStyle: { fontSize: 11, color: '#608BA6' },
+        subtext: selectedMaterial
+          ? `Filtrando por material: ${selectedMaterial} (clique para remover)`
+          : `${criticalityLabel} · ${formatCurrency(totalValue)}`,
+        subtextStyle: { fontSize: 11, color: selectedMaterial ? '#38bdf8' : '#608BA6' },
       },
       tooltip: {
         trigger: 'axis',
@@ -401,13 +424,13 @@ export function AgingFinancial({
         padding: 12,
         formatter: (params: any) => {
           const item = filteredMaterials[params[0].dataIndex];
+          const qtdStr = Number(item?.peso || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
           return `<strong style="color: #AEE4FF;">${item?.material}</strong><br/>
                   <span style="color: #cbd5e1;">${item?.descricao?.substring(0, 40)}...</span><br/>
-                  <strong style="color: #fff;">${formatCurrency(item?.valorTotal || 0)}</strong><br/>
-                  <span style="color: #608BA6;">Estoque: ${item?.peso} ${item?.unidade || 'kg'}</span><br/>
-                  <span style="color: #608BA6;">Valor Unit.: ${formatCurrency(item?.valorUnitario || 0)}</span><br/>
-                  <span style="color: #608BA6;">Aging: ${item?.dias} dias · ${item?.tipo_deposito}</span><br/>
-                  <span style="color: #608BA6;">Lote: ${item?.lote || 'N/A'}</span>`;
+                  <strong style="color: #4ade80;">Valor Total: ${formatCurrency(item?.valorTotal || 0)}</strong><br/>
+                  <span style="color: #608BA6;">Estoque: ${qtdStr} ${item?.unidade || 'kg'}</span><br/>
+                  <span style="color: #608BA6;">Posição: <strong style="color: #AEE4FF;">${item?.posicao_deposito || 'N/A'}</strong> · Lote: ${item?.lote || 'N/A'}</span><br/>
+                  <span style="color: #608BA6;">Aging: ${item?.dias} dias · ${item?.tipo_deposito}</span>`;
         },
       },
       grid: { bottom: 80 },
@@ -428,10 +451,19 @@ export function AgingFinancial({
       series: [
         {
           type: 'bar',
-          data: filteredMaterials.map(m => ({
-            value: m?.valorTotal,
-            itemStyle: { color: chartColor, borderRadius: [4, 4, 0, 0] },
-          })),
+          data: filteredMaterials.map(m => {
+            const isSelected = selectedMaterial === m?.material;
+            return {
+              value: m?.valorTotal,
+              material: m?.material,
+              itemStyle: {
+                color: isSelected ? '#38bdf8' : chartColor,
+                borderRadius: [4, 4, 0, 0],
+                borderWidth: isSelected ? 2 : 0,
+                borderColor: '#ffffff',
+              },
+            };
+          }),
           barWidth: '60%',
           emphasis: {
             itemStyle: { shadowBlur: 10, shadowColor: 'rgba(0, 0, 0, 0.5)' },
@@ -617,20 +649,42 @@ export function AgingFinancial({
 
         <Card className="bg-ems-card border border-ems-border shadow-lg relative">
           <CardContent className="pt-4">
-            {selectedCriticality && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => onCriticalityChange?.(null)}
-                className="absolute top-4 right-4 z-10 bg-ems-navy border-ems-border text-ems-ice hover:bg-ems-card hover:text-white text-xs h-7"
-              >
-                Limpar Filtro
-              </Button>
-            )}
+            <div className="flex items-center gap-2 absolute top-4 right-4 z-10">
+              {selectedMaterial && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onMaterialChange?.(undefined)}
+                  className="bg-ems-navy border-ems-border text-sky-300 hover:bg-ems-card hover:text-white text-xs h-7 gap-1 shadow-xs"
+                  title="Limpar filtro de material"
+                >
+                  <span>Mat: {selectedMaterial}</span>
+                  <X className="h-3 w-3" />
+                </Button>
+              )}
+              {selectedCriticality && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onCriticalityChange?.(null)}
+                  className="bg-ems-navy border-ems-border text-ems-ice hover:bg-ems-card hover:text-white text-xs h-7 shadow-xs"
+                >
+                  Limpar Criticidade
+                </Button>
+              )}
+            </div>
             <ReactECharts
               option={getDetailedAnalysisOption()}
               style={{ height: '320px' }}
               opts={{ renderer: 'svg' }}
+              onEvents={{
+                click: (params: any) => {
+                  const materialCode = params.name || params.data?.material;
+                  if (materialCode) {
+                    onMaterialChange?.(selectedMaterial === materialCode ? undefined : materialCode);
+                  }
+                },
+              }}
             />
           </CardContent>
         </Card>

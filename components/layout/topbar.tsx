@@ -96,15 +96,15 @@ export function Topbar({ onToggleSidebar, activeTab = 'financial', onTabChange, 
         </Button>
 
         <div className="flex items-center gap-2.5">
-          <div className="h-9 w-9 rounded-xl bg-[#1B3550] border border-[#2A4D6E] flex items-center justify-center font-black text-sm text-[#AEE4FF] tracking-wider shadow-xs">
-            EMS
-          </div>
+          <img
+            src="https://izishared.blob.core.windows.net/assets/grupo-ems-lp/grupoems-logo.png"
+            alt="Grupo EMS"
+            className="h-8 sm:h-9 w-auto object-contain brightness-0 invert opacity-95 shrink-0"
+          />
           <div className="hidden sm:flex flex-col">
-            <span className="font-extrabold text-sm tracking-tight leading-none text-[#AEE4FF] uppercase">
-              Grupo EMS
-            </span>
+            
             <span className="text-[10px] text-[#608BA6] font-medium">
-              Controle de Estoque & Pesagem
+              Controle de Estoque PES - Manaus
             </span>
           </div>
         </div>

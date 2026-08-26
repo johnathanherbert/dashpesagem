@@ -89,15 +89,16 @@ export function Sidebar({ open, onOpenChange, activeTab = 'financial', onTabChan
         {/* Header Elegante estilo EMS */}
         <SheetHeader className="p-5 bg-[#1B3550] border-b border-[#2A4D6E] text-white text-left space-y-0">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-[#13283E] border border-[#2A4D6E] flex items-center justify-center font-black text-sm text-[#AEE4FF] shadow-xs">
-              EMS
-            </div>
+            <img
+              src="https://izishared.blob.core.windows.net/assets/grupo-ems-lp/grupoems-logo.png"
+              alt="Grupo EMS"
+              className="h-9 w-auto object-contain brightness-0 invert opacity-95 shrink-0"
+            />
             <div>
               <SheetTitle className="font-extrabold text-sm tracking-tight text-[#AEE4FF] uppercase leading-tight">
-                Grupo EMS
               </SheetTitle>
               <SheetDescription className="text-[11px] text-[#608BA6] font-medium">
-                Controle de Estoque & Pesagem
+                Controle de Estoque PES - Manaus
               </SheetDescription>
             </div>
           </div>
@@ -217,7 +218,7 @@ export function Sidebar({ open, onOpenChange, activeTab = 'financial', onTabChan
         {/* Footer do Sidebar */}
         <div className="p-4 border-t border-[#2A4D6E] bg-[#13283E]">
           <div className="flex items-center justify-between text-[11px] text-[#608BA6]">
-            <span>Versão 1.0.0</span>
+            <span>Versão 2.1.0</span>
             <span className="font-semibold text-[#AEE4FF]">Johnathan Herbert</span>
           </div>
         </div>
