@@ -17,6 +17,7 @@ import { ThemeToggle } from '@/components/theme-toggle';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Settings, TrendingUp, Package, AlertTriangle, X } from 'lucide-react';
+import { ProtectedRoute } from '@/components/protected-route';
 
 export default function Home() {
   const [data, setData] = useState<AgingData[]>([]);
@@ -176,7 +177,8 @@ export default function Home() {
   })();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900">
+    <ProtectedRoute>
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900">
       {/* Sidebar */}
       <Sidebar activeTab={activeTab === 'financial' ? 'overview' : activeTab} onTabChange={handleTabChange} />
       
@@ -435,6 +437,7 @@ export default function Home() {
       {/* Theme Toggle */}
       <ThemeToggle />
     </div>
+    </ProtectedRoute>
   );
 }
 

@@ -22,7 +22,8 @@ import {
   LogOut
 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
-import { signOut } from '@/lib/auth';
+import { useFirebase } from '@/components/auth-provider';
+import { User } from 'lucide-react';
 
 interface SidebarProps {
   activeTab?: string;
@@ -32,6 +33,7 @@ interface SidebarProps {
 export function Sidebar({ activeTab = 'overview', onTabChange }: SidebarProps) {
   const [open, setOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
+  const { userData, user, signOut } = useFirebase();
 
   const menuItems = [
     { id: 'overview', label: 'Visão Geral', icon: Home },
@@ -66,14 +68,30 @@ export function Sidebar({ activeTab = 'overview', onTabChange }: SidebarProps) {
         <SheetHeader>
           <SheetTitle className="flex items-center gap-2">
             <FileSpreadsheet className="h-5 w-5" />
-            Pesagem
+            Pesagem & Aging
           </SheetTitle>
           <SheetDescription>
-            Sistema em desenvolvimento
+            Sistema de Gestão de Estoque
           </SheetDescription>
         </SheetHeader>
 
-        <div className="mt-8 space-y-6">
+        {(user || userData) && (
+          <div className="mt-4 p-3 bg-muted/60 rounded-xl flex items-center gap-3 border border-border/50">
+            <div className="w-9 h-9 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-bold text-sm">
+              <User className="w-4 h-4" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-bold truncate text-foreground">
+                {userData?.name || user?.displayName || 'Usuário'}
+              </p>
+              <p className="text-[11px] text-muted-foreground truncate">
+                {userData?.email || user?.email}
+              </p>
+            </div>
+          </div>
+        )}
+
+        <div className="mt-6 space-y-6">
           {/* Menu de Navegação */}
           <div className="space-y-2">
             <h3 className="text-sm font-medium text-muted-foreground px-2">
