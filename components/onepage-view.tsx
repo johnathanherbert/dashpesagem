@@ -3,35 +3,11 @@
 import { useState, useMemo } from 'react';
 import ReactECharts from 'echarts-for-react';
 import { AgingData } from '@/types/aging';
-import { LoteInvestigacao, addLoteInvestigacao, removeLoteInvestigacao } from '@/lib/api';
-import { Card, CardContent } from '@/components/ui/card';
+import { LoteInvestigacao } from '@/lib/api';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-  DialogDescription,
-} from '@/components/ui/dialog';
-import {
-  Search,
-  CheckCircle2,
-  AlertCircle,
-  HelpCircle,
-  Plus,
-  Trash2,
-  FileSpreadsheet,
-  Clock,
-  Layers,
-  DollarSign,
-  ShieldCheck,
-  SearchCode,
   Tag,
 } from 'lucide-react';
-import toast from 'react-hot-toast';
 
 interface OnepageViewProps {
   agingData: AgingData[];
@@ -48,12 +24,6 @@ export function OnepageView({
   onInvestigacaoChange,
   currentUserEmail,
 }: OnepageViewProps) {
-  const [modalOpen, setModalOpen] = useState(false);
-  const [modalSearch, setModalSearch] = useState('');
-  const [selectedLoteToAdd, setSelectedLoteToAdd] = useState<AgingData | null>(null);
-  const [motivoInput, setMotivoInput] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
   // Set de lotes em investigação para busca O(1)
   const lotesInvestigacaoSet = useMemo(() => {
     return new Set(lotesInvestigacao.map((item) => item.lote.trim().toUpperCase()));
@@ -482,57 +452,9 @@ export function OnepageView({
     return { chartTopMateriaisOption: option, maiorValorAjuSaida: maiorValor };
   }, [ajuSaidaItems, valores]);
 
-  // ==========================================
-  // GERENCIAMENTO DE INVESTIGAÇÃO (MODAL)
-  // ==========================================
-  const filteredAjusteForModal = useMemo(() => {
-    return ajusteItems.filter((item) => {
-      const q = modalSearch.toLowerCase();
-      return (
-        item.lote.toLowerCase().includes(q) ||
-        item.material.toLowerCase().includes(q) ||
-        (item.texto_breve_material && item.texto_breve_material.toLowerCase().includes(q))
-      );
-    });
-  }, [ajusteItems, modalSearch]);
-
-  const handleToggleInvestigacao = async (lote: string, material?: string) => {
-    const isCurrentlyIn = lotesInvestigacaoSet.has(lote.trim().toUpperCase());
-    setIsSubmitting(true);
-
-    try {
-      if (isCurrentlyIn) {
-        const ok = await removeLoteInvestigacao(lote);
-        if (ok) {
-          toast.success(`Lote ${lote} removido de Investigação`);
-          onInvestigacaoChange();
-        } else {
-          toast.error('Erro ao remover lote');
-        }
-      } else {
-        const ok = await addLoteInvestigacao({
-          lote,
-          material,
-          motivo: motivoInput || 'Lote sob investigação de estoque',
-          created_by: currentUserEmail || 'user',
-        });
-        if (ok) {
-          toast.success(`Lote ${lote} classificado como Em Investigação`);
-          setSelectedLoteToAdd(null);
-          setMotivoInput('');
-          onInvestigacaoChange();
-        } else {
-          toast.error('Erro ao salvar lote');
-        }
-      }
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
   return (
     <div className="space-y-5">
-      {/* Header com estilo elegante e botão discreto */}
+      {/* Header com estilo elegante */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-card border border-border/80 rounded-xl p-4 shadow-sm">
         <div className="flex items-center gap-3">
           <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary font-black border border-primary/20">
@@ -549,18 +471,6 @@ export function OnepageView({
         </div>
 
         <div className="flex items-center gap-2">
-          {/* Botão discreto para gerenciar investigação */}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setModalOpen(true)}
-            className="h-8 text-xs font-semibold gap-1.5 border-dashed border-border hover:border-primary/50 text-muted-foreground hover:text-foreground"
-            title="Gerenciar lotes marcados em investigação"
-          >
-            <SearchCode className="h-3.5 w-3.5" />
-            <span>Investigação ({lotesInvestigacao.length})</span>
-          </Button>
-
           <div className="text-[11px] font-semibold text-muted-foreground bg-muted/60 px-3 py-1.5 rounded-lg border border-border/50">
             Base: <span className="text-foreground">Último Movimento</span>
           </div>
@@ -817,123 +727,6 @@ export function OnepageView({
           </div>
         </div>
       </section>
-
-      {/* MODAL DISCRETO PARA CLASSIFICAÇÃO DE LOTES EM INVESTIGAÇÃO */}
-      <Dialog open={modalOpen} onOpenChange={setModalOpen}>
-        <DialogContent className="sm:max-w-2xl max-h-[85vh] flex flex-col">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-base">
-              <SearchCode className="h-5 w-5 text-primary" />
-              Lotes da Posição AJUSTE — Investigação vs Chamado
-            </DialogTitle>
-            <DialogDescription className="text-xs">
-              Marque os lotes que estão sob análise da equipe (Em Investigação). Os demais permanecem aguardando o próximo chamado de pesagem.
-            </DialogDescription>
-          </DialogHeader>
-
-          {/* Barra de busca no modal */}
-          <div className="relative my-2">
-            <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Buscar por lote, código ou nome do material..."
-              value={modalSearch}
-              onChange={(e) => setModalSearch(e.target.value)}
-              className="pl-9 h-9 text-xs"
-            />
-          </div>
-
-          {/* Lista de lotes */}
-          <div className="flex-1 overflow-y-auto max-h-[380px] space-y-2 pr-1 divide-y divide-border/60">
-            {filteredAjusteForModal.length === 0 ? (
-              <div className="py-8 text-center text-xs text-muted-foreground">
-                Nenhum lote em posição AJUSTE encontrado.
-              </div>
-            ) : (
-              filteredAjusteForModal.map((item) => {
-                const isInvestigando = lotesInvestigacaoSet.has(item.lote.trim().toUpperCase());
-                const vUnit = valores[item.material] || 0;
-                const vt = (item.estoque_disponivel || 0) * vUnit;
-                const dias = item.dias_aging || 0;
-
-                return (
-                  <div
-                    key={item.lote}
-                    className={`pt-2.5 pb-2 px-2 flex items-center justify-between gap-3 rounded-lg transition-colors ${
-                      isInvestigando ? 'bg-amber-500/10 border border-amber-500/20' : 'hover:bg-muted/50'
-                    }`}
-                  >
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-xs text-foreground font-mono">{item.lote}</span>
-                        <Badge
-                          variant="outline"
-                          className={`text-[9px] px-1.5 py-0 ${
-                            dias >= 20
-                              ? 'bg-rose-500/10 text-rose-500 border-rose-500/30'
-                              : dias >= 7
-                              ? 'bg-amber-500/10 text-amber-500 border-amber-500/30'
-                              : 'bg-sky-500/10 text-sky-500 border-sky-500/30'
-                          }`}
-                        >
-                          {dias} dias
-                        </Badge>
-                        <span className="text-[10px] text-muted-foreground">{item.material}</span>
-                      </div>
-                      <p className="text-xs text-muted-foreground truncate" title={item.texto_breve_material}>
-                        {item.texto_breve_material}
-                      </p>
-                      <div className="flex items-center gap-3 text-[10px] text-muted-foreground mt-0.5 font-medium">
-                        <span>Qtd: {item.estoque_disponivel} {item.unidade_medida}</span>
-                        <span>Total: <b className="text-foreground">{formatCurrency(vt)}</b></span>
-                        {isInvestigando && (
-                          <span className="text-amber-600 dark:text-amber-400 font-bold flex items-center gap-0.5">
-                            <Tag className="w-3 h-3" /> Em Investigação
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    <div>
-                      <Button
-                        size="sm"
-                        variant={isInvestigando ? 'destructive' : 'outline'}
-                        onClick={() => handleToggleInvestigacao(item.lote, item.material)}
-                        disabled={isSubmitting}
-                        className={`h-7 px-2.5 text-xs font-semibold transition-all ${
-                          !isInvestigando
-                            ? 'hover:bg-amber-500 hover:text-white hover:border-amber-500'
-                            : ''
-                        }`}
-                      >
-                        {isInvestigando ? (
-                          <>
-                            <Trash2 className="h-3.5 w-3.5 mr-1" />
-                            Remover
-                          </>
-                        ) : (
-                          <>
-                            <Plus className="h-3.5 w-3.5 mr-1" />
-                            Investigação
-                          </>
-                        )}
-                      </Button>
-                    </div>
-                  </div>
-                );
-              })
-            )}
-          </div>
-
-          <DialogFooter className="pt-2 border-t border-border flex justify-between items-center sm:justify-between">
-            <span className="text-xs text-muted-foreground">
-              Total marcados: <b className="text-foreground">{lotesInvestigacao.length}</b> de {ajusteItems.length} lotes de ajuste
-            </span>
-            <Button variant="default" size="sm" onClick={() => setModalOpen(false)} className="h-8">
-              Concluir
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

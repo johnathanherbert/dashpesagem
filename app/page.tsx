@@ -398,6 +398,9 @@ export default function Home() {
                         setMaterialFilter(material);
                         setActiveTab('remessas');
                       }}
+                      lotesInvestigacao={lotesInvestigacao}
+                      onInvestigacaoChange={loadInvestigacaoOnly}
+                      currentUserEmail={user?.email || userData?.email}
                     />
                   </>
                 ) : (
@@ -437,6 +440,9 @@ export default function Home() {
                     setMaterialFilter(material);
                     setActiveTab('remessas');
                   }}
+                  lotesInvestigacao={lotesInvestigacao}
+                  onInvestigacaoChange={loadInvestigacaoOnly}
+                  currentUserEmail={user?.email || userData?.email}
                 />
               </TabsContent>
 

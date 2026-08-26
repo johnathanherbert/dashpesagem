@@ -108,12 +108,18 @@ const tipoEstoqueFilter: FilterFn<AgingTableRow> = (row, columnId, filterValue) 
   return normalized === String(filterValue).trim().toUpperCase();
 };
 
+import { LoteInvestigacao, addLoteInvestigacao, removeLoteInvestigacao } from '@/lib/api';
+import toast from 'react-hot-toast';
+
 interface ResiduaisViewProps {
   agingData: AgingData[];
   valores: Record<string, number>;
   remessas: RemessaData[];
   configResiduais: ConfiguracaoResiduais;
   onNavigateToRemessas?: (material: string) => void;
+  lotesInvestigacao?: LoteInvestigacao[];
+  onInvestigacaoChange?: () => void;
+  currentUserEmail?: string;
 }
 
 // Column filter widget
@@ -283,7 +289,16 @@ const COLUMN_FILTER_TYPES: Record<string, FilterType> = {
   remessas_abertas: 'range',
 };
 
-export function ResiduaisView({ agingData, valores, remessas, configResiduais, onNavigateToRemessas }: ResiduaisViewProps) {
+export function ResiduaisView({
+  agingData,
+  valores,
+  remessas,
+  configResiduais,
+  onNavigateToRemessas,
+  lotesInvestigacao = [],
+  onInvestigacaoChange,
+  currentUserEmail,
+}: ResiduaisViewProps) {
   const [analysisMode, setAnalysisMode] = useState(false);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [sorting, setSorting] = useState<SortingState>([]);
@@ -304,6 +319,11 @@ export function ResiduaisView({ agingData, valores, remessas, configResiduais, o
   const [devolverLote, setDevolverLote] = useState('');
   const [devolverQuantidade, setDevolverQuantidade] = useState('1');
   const [devolverItemCount, setDevolverItemCount] = useState('1');
+  const [isApplyingInvestigacao, setIsApplyingInvestigacao] = useState(false);
+
+  const lotesInvestigacaoSet = useMemo(() => {
+    return new Set(lotesInvestigacao.map((item) => item.lote.trim().toUpperCase()));
+  }, [lotesInvestigacao]);
 
   // Função para copiar texto ao clicar
   const handleCopyText = async (text: string, cellId: string) => {
@@ -411,21 +431,29 @@ export function ResiduaisView({ agingData, valores, remessas, configResiduais, o
           const lote = getValue<string>();
           const cellId = `lote-${row.id}`;
           const isCopied = copiedCell === cellId;
+          const isInvestigando = lotesInvestigacaoSet.has(lote.trim().toUpperCase());
           return (
-            <button
-              onClick={() => handleCopyText(lote, cellId)}
-              className={cn(
-                "font-mono text-xs px-2 py-1 rounded transition-all cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-900/30 text-left w-full",
-                isCopied && "bg-green-100 dark:bg-green-900/30"
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => handleCopyText(lote, cellId)}
+                className={cn(
+                  "font-mono text-xs px-2 py-1 rounded transition-all cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-900/30 text-left",
+                  isCopied && "bg-green-100 dark:bg-green-900/30"
+                )}
+                title="Clique para copiar"
+              >
+                {lote}
+                {isCopied && <Copy className="inline-block ml-1 h-3 w-3 text-green-600" />}
+              </button>
+              {isInvestigando && (
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 font-bold border border-amber-500/20 whitespace-nowrap" title="Lote sob investigação">
+                  Inv.
+                </span>
               )}
-              title="Clique para copiar"
-            >
-              {lote}
-              {isCopied && <Copy className="inline-block ml-1 h-3 w-3 text-green-600" />}
-            </button>
+            </div>
           );
         },
-        size: 110,
+        size: 130,
       },
       {
         accessorKey: 'centro',
@@ -790,6 +818,52 @@ export function ResiduaisView({ agingData, valores, remessas, configResiduais, o
     });
   };
 
+  // Toggle ou aplicar investigação nos lotes selecionados
+  const handleToggleInvestigacaoSelected = async () => {
+    const selectedRows = table.getFilteredSelectedRowModel().rows;
+    if (selectedRows.length === 0) return;
+
+    setIsApplyingInvestigacao(true);
+    try {
+      // Se todos selecionados já estiverem em investigação, removemos. Caso contrário, adicionamos todos.
+      const allAlreadyIn = selectedRows.every((r) =>
+        lotesInvestigacaoSet.has(r.original.lote.trim().toUpperCase())
+      );
+
+      let successCount = 0;
+      for (const row of selectedRows) {
+        const lote = row.original.lote;
+        const material = row.original.material;
+        if (allAlreadyIn) {
+          const ok = await removeLoteInvestigacao(lote);
+          if (ok) successCount++;
+        } else {
+          const ok = await addLoteInvestigacao({
+            lote,
+            material,
+            motivo: 'Marcado via tabela de Estoque/Residuais',
+            created_by: currentUserEmail || 'user',
+          });
+          if (ok) successCount++;
+        }
+      }
+
+      if (allAlreadyIn) {
+        toast.success(`${successCount} lote(s) removido(s) de Investigação`);
+      } else {
+        toast.success(`${successCount} lote(s) definido(s) Em Investigação`);
+      }
+
+      setRowSelection({});
+      onInvestigacaoChange?.();
+    } catch (err) {
+      console.error('Erro ao alternar investigação:', err);
+      toast.error('Erro ao atualizar status de investigação');
+    } finally {
+      setIsApplyingInvestigacao(false);
+    }
+  };
+
   // Clear all filters
   const handleClearFilters = () => {
      setColumnFilters([]);
@@ -800,6 +874,10 @@ export function ResiduaisView({ agingData, valores, remessas, configResiduais, o
 
   const hasActiveFilters = columnFilters.length > 0 || globalFilter !== '' || nivelFilter !== null;
   const selectedCount = Object.keys(rowSelection).length;
+  const selectedRows = table.getFilteredSelectedRowModel().rows;
+  const allSelectedAreInvestigando =
+    selectedRows.length > 0 &&
+    selectedRows.every((r) => lotesInvestigacaoSet.has(r.original.lote.trim().toUpperCase()));
   const filteredCount = table.getFilteredRowModel().rows.length;
 
   return (
@@ -878,6 +956,27 @@ export function ResiduaisView({ agingData, valores, remessas, configResiduais, o
         >
           <Copy className="h-4 w-4 mr-2" />
           {copiedLote ? 'Copiado Lote!' : 'Lote'}
+        </Button>
+
+        {/* Botão discreto para Investigação dos selecionados */}
+        <Button
+          variant={allSelectedAreInvestigando ? 'destructive' : 'outline'}
+          size="sm"
+          onClick={handleToggleInvestigacaoSelected}
+          disabled={selectedCount === 0 || isApplyingInvestigacao}
+          className={cn(
+            "transition-all duration-200 border-dashed text-xs",
+            selectedCount > 0 && !allSelectedAreInvestigando && "border-amber-500/60 bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500 hover:text-white"
+          )}
+          title="Alternar status de investigação dos lotes selecionados"
+        >
+          {isApplyingInvestigacao ? (
+            <span>Processando...</span>
+          ) : allSelectedAreInvestigando ? (
+            <span>Remover Investigação ({selectedCount})</span>
+          ) : (
+            <span>+ Investigação ({selectedCount > 0 ? selectedCount : ''})</span>
+          )}
         </Button>
 
         <Button
