@@ -13,13 +13,19 @@ import { ResiduaisView } from '@/components/residuais-view';
 import { RemessasView } from '@/components/remessas-view';
 import { ConfiguracaoResiduaisComponent } from '@/components/configuracao-residuais';
 import { Sidebar } from '@/components/layout/sidebar';
+import { Topbar } from '@/components/layout/topbar';
 import { UploadButton } from '@/components/layout/upload-button';
-import { ThemeToggle } from '@/components/theme-toggle';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Settings, TrendingUp, Package, AlertTriangle, LayoutDashboard, X } from 'lucide-react';
 import { ProtectedRoute } from '@/components/protected-route';
 import { useFirebase } from '@/components/auth-provider';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 export default function Home() {
   const [data, setData] = useState<AgingData[]>([]);
@@ -42,6 +48,8 @@ export default function Home() {
   const [viewMode, setViewMode] = useState<'geral' | 'ajustes'>('geral');
   const [previousSnapshot, setPreviousSnapshot] = useState<DashboardSnapshot | null>(null);
   const [lotesInvestigacao, setLotesInvestigacao] = useState<LoteInvestigacao[]>([]);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [uploadModalOpen, setUploadModalOpen] = useState(false);
   const { user, userData } = useFirebase();
 
   const loadData = async () => {
@@ -191,21 +199,55 @@ export default function Home() {
 
   return (
     <ProtectedRoute>
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900">
-      {/* Sidebar */}
-      <Sidebar activeTab={activeTab === 'financial' ? 'overview' : activeTab} onTabChange={handleTabChange} />
-      
-      {/* Upload Button - Hidden on mobile */}
-      <div className="hidden lg:block">
-        <UploadButton onUploadComplete={handleUploadComplete} />
-      </div>
+      <div className="min-h-screen bg-background flex flex-col">
+        {/* Topbar moderna */}
+        <Topbar
+          onToggleSidebar={() => setSidebarOpen(true)}
+          activeTab={activeTab}
+          onTabChange={handleTabChange}
+          onOpenUpload={() => setUploadModalOpen(true)}
+        />
 
+        {/* Sidebar controlada */}
+        <Sidebar
+          open={sidebarOpen}
+          onOpenChange={setSidebarOpen}
+          activeTab={activeTab}
+          onTabChange={handleTabChange}
+        />
 
-      
-      <div className="w-full py-3 px-3 space-y-3">
-        {/* Header compacto */}
-        <div className="flex items-center gap-3 lg:pl-12 flex-wrap">
-          <h1 className="text-lg font-bold tracking-tight whitespace-nowrap">Dashboard de Aging</h1>
+        {/* Modal Rápido de Upload */}
+        <Dialog open={uploadModalOpen} onOpenChange={setUploadModalOpen}>
+          <DialogContent className="sm:max-w-2xl">
+            <DialogHeader>
+              <DialogTitle className="text-base font-bold">Importação de Dados</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 pt-2">
+              <UploadButton
+                onUploadComplete={() => {
+                  handleUploadComplete();
+                  setUploadModalOpen(false);
+                }}
+              />
+              <ValorUpload
+                onUploadComplete={() => {
+                  handleUploadComplete();
+                  setUploadModalOpen(false);
+                }}
+              />
+              <RemessaUpload
+                onUploadComplete={() => {
+                  handleUploadComplete();
+                  setUploadModalOpen(false);
+                }}
+              />
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        <main className="flex-1 w-full max-w-[1700px] mx-auto p-3 sm:p-4 space-y-3">
+          {/* Header compacto & Filtros ativos */}
+          <div className="flex items-center gap-2 flex-wrap">
           
           {/* Badges de filtros ativos */}
           {selectedTipoDeposito !== 'all' && (
@@ -465,11 +507,8 @@ export default function Home() {
             </Tabs>
           </>
         )}
+        </main>
       </div>
-
-      {/* Theme Toggle */}
-      <ThemeToggle />
-    </div>
     </ProtectedRoute>
   );
 }
