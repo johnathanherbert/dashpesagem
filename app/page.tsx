@@ -251,7 +251,7 @@ export default function Home() {
           
           {/* Badges de filtros ativos */}
           {selectedTipoDeposito !== 'all' && (
-            <Badge className="bg-blue-600 hover:bg-blue-700 text-white text-xs flex items-center gap-1">
+            <Badge className="bg-[#1B3550] border border-[#2A4D6E] text-[#AEE4FF] text-xs flex items-center gap-1">
               Dep: {selectedTipoDeposito}
               <button
                 onClick={() => setSelectedTipoDeposito('all')}
@@ -264,7 +264,7 @@ export default function Home() {
           )}
 
           {selectedMaterialEspecial && (
-            <Badge className="bg-purple-600 hover:bg-purple-700 text-white text-xs flex items-center gap-1">
+            <Badge className="bg-[#1B3550] border border-[#2A4D6E] text-[#AEE4FF] text-xs flex items-center gap-1">
               Especial: {selectedMaterialEspecial.toUpperCase()}
               <button
                 onClick={() => setSelectedMaterialEspecial(null)}
@@ -277,7 +277,7 @@ export default function Home() {
           )}
 
           {selectedCriticality && (
-            <Badge className="bg-orange-600 hover:bg-orange-700 text-white text-xs flex items-center gap-1">
+            <Badge className="bg-[#1B3550] border border-[#E29A36]/40 text-[#E29A36] text-xs flex items-center gap-1">
               Criticidade: {selectedCriticality}
               <button
                 onClick={() => setSelectedCriticality(null)}
@@ -290,7 +290,7 @@ export default function Home() {
           )}
 
           {selectedVencimento && (
-            <Badge className="bg-red-600 hover:bg-red-700 text-white text-xs flex items-center gap-1">
+            <Badge className="bg-[#1B3550] border border-[#E75B5B]/40 text-[#E75B5B] text-xs flex items-center gap-1">
               {selectedVencimento === 'vencidos' ? 'Vencidos' : 'Vencendo em 30d'}
               <button
                 onClick={() => setSelectedVencimento(null)}

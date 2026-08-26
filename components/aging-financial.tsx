@@ -236,21 +236,21 @@ export function AgingFinancial({
       {
         name: 'Normal',
         value: financialByTipo.reduce((sum, t) => sum + t.valorNormal, 0),
-        itemStyle: { color: '#10b981' },
+        itemStyle: { color: '#AEE4FF' },
         lotes: normalLotes,
         materiais: normalMaterials.length,
       },
       {
         name: 'Alerta',
         value: financialByTipo.reduce((sum, t) => sum + t.valorAlerta, 0),
-        itemStyle: { color: '#f59e0b' },
+        itemStyle: { color: '#E29A36' },
         lotes: alertaLotes,
         materiais: alertaMaterials.length,
       },
       {
         name: 'Crítico',
         value: financialByTipo.reduce((sum, t) => sum + t.valorCritico, 0),
-        itemStyle: { color: '#ef4444' },
+        itemStyle: { color: '#E75B5B' },
         lotes: criticoLotes,
         materiais: criticoMaterials.length,
       },
@@ -259,8 +259,8 @@ export function AgingFinancial({
     return {
       tooltip: {
         trigger: 'item',
-        backgroundColor: 'rgba(17, 24, 39, 0.95)',
-        borderColor: 'transparent',
+        backgroundColor: '#13283E',
+        borderColor: '#2A4D6E',
         borderRadius: 8,
         padding: 12,
         formatter: (params: any) => {
@@ -268,15 +268,15 @@ export function AgingFinancial({
                           params.name === 'Alerta' ? 'Alerta (10-20 dias)' :
                           'Crítico (> 20 dias)';
           const dataItem = chartData.find(d => d.name === params.name);
-          return `<strong style="color: #fff;">${fullName}</strong><br/>
+          return `<strong style="color: #AEE4FF;">${fullName}</strong><br/>
                   <strong style="color: #fff;">${formatCurrency(params.value)}</strong>
-                  <span style="color: #9CA3AF;">(${params.percent}%)</span><br/>
-                  <span style="color: #9CA3AF;">${dataItem?.materiais || 0} materiais em ${dataItem?.lotes || 0} lotes</span>`;
+                  <span style="color: #608BA6;">(${params.percent}%)</span><br/>
+                  <span style="color: #608BA6;">${dataItem?.materiais || 0} materiais em ${dataItem?.lotes || 0} lotes</span>`;
         },
       },
       legend: {
         bottom: 5,
-        textStyle: { fontSize: 10 },
+        textStyle: { color: '#608BA6', fontSize: 10 },
         formatter: (name: string) => {
           const dataItem = chartData.find(d => d.name === name);
           const label = name === 'Normal' ? 'Normal (< 10d)' :
@@ -292,7 +292,7 @@ export function AgingFinancial({
           avoidLabelOverlap: true,
           label: { show: false },
           emphasis: {
-            label: { show: true, fontSize: 12, fontWeight: 'bold' },
+            label: { show: true, fontSize: 12, fontWeight: 'bold', color: '#AEE4FF' },
             scaleSize: 10,
           },
           data: chartData.map(item => ({
@@ -322,36 +322,40 @@ export function AgingFinancial({
         title: {
           text: 'Top 10 Materiais por Valor Total',
           left: 'center',
-          textStyle: { fontSize: 14 },
+          textStyle: { fontSize: 14, color: '#AEE4FF', fontWeight: 'bold' },
           subtext: 'Clique no grafico ao lado para filtrar por criticidade',
-          subtextStyle: { fontSize: 11, color: '#9CA3AF' },
+          subtextStyle: { fontSize: 11, color: '#608BA6' },
         },
         tooltip: {
           trigger: 'axis',
-          backgroundColor: 'rgba(17, 24, 39, 0.95)',
-          borderColor: 'transparent',
+          backgroundColor: '#13283E',
+          borderColor: '#2A4D6E',
           borderRadius: 8,
           padding: 12,
           formatter: (params: any) => {
             const item = topMaterials[params[0].dataIndex];
-            return `<strong style="color: #fff;">${item?.material}</strong><br/>
-                    <span style="color: #E5E7EB;">${item?.descricao?.substring(0, 40)}...</span><br/>
+            return `<strong style="color: #AEE4FF;">${item?.material}</strong><br/>
+                    <span style="color: #cbd5e1;">${item?.descricao?.substring(0, 40)}...</span><br/>
                     <strong style="color: #fff;">${formatCurrency(item?.valorTotal || 0)}</strong><br/>
-                    <span style="color: #9CA3AF;">Estoque: ${item?.peso} ${item?.unidade || 'kg'}</span><br/>
-                    <span style="color: #9CA3AF;">Valor Unit.: ${formatCurrency(item?.valorUnitario || 0)}</span><br/>
-                    <span style="color: #9CA3AF;">Aging: ${item?.dias} dias · ${item?.tipo_deposito}</span>`;
+                    <span style="color: #608BA6;">Estoque: ${item?.peso} ${item?.unidade || 'kg'}</span><br/>
+                    <span style="color: #608BA6;">Valor Unit.: ${formatCurrency(item?.valorUnitario || 0)}</span><br/>
+                    <span style="color: #608BA6;">Aging: ${item?.dias} dias · ${item?.tipo_deposito}</span>`;
           },
         },
         grid: { bottom: 80 },
         xAxis: {
           type: 'category',
           data: topMaterials.map(m => m?.material),
-          axisLabel: { rotate: 45, fontSize: 10 },
+          axisLine: { lineStyle: { color: '#2A4D6E' } },
+          axisLabel: { rotate: 45, fontSize: 10, color: '#608BA6' },
         },
         yAxis: {
           type: 'value',
           name: 'Valor (R$)',
-          axisLabel: { formatter: (value: number) => formatCurrency(value) },
+          nameTextStyle: { color: '#608BA6' },
+          axisLine: { show: false },
+          splitLine: { lineStyle: { color: '#2A4D6E' } },
+          axisLabel: { color: '#608BA6', formatter: (value: number) => formatCurrency(value) },
         },
         series: [
           {
@@ -359,7 +363,8 @@ export function AgingFinancial({
             data: topMaterials.map(m => ({
               value: m?.valorTotal,
               itemStyle: {
-                color: m?.criticidade === 'Crítico' ? '#ef4444' : m?.criticidade === 'Alerta' ? '#f59e0b' : '#10b981',
+                color: m?.criticidade === 'Crítico' ? '#E75B5B' : m?.criticidade === 'Alerta' ? '#E29A36' : '#AEE4FF',
+                borderRadius: [4, 4, 0, 0],
               },
             })),
           },
@@ -372,8 +377,8 @@ export function AgingFinancial({
       .sort((a, b) => (b?.valorTotal || 0) - (a?.valorTotal || 0))
       .slice(0, 15);
 
-    const chartColor = selectedCriticality === 'Crítico' ? '#ef4444' :
-                       selectedCriticality === 'Alerta' ? '#f59e0b' : '#10b981';
+    const chartColor = selectedCriticality === 'Crítico' ? '#E75B5B' :
+                       selectedCriticality === 'Alerta' ? '#E29A36' : '#AEE4FF';
 
     const criticalityLabel = selectedCriticality === 'Normal' ? '< 10 dias' :
                             selectedCriticality === 'Alerta' ? '10-20 dias' : '> 20 dias';
@@ -384,44 +389,48 @@ export function AgingFinancial({
       title: {
         text: `Top 15 Materiais: ${selectedCriticality}`,
         left: 'center',
-        textStyle: { fontSize: 14 },
+        textStyle: { fontSize: 14, color: '#AEE4FF', fontWeight: 'bold' },
         subtext: `${criticalityLabel} · ${formatCurrency(totalValue)}`,
-        subtextStyle: { fontSize: 11, color: '#9CA3AF' },
+        subtextStyle: { fontSize: 11, color: '#608BA6' },
       },
       tooltip: {
         trigger: 'axis',
-        backgroundColor: 'rgba(17, 24, 39, 0.95)',
-        borderColor: 'transparent',
+        backgroundColor: '#13283E',
+        borderColor: '#2A4D6E',
         borderRadius: 8,
         padding: 12,
         formatter: (params: any) => {
           const item = filteredMaterials[params[0].dataIndex];
-          return `<strong style="color: #fff;">${item?.material}</strong><br/>
-                  <span style="color: #E5E7EB;">${item?.descricao?.substring(0, 40)}...</span><br/>
+          return `<strong style="color: #AEE4FF;">${item?.material}</strong><br/>
+                  <span style="color: #cbd5e1;">${item?.descricao?.substring(0, 40)}...</span><br/>
                   <strong style="color: #fff;">${formatCurrency(item?.valorTotal || 0)}</strong><br/>
-                  <span style="color: #9CA3AF;">Estoque: ${item?.peso} ${item?.unidade || 'kg'}</span><br/>
-                  <span style="color: #9CA3AF;">Valor Unit.: ${formatCurrency(item?.valorUnitario || 0)}</span><br/>
-                  <span style="color: #9CA3AF;">Aging: ${item?.dias} dias · ${item?.tipo_deposito}</span><br/>
-                  <span style="color: #9CA3AF;">Lote: ${item?.lote || 'N/A'}</span>`;
+                  <span style="color: #608BA6;">Estoque: ${item?.peso} ${item?.unidade || 'kg'}</span><br/>
+                  <span style="color: #608BA6;">Valor Unit.: ${formatCurrency(item?.valorUnitario || 0)}</span><br/>
+                  <span style="color: #608BA6;">Aging: ${item?.dias} dias · ${item?.tipo_deposito}</span><br/>
+                  <span style="color: #608BA6;">Lote: ${item?.lote || 'N/A'}</span>`;
         },
       },
       grid: { bottom: 80 },
       xAxis: {
         type: 'category',
         data: filteredMaterials.map(m => m?.material),
-        axisLabel: { rotate: 45, fontSize: 9, interval: 0 },
+        axisLine: { lineStyle: { color: '#2A4D6E' } },
+        axisLabel: { rotate: 45, fontSize: 9, interval: 0, color: '#608BA6' },
       },
       yAxis: {
         type: 'value',
         name: 'Valor (R$)',
-        axisLabel: { formatter: (value: number) => formatCurrency(value) },
+        nameTextStyle: { color: '#608BA6' },
+        axisLine: { show: false },
+        splitLine: { lineStyle: { color: '#2A4D6E' } },
+        axisLabel: { color: '#608BA6', formatter: (value: number) => formatCurrency(value) },
       },
       series: [
         {
           type: 'bar',
           data: filteredMaterials.map(m => ({
             value: m?.valorTotal,
-            itemStyle: { color: chartColor },
+            itemStyle: { color: chartColor, borderRadius: [4, 4, 0, 0] },
           })),
           barWidth: '60%',
           emphasis: {
@@ -435,36 +444,36 @@ export function AgingFinancial({
   return (
     <div className="space-y-3">
       {/* Cards de Estatisticas Financeiras */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2">
-        <Card className="bg-gradient-to-br from-green-500 to-teal-600 border-0 text-white">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-0 pt-2">
-            <CardTitle className="text-sm font-medium opacity-90">Valor Total</CardTitle>
-            <div className="p-1 bg-white/20 rounded-lg">
-              <DollarSign className="h-3 w-3" />
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+        <Card className="bg-ems-card border border-ems-border text-white shadow-lg">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-0 pt-2.5 px-3">
+            <CardTitle className="text-xs font-bold uppercase tracking-wider text-ems-ice">Valor Total</CardTitle>
+            <div className="p-1.5 bg-ems-navy rounded-lg border border-ems-border text-ems-ice">
+              <DollarSign className="h-3.5 w-3.5" />
             </div>
           </CardHeader>
-          <CardContent className="pb-2">
-            <div className="text-lg font-bold leading-tight">{formatCurrency(financialStats.totalValorizado)}</div>
-            <div className="flex items-center justify-between mt-0.5">
-              <p className="text-[10px] opacity-80">
-                {financialStats.itensComValor} de {financialStats.totalItens} itens valorados
+          <CardContent className="pb-2.5 px-3">
+            <div className="text-lg font-black text-white font-mono leading-tight">{formatCurrency(financialStats.totalValorizado)}</div>
+            <div className="flex items-center justify-between mt-1">
+              <p className="text-[10px] text-ems-steel">
+                {financialStats.itensComValor} de {financialStats.totalItens} valorados
               </p>
               <TrendBadge current={financialStats.totalValorizado} previous={previousSnapshot?.total_valorizado} lowerIsBetter={false} />
             </div>
           </CardContent>
         </Card>
 
-        <Card className="bg-gradient-to-br from-violet-500 to-purple-600 border-0 text-white">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-0 pt-2">
-            <CardTitle className="text-sm font-medium opacity-90">Valorização AJUSTE</CardTitle>
-            <div className="p-1 bg-white/20 rounded-lg">
-              <RefreshCw className="h-3 w-3" />
+        <Card className="bg-ems-card border border-ems-border text-white shadow-lg">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-0 pt-2.5 px-3">
+            <CardTitle className="text-xs font-bold uppercase tracking-wider text-ems-ice">Valorização AJUSTE</CardTitle>
+            <div className="p-1.5 bg-ems-navy rounded-lg border border-ems-border text-ems-alerta">
+              <RefreshCw className="h-3.5 w-3.5" />
             </div>
           </CardHeader>
-          <CardContent className="pb-2">
-            <div className="text-lg font-bold leading-tight">{formatCurrency(depositoStats.valorAjuste)}</div>
-            <div className="flex items-center justify-between mt-0.5">
-              <p className="text-[10px] opacity-80">
+          <CardContent className="pb-2.5 px-3">
+            <div className="text-lg font-black text-ems-ice font-mono leading-tight">{formatCurrency(depositoStats.valorAjuste)}</div>
+            <div className="flex items-center justify-between mt-1">
+              <p className="text-[10px] text-ems-steel">
                 {depositoStats.itensAjuste} iten{depositoStats.itensAjuste !== 1 ? 's' : ''} valorado{depositoStats.itensAjuste !== 1 ? 's' : ''}
               </p>
               <TrendBadge current={depositoStats.valorAjuste} previous={previousSnapshot?.valor_ajuste} lowerIsBetter={true} />
@@ -472,17 +481,17 @@ export function AgingFinancial({
           </CardContent>
         </Card>
 
-        <Card className="bg-gradient-to-br from-indigo-500 to-blue-600 border-0 text-white">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-0 pt-2">
-            <CardTitle className="text-sm font-medium opacity-90">Valorização AJU-SAIDA</CardTitle>
-            <div className="p-1 bg-white/20 rounded-lg">
-              <ArrowUpRight className="h-3 w-3" />
+        <Card className="bg-ems-card border border-ems-border text-white shadow-lg">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-0 pt-2.5 px-3">
+            <CardTitle className="text-xs font-bold uppercase tracking-wider text-ems-ice">Valorização AJU-SAIDA</CardTitle>
+            <div className="p-1.5 bg-ems-navy rounded-lg border border-ems-border text-ems-ice">
+              <ArrowUpRight className="h-3.5 w-3.5" />
             </div>
           </CardHeader>
-          <CardContent className="pb-2">
-            <div className="text-lg font-bold leading-tight">{formatCurrency(depositoStats.valorAjuSaida)}</div>
-            <div className="flex items-center justify-between mt-0.5">
-              <p className="text-[10px] opacity-80">
+          <CardContent className="pb-2.5 px-3">
+            <div className="text-lg font-black text-ems-ice font-mono leading-tight">{formatCurrency(depositoStats.valorAjuSaida)}</div>
+            <div className="flex items-center justify-between mt-1">
+              <p className="text-[10px] text-ems-steel">
                 {depositoStats.itensAjuSaida} iten{depositoStats.itensAjuSaida !== 1 ? 's' : ''} valorado{depositoStats.itensAjuSaida !== 1 ? 's' : ''}
               </p>
               <TrendBadge current={depositoStats.valorAjuSaida} previous={previousSnapshot?.valor_aju_saida} lowerIsBetter={true} />
@@ -490,31 +499,31 @@ export function AgingFinancial({
           </CardContent>
         </Card>
 
-        <Card className="bg-gradient-to-br from-yellow-500 to-orange-600 border-0 text-white">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-0 pt-2">
-            <CardTitle className="text-sm font-medium opacity-90">Valor em Alerta</CardTitle>
-            <div className="p-1 bg-white/20 rounded-lg">
-              <AlertCircle className="h-3 w-3" />
+        <Card className="bg-ems-card border border-ems-border text-white shadow-lg">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-0 pt-2.5 px-3">
+            <CardTitle className="text-xs font-bold uppercase tracking-wider text-ems-alerta">Valor em Alerta</CardTitle>
+            <div className="p-1.5 bg-ems-navy rounded-lg border border-ems-border text-ems-alerta">
+              <AlertCircle className="h-3.5 w-3.5" />
             </div>
           </CardHeader>
-          <CardContent className="pb-2">
-            <div className="text-lg font-bold leading-tight">{formatCurrency(financialStats.valorAlerta)}</div>
-            <div className="mt-0.5">
+          <CardContent className="pb-2.5 px-3">
+            <div className="text-lg font-black text-ems-alerta font-mono leading-tight">{formatCurrency(financialStats.valorAlerta)}</div>
+            <div className="mt-1">
               <TrendBadge current={financialStats.valorAlerta} previous={previousSnapshot?.valor_alerta} lowerIsBetter={true} />
             </div>
           </CardContent>
         </Card>
 
-        <Card className="bg-gradient-to-br from-red-500 to-rose-600 border-0 text-white">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-0 pt-2">
-            <CardTitle className="text-sm font-medium opacity-90">Valor Critico</CardTitle>
-            <div className="p-1 bg-white/20 rounded-lg">
-              <TrendingUp className="h-3 w-3" />
+        <Card className="bg-ems-card border border-ems-border text-white shadow-lg">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-0 pt-2.5 px-3">
+            <CardTitle className="text-xs font-bold uppercase tracking-wider text-ems-critico">Valor Crítico</CardTitle>
+            <div className="p-1.5 bg-ems-navy rounded-lg border border-ems-border text-ems-critico">
+              <TrendingUp className="h-3.5 w-3.5" />
             </div>
           </CardHeader>
-          <CardContent className="pb-2">
-            <div className="text-lg font-bold leading-tight">{formatCurrency(financialStats.valorCritico)}</div>
-            <div className="mt-0.5">
+          <CardContent className="pb-2.5 px-3">
+            <div className="text-lg font-black text-ems-critico font-mono leading-tight">{formatCurrency(financialStats.valorCritico)}</div>
+            <div className="mt-1">
               <TrendBadge current={financialStats.valorCritico} previous={previousSnapshot?.valor_critico} lowerIsBetter={true} />
             </div>
           </CardContent>
@@ -523,11 +532,11 @@ export function AgingFinancial({
 
       {/* Graficos */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-        <Card className="cursor-pointer hover:shadow-lg transition-shadow">
+        <Card className="bg-ems-card border border-ems-border shadow-lg cursor-pointer hover:border-ems-steel transition-colors">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm flex items-center justify-between">
-              <span>Valor por Criticidade</span>
-              <Badge variant="outline" className="text-xs font-normal">
+            <CardTitle className="text-sm flex items-center justify-between text-ems-ice">
+              <span className="font-bold">Valor por Criticidade</span>
+              <Badge variant="outline" className="text-xs font-normal bg-ems-navy text-ems-steel border-ems-border">
                 Clique para filtrar
               </Badge>
             </CardTitle>
@@ -546,26 +555,26 @@ export function AgingFinancial({
             />
 
             {/* Estatisticas detalhadas */}
-            <div className="grid grid-cols-3 gap-2 pt-2 border-t">
+            <div className="grid grid-cols-3 gap-2 pt-2 border-t border-ems-border">
               {(() => {
                 const allMaterials = financialByTipo.flatMap(t => t.materiaisAll);
                 const stats = [
                   {
                     label: 'Normal',
-                    color: 'bg-green-500',
-                    textColor: 'text-green-700 dark:text-green-400',
+                    color: 'bg-ems-ice',
+                    textColor: 'text-ems-ice',
                     materials: allMaterials.filter(m => m?.criticidade === 'Normal'),
                   },
                   {
                     label: 'Alerta',
-                    color: 'bg-yellow-500',
-                    textColor: 'text-yellow-700 dark:text-yellow-400',
+                    color: 'bg-ems-alerta',
+                    textColor: 'text-ems-alerta',
                     materials: allMaterials.filter(m => m?.criticidade === 'Alerta'),
                   },
                   {
                     label: 'Crítico',
-                    color: 'bg-red-500',
-                    textColor: 'text-red-700 dark:text-red-400',
+                    color: 'bg-ems-critico',
+                    textColor: 'text-ems-critico',
                     materials: allMaterials.filter(m => m?.criticidade === 'Crítico'),
                   },
                 ];
@@ -577,10 +586,10 @@ export function AgingFinancial({
                   return (
                     <div
                       key={stat.label}
-                      className={`p-2 rounded-lg border-2 transition-all cursor-pointer ${
+                      className={`p-2 rounded-lg border transition-all cursor-pointer bg-ems-navy/70 ${
                         selectedCriticality === stat.label
-                          ? 'border-current ring-2 ring-offset-2 ring-current'
-                          : 'border-gray-200 dark:border-gray-700'
+                          ? 'border-ems-ice ring-1 ring-ems-ice shadow-md'
+                          : 'border-ems-border hover:border-ems-steel'
                       } ${stat.textColor}`}
                       onClick={() => onCriticalityChange?.(selectedCriticality === stat.label as any ? null : stat.label as any)}
                     >
@@ -590,12 +599,12 @@ export function AgingFinancial({
                       </div>
                       <div className="space-y-0.5">
                         <div className="flex items-center justify-between text-xs">
-                          <span className="text-muted-foreground">Materiais:</span>
-                          <span className="font-bold">{materiais}</span>
+                          <span className="text-ems-steel">Materiais:</span>
+                          <span className="font-bold text-white font-mono">{materiais}</span>
                         </div>
                         <div className="flex items-center justify-between text-xs">
-                          <span className="text-muted-foreground">Lotes:</span>
-                          <span className="font-bold">{lotes}</span>
+                          <span className="text-ems-steel">Lotes:</span>
+                          <span className="font-bold text-white font-mono">{lotes}</span>
                         </div>
                       </div>
                     </div>
@@ -606,14 +615,14 @@ export function AgingFinancial({
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="bg-ems-card border border-ems-border shadow-lg relative">
           <CardContent className="pt-4">
             {selectedCriticality && (
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => onCriticalityChange?.(null)}
-                className="absolute top-4 right-4 z-10"
+                className="absolute top-4 right-4 z-10 bg-ems-navy border-ems-border text-ems-ice hover:bg-ems-card hover:text-white text-xs h-7"
               >
                 Limpar Filtro
               </Button>

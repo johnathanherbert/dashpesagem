@@ -931,6 +931,7 @@ export function ResiduaisView({
           size="sm"
           onClick={handleCopySelected}
           disabled={selectedCount === 0}
+          className="bg-[#1B3550] border-[#2A4D6E] text-[#AEE4FF] hover:bg-[#234465] hover:text-white"
         >
           <Copy className="h-4 w-4 mr-2" />
           {copied ? 'Copiado!' : `Copiar ${selectedCount > 0 ? selectedCount : ''} selecionados`}
@@ -941,7 +942,7 @@ export function ResiduaisView({
           size="sm"
           onClick={handleCopyMIGO}
           disabled={selectedCount === 0}
-          className="bg-gradient-to-r from-green-600 to-emerald-700 hover:from-green-700 hover:to-emerald-800 text-white border-0 shadow-md hover:shadow-lg transition-all duration-300"
+          className="bg-[#1B3550] border border-[#2A4D6E] hover:bg-[#234465] text-[#AEE4FF] hover:text-white shadow-md transition-all duration-300 font-bold"
         >
           <Copy className="h-4 w-4 mr-2" />
           {copiedMIGO ? 'Copiado MIGO!' : 'MIGO'}
@@ -952,7 +953,7 @@ export function ResiduaisView({
           size="sm"
           onClick={handleCopyLote}
           disabled={selectedCount === 0}
-          className="bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white border-0 shadow-md hover:shadow-lg transition-all duration-300"
+          className="bg-[#1B3550] border border-[#2A4D6E] hover:bg-[#234465] text-[#AEE4FF] hover:text-white shadow-md transition-all duration-300 font-bold"
         >
           <Copy className="h-4 w-4 mr-2" />
           {copiedLote ? 'Copiado Lote!' : 'Lote'}
@@ -966,7 +967,8 @@ export function ResiduaisView({
           disabled={selectedCount === 0 || isApplyingInvestigacao}
           className={cn(
             "transition-all duration-200 border-dashed text-xs",
-            selectedCount > 0 && !allSelectedAreInvestigando && "border-amber-500/60 bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500 hover:text-white"
+            selectedCount > 0 && !allSelectedAreInvestigando && "border-[#E29A36]/60 bg-[#E29A36]/10 text-[#E29A36] hover:bg-[#E29A36] hover:text-[#13283E] font-bold",
+            allSelectedAreInvestigando && "bg-[#E75B5B] text-white hover:bg-[#E75B5B]/80 border-0"
           )}
           title="Alternar status de investigação dos lotes selecionados"
         >
@@ -984,7 +986,7 @@ export function ResiduaisView({
           size="sm"
           onClick={handleOpenDevolver}
           disabled={selectedCount !== 1}
-          className="bg-gradient-to-r from-amber-600 to-orange-700 hover:from-amber-700 hover:to-orange-800 text-white border-0 shadow-md hover:shadow-lg transition-all duration-300"
+          className="bg-[#E29A36] hover:bg-[#d48c2a] text-[#13283E] font-bold border-0 shadow-md transition-all duration-300"
           title="Selecione exatamente 1 item"
         >
           <Copy className="h-4 w-4 mr-2" />
