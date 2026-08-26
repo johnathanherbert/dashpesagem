@@ -5,6 +5,7 @@ import {
   SheetContent,
   SheetHeader,
   SheetTitle,
+  SheetDescription,
 } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { 
@@ -86,18 +87,18 @@ export function Sidebar({ open, onOpenChange, activeTab = 'financial', onTabChan
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="left" className="w-[320px] sm:w-[360px] p-0 flex flex-col bg-card border-r border-border">
         {/* Header Elegante estilo EMS */}
-        <div className="p-5 bg-gradient-to-br from-[#002e52] via-[#003b66] to-[#002e52] text-white">
+        <SheetHeader className="p-5 bg-gradient-to-br from-[#002e52] via-[#003b66] to-[#002e52] text-white text-left space-y-0">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-white/15 border border-white/25 flex items-center justify-center font-black text-sm text-white shadow-xs">
               EMS
             </div>
             <div>
-              <h2 className="font-extrabold text-sm tracking-tight text-white">
+              <SheetTitle className="font-extrabold text-sm tracking-tight text-white leading-tight">
                 Sistema de Aging & Pesagem
-              </h2>
-              <p className="text-[11px] text-blue-200/80 font-medium">
+              </SheetTitle>
+              <SheetDescription className="text-[11px] text-blue-200/80 font-medium">
                 Controle de Estoque Farmacêutico
-              </p>
+              </SheetDescription>
             </div>
           </div>
 
@@ -120,7 +121,7 @@ export function Sidebar({ open, onOpenChange, activeTab = 'financial', onTabChan
               </Badge>
             </div>
           )}
-        </div>
+        </SheetHeader>
 
         {/* Corpo do menu */}
         <div className="flex-1 overflow-y-auto p-4 space-y-6">
