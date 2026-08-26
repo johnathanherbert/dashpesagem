@@ -370,3 +370,57 @@ export async function saveSnapshotHistorico(
     console.warn('Aviso: não foi possível salvar snapshot de histórico');
   }
 }
+
+// =====================================================
+// LOTES EM INVESTIGAÇÃO
+// =====================================================
+
+export interface LoteInvestigacao {
+  lote: string;
+  material?: string;
+  motivo?: string;
+  created_by?: string;
+  created_at?: string;
+}
+
+export async function fetchLotesInvestigacao(): Promise<LoteInvestigacao[]> {
+  try {
+    const res = await fetch('/api/lotes-investigacao');
+    if (!res.ok) return [];
+    return res.json();
+  } catch (error) {
+    console.error('Erro ao buscar lotes em investigação:', error);
+    return [];
+  }
+}
+
+export async function addLoteInvestigacao(item: {
+  lote: string;
+  material?: string;
+  motivo?: string;
+  created_by?: string;
+}): Promise<boolean> {
+  try {
+    const res = await fetch('/api/lotes-investigacao', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(item),
+    });
+    return res.ok;
+  } catch (error) {
+    console.error('Erro ao adicionar lote em investigação:', error);
+    return false;
+  }
+}
+
+export async function removeLoteInvestigacao(lote: string): Promise<boolean> {
+  try {
+    const res = await fetch(`/api/lotes-investigacao?lote=${encodeURIComponent(lote)}`, {
+      method: 'DELETE',
+    });
+    return res.ok;
+  } catch (error) {
+    console.error('Erro ao remover lote de investigação:', error);
+    return false;
+  }
+}

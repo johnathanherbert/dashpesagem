@@ -19,7 +19,9 @@ import {
   FileSpreadsheet,
   TrendingUp,
   Package,
-  LogOut
+  LogOut,
+  LayoutDashboard,
+  AlertTriangle
 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { useFirebase } from '@/components/auth-provider';
@@ -30,15 +32,23 @@ interface SidebarProps {
   onTabChange?: (tab: string) => void;
 }
 
+interface MenuItem {
+  id: string;
+  label: string;
+  icon: any;
+  disabled?: boolean;
+}
+
 export function Sidebar({ activeTab = 'overview', onTabChange }: SidebarProps) {
   const [open, setOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
   const { userData, user, signOut } = useFirebase();
 
-  const menuItems = [
-    { id: 'overview', label: 'Visão Geral', icon: Home },
+  const menuItems: MenuItem[] = [
     { id: 'financial', label: 'Análise Financeira', icon: TrendingUp },
-    { id: 'inventory', label: 'Gestão de Estoque', icon: Package, disabled: true },
+    { id: 'onepage', label: 'Onepage Posições', icon: LayoutDashboard },
+    { id: 'residuais', label: 'Residuais', icon: AlertTriangle },
+    { id: 'remessas', label: 'Remessas', icon: Package },
   ];
 
   const handleItemClick = (itemId: string) => {

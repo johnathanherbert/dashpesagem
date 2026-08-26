@@ -137,3 +137,11 @@ export interface DashboardSnapshot {
   materiais_inf: number;
   materiais_cfa: number;
 }
+
+export interface LoteInvestigacao {
+  lote: string;
+  material?: string;
+  motivo?: string;
+  created_by?: string;
+  created_at?: string;
+}

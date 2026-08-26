@@ -3,9 +3,10 @@
 import { useState, useEffect } from 'react';
 import { AgingData, RemessaData, ConfiguracaoResiduais } from '@/types/aging';
 import { isMaterialEspecial } from '@/lib/materiais-especiais';
-import { fetchAgingData, fetchMaterialValores, fetchRemessas, fetchConfiguracaoResiduais, fetchDashboardHistorico, DashboardSnapshot } from '@/lib/api';
+import { fetchAgingData, fetchMaterialValores, fetchRemessas, fetchConfiguracaoResiduais, fetchDashboardHistorico, fetchLotesInvestigacao, LoteInvestigacao, DashboardSnapshot } from '@/lib/api';
 import { AgingStats } from '@/components/aging-stats';
 import { AgingFinancial } from '@/components/aging-financial';
+import { OnepageView } from '@/components/onepage-view';
 import { ValorUpload } from '@/components/valor-upload';
 import { RemessaUpload } from '@/components/remessa-upload';
 import { ResiduaisView } from '@/components/residuais-view';
@@ -16,8 +17,9 @@ import { UploadButton } from '@/components/layout/upload-button';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Settings, TrendingUp, Package, AlertTriangle, X } from 'lucide-react';
+import { Loader2, Settings, TrendingUp, Package, AlertTriangle, LayoutDashboard, X } from 'lucide-react';
 import { ProtectedRoute } from '@/components/protected-route';
+import { useFirebase } from '@/components/auth-provider';
 
 export default function Home() {
   const [data, setData] = useState<AgingData[]>([]);
@@ -39,12 +41,14 @@ export default function Home() {
   const [selectedVencimento, setSelectedVencimento] = useState<'vencidos' | 'proximos30' | null>(null);
   const [viewMode, setViewMode] = useState<'geral' | 'ajustes'>('geral');
   const [previousSnapshot, setPreviousSnapshot] = useState<DashboardSnapshot | null>(null);
+  const [lotesInvestigacao, setLotesInvestigacao] = useState<LoteInvestigacao[]>([]);
+  const { user, userData } = useFirebase();
 
   const loadData = async () => {
     try {
       setLoading(true);
       setError(null);
-      const [agingData, valoresData, remessasData, configData, historico] = await Promise.all([
+      const [agingData, valoresData, remessasData, configData, historico, lotesInv] = await Promise.all([
         fetchAgingData(),
         fetchMaterialValores(),
         fetchRemessas().catch(() => []), // Não falhar se remessas não existir
@@ -55,19 +59,26 @@ export default function Home() {
           materiais_alto_valor: [],
         })),
         fetchDashboardHistorico(2).catch(() => []),
+        fetchLotesInvestigacao().catch(() => []),
       ]);
       setData(agingData);
       setValores(valoresData);
       setRemessas(remessasData);
       setConfigResiduais(configData);
+      setLotesInvestigacao(lotesInv);
       // O snapshot mais recente é o [0] (ordenado desc); o anterior é o [1]
       setPreviousSnapshot(historico[1] ?? null);
     } catch (err) {
       console.error('Erro ao carregar dados:', err);
-      setError('Erro ao carregar dados. Verifique a configuração do Supabase.');
+      setError('Erro ao carregar dados. Verifique a configuração do banco de dados.');
     } finally {
       setLoading(false);
     }
+  };
+
+  const loadInvestigacaoOnly = async () => {
+    const lotes = await fetchLotesInvestigacao().catch(() => []);
+    setLotesInvestigacao(lotes);
   };
 
   useEffect(() => {
@@ -83,8 +94,10 @@ export default function Home() {
     const tabMap: Record<string, string> = {
       overview: 'financial',
       charts: 'financial',
-      table: 'table',
       financial: 'financial',
+      onepage: 'onepage',
+      residuais: 'residuais',
+      remessas: 'remessas',
       settings: 'settings',
     };
     const newTab = tabMap[tab] || 'financial';
@@ -310,10 +323,14 @@ export default function Home() {
             {/* Tabs */}
             <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-3">
               <div className="flex items-center gap-2 flex-wrap">
-                <TabsList className="grid grid-cols-4 h-8">
+                <TabsList className="grid grid-cols-5 h-8">
                   <TabsTrigger value="financial" className="flex items-center gap-1.5 text-xs">
                     <TrendingUp className="h-3 w-3" />
                     Financeiro
+                  </TabsTrigger>
+                  <TabsTrigger value="onepage" className="flex items-center gap-1.5 text-xs">
+                    <LayoutDashboard className="h-3 w-3" />
+                    Onepage
                   </TabsTrigger>
                   <TabsTrigger value="residuais" className="flex items-center gap-1.5 text-xs">
                     <AlertTriangle className="h-3 w-3" />
@@ -427,6 +444,16 @@ export default function Home() {
                 <RemessasView
                   remessas={remessas}
                   materialFilter={materialFilter}
+                />
+              </TabsContent>
+
+              <TabsContent value="onepage" className="space-y-3">
+                <OnepageView
+                  agingData={data}
+                  valores={valores}
+                  lotesInvestigacao={lotesInvestigacao}
+                  onInvestigacaoChange={loadInvestigacaoOnly}
+                  currentUserEmail={user?.email || userData?.email}
                 />
               </TabsContent>
             </Tabs>
