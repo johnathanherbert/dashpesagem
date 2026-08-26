@@ -517,16 +517,19 @@ export function RemessasView({ remessas, materialFilter }: RemessasViewProps) {
       {/* Toolbar */}
       <div className="flex items-center gap-3 px-4 py-2 border-b bg-background shrink-0 flex-wrap">
         <div className="flex items-center gap-2">
-          <Package className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-          <h2 className="text-lg font-semibold">Remessas Abertas</h2>
+          <div className="p-1 rounded-lg bg-[#1B3550] border border-[#2A4D6E] text-[#AEE4FF]">
+            <Package className="h-4 w-4" />
+          </div>
+          <h2 className="text-sm font-bold uppercase tracking-wider text-white">Remessas Abertas</h2>
         </div>
 
         {materialFilter && (
-          <Badge className="flex items-center gap-1 bg-blue-600 hover:bg-blue-700 text-white border-0">
-            Material: {materialFilter}
+          <Badge className="flex items-center gap-1.5 bg-[#1B3550] hover:bg-[#234465] text-[#AEE4FF] border border-[#2A4D6E] text-xs font-semibold px-2.5 py-1 rounded-lg shadow-xs">
+            Material: <span className="font-mono font-bold text-white">{materialFilter}</span>
             <button
               onClick={() => setColumnFilters(columnFilters.filter(f => f.id !== 'material'))}
               className="ml-1 hover:bg-white/20 rounded-full p-0.5 transition-colors"
+              title="Remover filtro"
             >
               <X className="h-3 w-3" />
             </button>
@@ -555,12 +558,13 @@ export function RemessasView({ remessas, materialFilter }: RemessasViewProps) {
           size="sm"
           onClick={handleCopySelected}
           disabled={selectedCount === 0}
+          className="bg-[#1B3550] border-[#2A4D6E] text-[#AEE4FF] hover:bg-[#234465] hover:text-white font-bold"
         >
           <Copy className="h-4 w-4 mr-2" />
           {copied ? 'Copiado!' : `Copiar ${selectedCount > 0 ? selectedCount : ''} selecionados`}
         </Button>
 
-        <Badge variant="outline" className="shrink-0">
+        <Badge variant="outline" className="shrink-0 bg-[#1B3550] text-[#AEE4FF] border-[#2A4D6E] text-xs font-mono font-bold px-2.5 py-1 rounded-lg">
           {filteredCount} de {remessas.length} registros
         </Badge>
       </div>

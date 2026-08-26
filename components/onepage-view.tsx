@@ -15,6 +15,7 @@ interface OnepageViewProps {
   lotesInvestigacao: LoteInvestigacao[];
   onInvestigacaoChange: () => void;
   currentUserEmail?: string;
+  lastUpdate?: string | Date | null;
 }
 
 export function OnepageView({
@@ -23,7 +24,28 @@ export function OnepageView({
   lotesInvestigacao,
   onInvestigacaoChange,
   currentUserEmail,
+  lastUpdate,
 }: OnepageViewProps) {
+  // Formatação da última atualização (padrão topbar)
+  const formattedLastUpdate = (() => {
+    if (!lastUpdate) return '';
+    try {
+      const d = typeof lastUpdate === 'string' ? new Date(lastUpdate) : lastUpdate;
+      if (isNaN(d.getTime())) {
+        return String(lastUpdate);
+      }
+      return d.toLocaleString('pt-BR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+    } catch {
+      return String(lastUpdate);
+    }
+  })();
+
   // Set de lotes em investigação para busca O(1)
   const lotesInvestigacaoSet = useMemo(() => {
     return new Set(lotesInvestigacao.map((item) => item.lote.trim().toUpperCase()));
@@ -268,22 +290,42 @@ export function OnepageView({
   const chartAjusteOption = useMemo(() => {
     // Totais Investigação
     let invNormal = 0;
+    let invNormalLotes = 0;
     let invAlerta = 0;
+    let invAlertaLotes = 0;
     let invCritico = 0;
+    let invCriticoLotes = 0;
     ajusteInvestigacao.forEach((i) => {
-      if (i.dias >= 20) invCritico += i.valor;
-      else if (i.dias >= 7) invAlerta += i.valor;
-      else invNormal += i.valor;
+      if (i.dias >= 20) {
+        invCritico += i.valor;
+        invCriticoLotes++;
+      } else if (i.dias >= 7) {
+        invAlerta += i.valor;
+        invAlertaLotes++;
+      } else {
+        invNormal += i.valor;
+        invNormalLotes++;
+      }
     });
 
     // Totais Chamado
     let chaNormal = 0;
+    let chaNormalLotes = 0;
     let chaAlerta = 0;
+    let chaAlertaLotes = 0;
     let chaCritico = 0;
+    let chaCriticoLotes = 0;
     ajusteChamado.forEach((i) => {
-      if (i.dias >= 20) chaCritico += i.valor;
-      else if (i.dias >= 7) chaAlerta += i.valor;
-      else chaNormal += i.valor;
+      if (i.dias >= 20) {
+        chaCritico += i.valor;
+        chaCriticoLotes++;
+      } else if (i.dias >= 7) {
+        chaAlerta += i.valor;
+        chaAlertaLotes++;
+      } else {
+        chaNormal += i.valor;
+        chaNormalLotes++;
+      }
     });
 
     return {
@@ -296,7 +338,9 @@ export function OnepageView({
           let total = 0;
           params.forEach((p) => {
             if (p.value > 0) {
-              str += `<span style="display:inline-block;margin-right:4px;border-radius:10px;width:9px;height:9px;background-color:${p.color};"></span> ${p.seriesName}: <b>${formatCurrency(p.value)}</b><br/>`;
+              const lotes = p.data?.lotesCount || 0;
+              const lotesText = lotes > 0 ? ` (${lotes} ${lotes > 1 ? 'lotes' : 'lote'})` : '';
+              str += `<span style="display:inline-block;margin-right:4px;border-radius:10px;width:9px;height:9px;background-color:${p.color};"></span> ${p.seriesName}: <b>${formatCurrency(p.value)}</b>${lotesText}<br/>`;
               total += p.value;
             }
           });
@@ -339,7 +383,32 @@ export function OnepageView({
           type: 'bar',
           stack: 'ajuste',
           barWidth: '40%',
-          data: [invNormal, chaNormal],
+          data: [
+            {
+              value: invNormal,
+              lotesCount: invNormalLotes,
+              label: {
+                show: invNormalLotes > 0,
+                position: 'inside',
+                formatter: `${invNormalLotes} lotes`,
+                color: '#13283E',
+                fontSize: 10,
+                fontWeight: 'bold',
+              },
+            },
+            {
+              value: chaNormal,
+              lotesCount: chaNormalLotes,
+              label: {
+                show: chaNormalLotes > 0,
+                position: 'inside',
+                formatter: `${chaNormalLotes} lotes`,
+                color: '#13283E',
+                fontSize: 10,
+                fontWeight: 'bold',
+              },
+            },
+          ],
           itemStyle: { color: '#AEE4FF' },
         },
         {
@@ -347,7 +416,32 @@ export function OnepageView({
           type: 'bar',
           stack: 'ajuste',
           barWidth: '40%',
-          data: [invAlerta, chaAlerta],
+          data: [
+            {
+              value: invAlerta,
+              lotesCount: invAlertaLotes,
+              label: {
+                show: invAlertaLotes > 0,
+                position: 'inside',
+                formatter: `${invAlertaLotes} lotes`,
+                color: '#13283E',
+                fontSize: 10,
+                fontWeight: 'bold',
+              },
+            },
+            {
+              value: chaAlerta,
+              lotesCount: chaAlertaLotes,
+              label: {
+                show: chaAlertaLotes > 0,
+                position: 'inside',
+                formatter: `${chaAlertaLotes} lotes`,
+                color: '#13283E',
+                fontSize: 10,
+                fontWeight: 'bold',
+              },
+            },
+          ],
           itemStyle: { color: '#E29A36' },
         },
         {
@@ -355,7 +449,32 @@ export function OnepageView({
           type: 'bar',
           stack: 'ajuste',
           barWidth: '40%',
-          data: [invCritico, chaCritico],
+          data: [
+            {
+              value: invCritico,
+              lotesCount: invCriticoLotes,
+              label: {
+                show: invCriticoLotes > 0,
+                position: 'inside',
+                formatter: `${invCriticoLotes} lotes`,
+                color: '#FFFFFF',
+                fontSize: 10,
+                fontWeight: 'bold',
+              },
+            },
+            {
+              value: chaCritico,
+              lotesCount: chaCriticoLotes,
+              label: {
+                show: chaCriticoLotes > 0,
+                position: 'inside',
+                formatter: `${chaCriticoLotes} lotes`,
+                color: '#FFFFFF',
+                fontSize: 10,
+                fontWeight: 'bold',
+              },
+            },
+          ],
           itemStyle: { color: '#E75B5B', borderRadius: [6, 6, 0, 0] },
         },
       ],
@@ -479,7 +598,18 @@ export function OnepageView({
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+          {formattedLastUpdate && (
+            <div className="flex flex-col items-end text-right">
+              <span className="text-[10px] text-[#608BA6] font-medium leading-tight">
+                Última atualização:
+              </span>
+              <span className="text-[10px] text-[#AEE4FF] font-medium leading-tight font-mono">
+                {formattedLastUpdate}
+              </span>
+            </div>
+          )}
+
           <div className="text-xs font-semibold text-ems-steel bg-ems-navy px-3.5 py-1.5 rounded-lg border border-ems-border shadow-inner">
             Base: <span className="text-ems-ice font-medium">Último Movimento</span>
           </div>
@@ -713,7 +843,7 @@ export function OnepageView({
         <div className="bg-ems-card border border-ems-border rounded-xl p-5 shadow-lg flex flex-col justify-between">
           <div>
             <h4 className="text-xs font-bold uppercase text-ems-ice">AJUSTE - Investigação vs Chamado</h4>
-            <p className="text-[11px] text-ems-steel mb-4">Base: Último Movimento | Valor por status de aging</p>
+            <p className="text-[11px] text-ems-steel mb-4">Total por status • nº de lotes dentro da barra</p>
           </div>
           <div className="relative h-64 w-full">
             <ReactECharts option={chartAjusteOption} style={{ height: '100%', width: '100%' }} />

@@ -481,6 +481,7 @@ export default function Home() {
                   lotesInvestigacao={lotesInvestigacao}
                   onInvestigacaoChange={loadInvestigacaoOnly}
                   currentUserEmail={user?.email || userData?.email}
+                  lastUpdate={lastUpdate}
                 />
               </TabsContent>
             </Tabs>

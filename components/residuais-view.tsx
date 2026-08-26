@@ -588,21 +588,21 @@ export function ResiduaisView({
           const dias = item.dias_aging ?? 0;
           if (dias >= 20) {
             return (
-              <Badge variant="destructive" className="gap-1 font-medium">
+              <Badge className="bg-[#E75B5B]/15 text-[#E75B5B] border border-[#E75B5B]/30 hover:bg-[#E75B5B]/25 gap-1 font-bold text-[11px] px-2 py-0.5 rounded-lg">
                 <AlertCircle className="h-3 w-3" />
                 Crítico
               </Badge>
             );
           } else if (dias >= 10) {
             return (
-              <Badge className="bg-yellow-500 hover:bg-yellow-600 text-white gap-1 font-medium">
+              <Badge className="bg-[#E29A36]/15 text-[#E29A36] border border-[#E29A36]/30 hover:bg-[#E29A36]/25 gap-1 font-bold text-[11px] px-2 py-0.5 rounded-lg">
                 <AlertTriangle className="h-3 w-3" />
                 Alerta
               </Badge>
             );
           } else {
             return (
-              <Badge className="bg-green-500 hover:bg-green-600 text-white gap-1 font-medium">
+              <Badge className="bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/25 gap-1 font-bold text-[11px] px-2 py-0.5 rounded-lg">
                 <CheckCircle className="h-3 w-3" />
                 Normal
               </Badge>
@@ -634,17 +634,16 @@ export function ResiduaisView({
           const material = row.getValue<string>('material');
           if (count === 0) return <span className="text-muted-foreground text-center block">-</span>;
           return (
-            <div className="relative group">
+            <div className="relative group inline-flex justify-center">
               <Badge
-                variant="secondary"
-                className="bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white border-0 cursor-pointer transition-all duration-300 hover:scale-110 hover:shadow-lg font-semibold px-2.5 py-0.5"
+                className="bg-[#1B3550] hover:bg-[#234465] active:bg-[#2A4D6E] text-[#AEE4FF] hover:text-white border border-[#2A4D6E] hover:border-[#AEE4FF]/60 shadow-xs shadow-black/30 cursor-pointer transition-all duration-200 hover:scale-105 font-bold px-2.5 py-1 rounded-lg gap-1.5"
                 onClick={() => onNavigateToRemessas?.(material)}
                 title="Clique para ver remessas deste material"
               >
-                <Package className="h-3 w-3 mr-1 animate-pulse" />
+                <Package className="h-3.5 w-3.5 text-[#AEE4FF] group-hover:scale-110 transition-transform" />
                 <span className="font-mono text-xs">{count}</span>
               </Badge>
-              <div className="absolute inset-0 bg-blue-400 opacity-0 group-hover:opacity-30 blur-md transition-opacity duration-300 rounded pointer-events-none" />
+              <div className="absolute inset-0 bg-[#AEE4FF] opacity-0 group-hover:opacity-10 blur-sm transition-opacity duration-200 rounded-lg pointer-events-none" />
             </div>
           );
         },
@@ -898,11 +897,11 @@ export function ResiduaisView({
         </Button>
 
         {nivelFilter && (
-          <Badge variant="secondary" className="flex items-center gap-1">
-            Filtro: {nivelFilter}
+          <Badge className="flex items-center gap-1 bg-[#1B3550] text-[#AEE4FF] border border-[#2A4D6E] text-xs font-semibold px-2.5 py-1 rounded-lg shadow-xs">
+            Filtro: <span className="capitalize text-white font-bold">{nivelFilter}</span>
             <button
               onClick={() => setNivelFilter(null)}
-              className="ml-1 hover:bg-black/10 rounded-full p-0.5"
+              className="ml-1 hover:bg-white/20 rounded-full p-0.5 transition-colors"
             >
               <X className="h-3 w-3" />
             </button>
@@ -993,7 +992,7 @@ export function ResiduaisView({
           {copiedDevolver ? 'Copiado Devolver!' : 'Devolver'}
         </Button>
 
-        <Badge variant="outline" className="shrink-0">
+        <Badge variant="outline" className="shrink-0 bg-[#1B3550] text-[#AEE4FF] border-[#2A4D6E] text-xs font-mono font-bold px-2.5 py-1 rounded-lg">
           {filteredCount} de {displayData.length} registros
         </Badge>
       </div>
