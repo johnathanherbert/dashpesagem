@@ -164,63 +164,81 @@ export function AgingStats({ data, onMaterialEspecialClick, selectedMaterialEspe
   };
 
   return (
-    <div className="flex gap-2 w-full pb-1">
-      <Card className="bg-gradient-to-br from-purple-500 to-indigo-600 border-0 text-white flex-1">
-        <div className="flex items-center gap-2 px-3 py-1.5">
-          <Package className="h-4 w-4 flex-shrink-0" />
+    <div className="flex gap-2 w-full pb-1 flex-wrap sm:flex-nowrap">
+      <Card className="bg-ems-card border border-ems-border text-white flex-1 min-w-[110px] shadow-md">
+        <div className="flex items-center gap-2 px-3 py-2">
+          <div className="p-1.5 rounded-lg bg-ems-navy border border-ems-border text-ems-ice">
+            <Package className="h-3.5 w-3.5 flex-shrink-0" />
+          </div>
           <div className="flex flex-col min-w-0">
-            <span className="text-[10px] opacity-90 leading-none whitespace-nowrap">Total</span>
-            <span className="text-base font-bold leading-none mt-0.5">{formatNumber(stats.totalItens)}</span>
-            <TrendBadge current={stats.totalItens} previous={previousSnapshot?.total_itens} direction="neutral" />
+            <span className="text-[10px] font-bold uppercase tracking-wider text-ems-steel leading-none whitespace-nowrap">Total</span>
+            <span className="text-base font-black text-white font-mono leading-none mt-1">{formatNumber(stats.totalItens)}</span>
+            <div className="mt-0.5">
+              <TrendBadge current={stats.totalItens} previous={previousSnapshot?.total_itens} direction="neutral" />
+            </div>
           </div>
         </div>
       </Card>
 
-      <Card className="bg-gradient-to-br from-green-500 to-teal-600 border-0 text-white flex-1">
-        <div className="flex items-center gap-2 px-3 py-1.5">
-          <Calendar className="h-4 w-4 flex-shrink-0" />
+      <Card className="bg-ems-card border border-ems-border text-white flex-1 min-w-[110px] shadow-md">
+        <div className="flex items-center gap-2 px-3 py-2">
+          <div className="p-1.5 rounded-lg bg-ems-navy border border-ems-border text-ems-ice">
+            <Calendar className="h-3.5 w-3.5 flex-shrink-0" />
+          </div>
           <div className="flex flex-col min-w-0">
-            <span className="text-[10px] opacity-90 leading-none whitespace-nowrap">Aging</span>
-            <span className="text-base font-bold leading-none mt-0.5">{Math.round(stats.mediaAging)}d</span>
-            <TrendBadge current={stats.mediaAging} previous={previousSnapshot?.media_aging} direction="up-bad" format="days" />
+            <span className="text-[10px] font-bold uppercase tracking-wider text-ems-steel leading-none whitespace-nowrap">Aging Médio</span>
+            <span className="text-base font-black text-ems-ice font-mono leading-none mt-1">{Math.round(stats.mediaAging)}d</span>
+            <div className="mt-0.5">
+              <TrendBadge current={stats.mediaAging} previous={previousSnapshot?.media_aging} direction="up-bad" format="days" />
+            </div>
           </div>
         </div>
       </Card>
 
-      <Card className="bg-gradient-to-br from-yellow-500 to-orange-600 border-0 text-white flex-1">
-        <div className="flex items-center gap-2 px-3 py-1.5">
-          <AlertCircle className="h-4 w-4 flex-shrink-0" />
+      <Card className="bg-ems-card border border-ems-border text-white flex-1 min-w-[110px] shadow-md">
+        <div className="flex items-center gap-2 px-3 py-2">
+          <div className="p-1.5 rounded-lg bg-ems-navy border border-ems-border text-ems-alerta">
+            <AlertCircle className="h-3.5 w-3.5 flex-shrink-0" />
+          </div>
           <div className="flex flex-col min-w-0">
-            <span className="text-[10px] opacity-90 leading-none whitespace-nowrap">Alerta</span>
-            <span className="text-base font-bold leading-none mt-0.5">{formatNumber(stats.itensAlerta)}</span>
-            <TrendBadge current={stats.itensAlerta} previous={previousSnapshot?.itens_alerta} direction="up-bad" />
+            <span className="text-[10px] font-bold uppercase tracking-wider text-ems-alerta leading-none whitespace-nowrap">Alerta (10-20d)</span>
+            <span className="text-base font-black text-ems-alerta font-mono leading-none mt-1">{formatNumber(stats.itensAlerta)}</span>
+            <div className="mt-0.5">
+              <TrendBadge current={stats.itensAlerta} previous={previousSnapshot?.itens_alerta} direction="up-bad" />
+            </div>
           </div>
         </div>
       </Card>
 
-      <Card className="bg-gradient-to-br from-orange-500 to-red-600 border-0 text-white flex-1">
-        <div className="flex items-center gap-2 px-3 py-1.5">
-          <TrendingUp className="h-4 w-4 flex-shrink-0" />
+      <Card className="bg-ems-card border border-ems-border text-white flex-1 min-w-[110px] shadow-md">
+        <div className="flex items-center gap-2 px-3 py-2">
+          <div className="p-1.5 rounded-lg bg-ems-navy border border-ems-border text-ems-critico">
+            <TrendingUp className="h-3.5 w-3.5 flex-shrink-0" />
+          </div>
           <div className="flex flex-col min-w-0">
-            <span className="text-[10px] opacity-90 leading-none whitespace-nowrap">Críticos</span>
-            <span className="text-base font-bold leading-none mt-0.5">{formatNumber(stats.itensCriticos)}</span>
-            <TrendBadge current={stats.itensCriticos} previous={previousSnapshot?.itens_criticos} direction="up-bad" />
+            <span className="text-[10px] font-bold uppercase tracking-wider text-ems-critico leading-none whitespace-nowrap">Críticos (&gt;20d)</span>
+            <span className="text-base font-black text-ems-critico font-mono leading-none mt-1">{formatNumber(stats.itensCriticos)}</span>
+            <div className="mt-0.5">
+              <TrendBadge current={stats.itensCriticos} previous={previousSnapshot?.itens_criticos} direction="up-bad" />
+            </div>
           </div>
         </div>
       </Card>
 
       {stats.materiaisInf > 0 && (
         <Card
-          className={`bg-gradient-to-br from-red-500 to-rose-600 border-0 text-white cursor-pointer transition-all hover:scale-105 flex-1 ${
-            selectedMaterialEspecial === 'inf' ? 'ring-2 ring-white shadow-lg' : ''
+          className={`bg-ems-card border text-white cursor-pointer transition-all hover:border-ems-steel flex-1 min-w-[90px] shadow-md ${
+            selectedMaterialEspecial === 'inf' ? 'border-ems-critico ring-1 ring-ems-critico' : 'border-ems-border'
           }`}
           onClick={() => onMaterialEspecialClick?.(selectedMaterialEspecial === 'inf' ? null : 'inf')}
         >
-          <div className="flex items-center gap-2 px-3 py-1.5">
-            <Flame className="h-4 w-4 flex-shrink-0" />
+          <div className="flex items-center gap-2 px-3 py-2">
+            <div className="p-1.5 rounded-lg bg-ems-navy border border-ems-border text-ems-critico">
+              <Flame className="h-3.5 w-3.5 flex-shrink-0" />
+            </div>
             <div className="flex flex-col min-w-0">
-              <span className="text-[10px] opacity-90 leading-none whitespace-nowrap">INF</span>
-              <span className="text-base font-bold leading-none mt-0.5">{formatNumber(stats.materiaisInf)}</span>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-ems-steel leading-none whitespace-nowrap">INF</span>
+              <span className="text-base font-black text-ems-critico font-mono leading-none mt-1">{formatNumber(stats.materiaisInf)}</span>
             </div>
           </div>
         </Card>
@@ -228,16 +246,18 @@ export function AgingStats({ data, onMaterialEspecialClick, selectedMaterialEspe
 
       {stats.materiaisCfa > 0 && (
         <Card
-          className={`bg-gradient-to-br from-blue-500 to-cyan-600 border-0 text-white cursor-pointer transition-all hover:scale-105 flex-1 ${
-            selectedMaterialEspecial === 'cfa' ? 'ring-2 ring-white shadow-lg' : ''
+          className={`bg-ems-card border text-white cursor-pointer transition-all hover:border-ems-steel flex-1 min-w-[90px] shadow-md ${
+            selectedMaterialEspecial === 'cfa' ? 'border-ems-ice ring-1 ring-ems-ice' : 'border-ems-border'
           }`}
           onClick={() => onMaterialEspecialClick?.(selectedMaterialEspecial === 'cfa' ? null : 'cfa')}
         >
-          <div className="flex items-center gap-2 px-3 py-1.5">
-            <Thermometer className="h-4 w-4 flex-shrink-0" />
+          <div className="flex items-center gap-2 px-3 py-2">
+            <div className="p-1.5 rounded-lg bg-ems-navy border border-ems-border text-ems-ice">
+              <Thermometer className="h-3.5 w-3.5 flex-shrink-0" />
+            </div>
             <div className="flex flex-col min-w-0">
-              <span className="text-[10px] opacity-90 leading-none whitespace-nowrap">CFA</span>
-              <span className="text-base font-bold leading-none mt-0.5">{formatNumber(stats.materiaisCfa)}</span>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-ems-steel leading-none whitespace-nowrap">CFA</span>
+              <span className="text-base font-black text-ems-ice font-mono leading-none mt-1">{formatNumber(stats.materiaisCfa)}</span>
             </div>
           </div>
         </Card>
@@ -245,16 +265,18 @@ export function AgingStats({ data, onMaterialEspecialClick, selectedMaterialEspe
 
       {stats.vencidos > 0 && (
         <Card
-          className={`bg-gradient-to-br from-red-600 to-rose-700 border-0 text-white cursor-pointer transition-all hover:scale-105 flex-1 ${
-            selectedVencimento === 'vencidos' ? 'ring-2 ring-white shadow-lg' : ''
+          className={`bg-ems-card border text-white cursor-pointer transition-all hover:border-ems-steel flex-1 min-w-[100px] shadow-md ${
+            selectedVencimento === 'vencidos' ? 'border-ems-critico ring-1 ring-ems-critico' : 'border-ems-border'
           }`}
           onClick={() => onVencimentoClick?.(selectedVencimento === 'vencidos' ? null : 'vencidos')}
         >
-          <div className="flex items-center gap-2 px-3 py-1.5">
-            <CalendarClock className="h-4 w-4 flex-shrink-0" />
+          <div className="flex items-center gap-2 px-3 py-2">
+            <div className="p-1.5 rounded-lg bg-ems-navy border border-ems-border text-ems-critico">
+              <CalendarClock className="h-3.5 w-3.5 flex-shrink-0" />
+            </div>
             <div className="flex flex-col min-w-0">
-              <span className="text-[10px] opacity-90 leading-none whitespace-nowrap">Vencidos</span>
-              <span className="text-base font-bold leading-none mt-0.5">{formatNumber(stats.vencidos)}</span>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-ems-critico leading-none whitespace-nowrap">Vencidos</span>
+              <span className="text-base font-black text-ems-critico font-mono leading-none mt-1">{formatNumber(stats.vencidos)}</span>
             </div>
           </div>
         </Card>
@@ -262,16 +284,18 @@ export function AgingStats({ data, onMaterialEspecialClick, selectedMaterialEspe
 
       {stats.vencimentoEm30Dias > 0 && (
         <Card
-          className={`bg-gradient-to-br from-amber-500 to-orange-600 border-0 text-white cursor-pointer transition-all hover:scale-105 flex-1 ${
-            selectedVencimento === 'proximos30' ? 'ring-2 ring-white shadow-lg' : ''
+          className={`bg-ems-card border text-white cursor-pointer transition-all hover:border-ems-steel flex-1 min-w-[120px] shadow-md ${
+            selectedVencimento === 'proximos30' ? 'border-ems-alerta ring-1 ring-ems-alerta' : 'border-ems-border'
           }`}
           onClick={() => onVencimentoClick?.(selectedVencimento === 'proximos30' ? null : 'proximos30')}
         >
-          <div className="flex items-center gap-2 px-3 py-1.5">
-            <CalendarClock className="h-4 w-4 flex-shrink-0" />
+          <div className="flex items-center gap-2 px-3 py-2">
+            <div className="p-1.5 rounded-lg bg-ems-navy border border-ems-border text-ems-alerta">
+              <CalendarClock className="h-3.5 w-3.5 flex-shrink-0" />
+            </div>
             <div className="flex flex-col min-w-0">
-              <span className="text-[10px] opacity-90 leading-none whitespace-nowrap">Vence dentro de 30 dias</span>
-              <span className="text-base font-bold leading-none mt-0.5">{formatNumber(stats.vencimentoEm30Dias)}</span>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-ems-steel leading-none whitespace-nowrap">Vence em 30d</span>
+              <span className="text-base font-black text-ems-alerta font-mono leading-none mt-1">{formatNumber(stats.vencimentoEm30Dias)}</span>
             </div>
           </div>
         </Card>

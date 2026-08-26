@@ -365,24 +365,24 @@ export default function Home() {
             {/* Tabs */}
             <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-3">
               <div className="flex items-center gap-2 flex-wrap">
-                <TabsList className="grid grid-cols-5 h-8">
-                  <TabsTrigger value="financial" className="flex items-center gap-1.5 text-xs">
+                <TabsList className="grid grid-cols-5 h-8 bg-ems-card border border-ems-border p-0.5 rounded-lg">
+                  <TabsTrigger value="financial" className="flex items-center gap-1.5 text-xs data-[state=active]:bg-ems-ice data-[state=active]:text-ems-navy data-[state=active]:font-bold text-ems-steel">
                     <TrendingUp className="h-3 w-3" />
                     Financeiro
                   </TabsTrigger>
-                  <TabsTrigger value="onepage" className="flex items-center gap-1.5 text-xs">
+                  <TabsTrigger value="onepage" className="flex items-center gap-1.5 text-xs data-[state=active]:bg-ems-ice data-[state=active]:text-ems-navy data-[state=active]:font-bold text-ems-steel">
                     <LayoutDashboard className="h-3 w-3" />
                     Onepage
                   </TabsTrigger>
-                  <TabsTrigger value="residuais" className="flex items-center gap-1.5 text-xs">
+                  <TabsTrigger value="residuais" className="flex items-center gap-1.5 text-xs data-[state=active]:bg-ems-ice data-[state=active]:text-ems-navy data-[state=active]:font-bold text-ems-steel">
                     <AlertTriangle className="h-3 w-3" />
                     Residuais
                   </TabsTrigger>
-                  <TabsTrigger value="remessas" className="flex items-center gap-1.5 text-xs">
+                  <TabsTrigger value="remessas" className="flex items-center gap-1.5 text-xs data-[state=active]:bg-ems-ice data-[state=active]:text-ems-navy data-[state=active]:font-bold text-ems-steel">
                     <Package className="h-3 w-3" />
                     Remessas
                   </TabsTrigger>
-                  <TabsTrigger value="settings" className="flex items-center gap-1.5 text-xs">
+                  <TabsTrigger value="settings" className="flex items-center gap-1.5 text-xs data-[state=active]:bg-ems-ice data-[state=active]:text-ems-navy data-[state=active]:font-bold text-ems-steel">
                     <Settings className="h-3 w-3" />
                     Config
                   </TabsTrigger>
@@ -392,10 +392,10 @@ export default function Home() {
                 <div className="flex items-center gap-1 flex-wrap">
                   <button
                     onClick={() => setSelectedTipoDeposito('all')}
-                    className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
+                    className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-colors border ${
                       selectedTipoDeposito === 'all'
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                        ? 'bg-ems-ice text-ems-navy border-ems-ice font-bold'
+                        : 'bg-ems-card text-ems-steel border-ems-border hover:bg-ems-card-hover hover:text-white'
                     }`}
                   >
                     Todos
@@ -404,10 +404,10 @@ export default function Home() {
                     <button
                       key={tipo}
                       onClick={() => setSelectedTipoDeposito(selectedTipoDeposito === tipo ? 'all' : tipo)}
-                      className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
+                      className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-colors border ${
                         selectedTipoDeposito === tipo
-                          ? 'bg-emerald-600 text-white'
-                          : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                          ? 'bg-ems-ice text-ems-navy border-ems-ice font-bold'
+                          : 'bg-ems-card text-ems-steel border-ems-border hover:bg-ems-card-hover hover:text-white'
                       }`}
                     >
                       {tipo}
