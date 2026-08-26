@@ -85,38 +85,38 @@ export function Sidebar({ open, onOpenChange, activeTab = 'financial', onTabChan
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="left" className="w-[320px] sm:w-[360px] p-0 flex flex-col bg-card border-r border-border">
+      <SheetContent side="left" className="w-[320px] sm:w-[360px] p-0 flex flex-col bg-[#13283E] border-r border-[#2A4D6E]">
         {/* Header Elegante estilo EMS */}
-        <SheetHeader className="p-5 bg-gradient-to-br from-[#002e52] via-[#003b66] to-[#002e52] text-white text-left space-y-0">
+        <SheetHeader className="p-5 bg-[#1B3550] border-b border-[#2A4D6E] text-white text-left space-y-0">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-white/15 border border-white/25 flex items-center justify-center font-black text-sm text-white shadow-xs">
+            <div className="w-10 h-10 rounded-xl bg-[#13283E] border border-[#2A4D6E] flex items-center justify-center font-black text-sm text-[#AEE4FF] shadow-xs">
               EMS
             </div>
             <div>
-              <SheetTitle className="font-extrabold text-sm tracking-tight text-white leading-tight">
-                Sistema de Aging & Pesagem
+              <SheetTitle className="font-extrabold text-sm tracking-tight text-[#AEE4FF] uppercase leading-tight">
+                Grupo EMS
               </SheetTitle>
-              <SheetDescription className="text-[11px] text-blue-200/80 font-medium">
-                Controle de Estoque Farmacêutico
+              <SheetDescription className="text-[11px] text-[#608BA6] font-medium">
+                Controle de Estoque & Pesagem
               </SheetDescription>
             </div>
           </div>
 
           {/* Usuário autenticado */}
           {(user || userData) && (
-            <div className="mt-4 p-3 bg-white/10 rounded-xl flex items-center gap-3 border border-white/15 backdrop-blur-xs">
-              <div className="w-9 h-9 rounded-lg bg-white/20 text-white flex items-center justify-center font-mono font-black text-xs shadow-xs">
+            <div className="mt-4 p-3 bg-[#13283E] rounded-xl flex items-center gap-3 border border-[#2A4D6E]">
+              <div className="w-9 h-9 rounded-lg bg-[#1B3550] text-[#AEE4FF] flex items-center justify-center font-mono font-black text-xs shadow-xs border border-[#2A4D6E]">
                 {userInitial}
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-xs font-bold truncate text-white">
+                <p className="text-xs font-bold truncate text-[#AEE4FF]">
                   {userData?.name || user?.displayName || 'Usuário'}
                 </p>
-                <p className="text-[11px] text-blue-200/80 truncate font-mono">
+                <p className="text-[11px] text-[#608BA6] truncate font-mono">
                   {userData?.email || user?.email}
                 </p>
               </div>
-              <Badge variant="outline" className="text-[9px] px-1.5 py-0 bg-white/15 text-white border-white/25">
+              <Badge variant="outline" className="text-[9px] px-1.5 py-0 bg-[#1B3550] text-[#AEE4FF] border-[#2A4D6E]">
                 {user?.email === ADMIN_EMAIL ? 'Admin' : 'User'}
               </Badge>
             </div>
@@ -127,7 +127,7 @@ export function Sidebar({ open, onOpenChange, activeTab = 'financial', onTabChan
         <div className="flex-1 overflow-y-auto p-4 space-y-6">
           {/* Navegação Principal */}
           <div className="space-y-2">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground px-2">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-[#608BA6] px-2">
               Módulos Principais
             </p>
             <nav className="space-y-1.5">
@@ -141,12 +141,12 @@ export function Sidebar({ open, onOpenChange, activeTab = 'financial', onTabChan
                     onClick={() => handleItemClick(item.id)}
                     className={`w-full flex items-center gap-3 p-2.5 rounded-xl text-left transition-all group ${
                       isActive
-                        ? 'bg-primary/10 text-primary font-bold border border-primary/20 shadow-2xs'
-                        : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                        ? 'bg-[#1B3550] text-[#AEE4FF] font-bold border border-[#2A4D6E] shadow-2xs'
+                        : 'text-slate-300 hover:bg-[#1B3550]/70 hover:text-[#AEE4FF]'
                     }`}
                   >
                     <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
-                      isActive ? 'bg-primary text-primary-foreground' : 'bg-muted group-hover:bg-card text-muted-foreground group-hover:text-foreground'
+                      isActive ? 'bg-[#AEE4FF] text-[#13283E]' : 'bg-[#1B3550] group-hover:bg-[#234465] text-[#608BA6] group-hover:text-[#AEE4FF]'
                     }`}>
                       <Icon className="h-4 w-4" />
                     </div>
@@ -154,27 +154,27 @@ export function Sidebar({ open, onOpenChange, activeTab = 'financial', onTabChan
                       <div className="flex items-center gap-1.5">
                         <span className="text-xs font-semibold">{item.label}</span>
                         {item.badge && (
-                          <span className="text-[9px] px-1.5 py-0 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold border border-emerald-500/20">
+                          <span className="text-[9px] px-1.5 py-0 rounded-full bg-[#AEE4FF]/15 text-[#AEE4FF] font-bold border border-[#AEE4FF]/30">
                             {item.badge}
                           </span>
                         )}
                       </div>
-                      <p className="text-[10px] text-muted-foreground/80 truncate font-normal">
+                      <p className="text-[10px] text-[#608BA6] truncate font-normal">
                         {item.description}
                       </p>
                     </div>
-                    <ChevronRight className={`h-4 w-4 opacity-0 group-hover:opacity-100 transition-opacity ${isActive ? 'opacity-100 text-primary' : 'text-muted-foreground'}`} />
+                    <ChevronRight className={`h-4 w-4 opacity-0 group-hover:opacity-100 transition-opacity ${isActive ? 'opacity-100 text-[#AEE4FF]' : 'text-[#608BA6]'}`} />
                   </button>
                 );
               })}
             </nav>
           </div>
 
-          <Separator />
+          <Separator className="bg-[#2A4D6E]" />
 
           {/* Sistema & Gestão */}
           <div className="space-y-2">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground px-2">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-[#608BA6] px-2">
               Administração
             </p>
             <nav className="space-y-1">
@@ -182,16 +182,16 @@ export function Sidebar({ open, onOpenChange, activeTab = 'financial', onTabChan
                 onClick={() => handleItemClick('settings')}
                 className={`w-full flex items-center gap-3 p-2.5 rounded-xl text-left transition-all ${
                   activeTab === 'settings'
-                    ? 'bg-primary/10 text-primary font-bold border border-primary/20'
-                    : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                    ? 'bg-[#1B3550] text-[#AEE4FF] font-bold border border-[#2A4D6E]'
+                    : 'text-slate-300 hover:bg-[#1B3550]/70 hover:text-[#AEE4FF]'
                 }`}
               >
-                <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center text-muted-foreground">
+                <div className="w-8 h-8 rounded-lg bg-[#1B3550] flex items-center justify-center text-[#608BA6]">
                   <Settings className="h-4 w-4" />
                 </div>
                 <div className="min-w-0 flex-1">
                   <span className="text-xs font-semibold block">Configurações</span>
-                  <p className="text-[10px] text-muted-foreground/80 truncate">Uploads e limites residuais</p>
+                  <p className="text-[10px] text-[#608BA6] truncate">Uploads e limites residuais</p>
                 </div>
               </button>
 
@@ -200,14 +200,14 @@ export function Sidebar({ open, onOpenChange, activeTab = 'financial', onTabChan
                   signOut();
                   onOpenChange(false);
                 }}
-                className="w-full flex items-center gap-3 p-2.5 rounded-xl text-left text-red-600 hover:bg-red-500/10 dark:hover:bg-red-950/40 transition-all group"
+                className="w-full flex items-center gap-3 p-2.5 rounded-xl text-left text-[#E75B5B] hover:bg-[#E75B5B]/10 transition-all group"
               >
-                <div className="w-8 h-8 rounded-lg bg-red-500/10 flex items-center justify-center text-red-600 group-hover:bg-red-500 group-hover:text-white transition-colors">
+                <div className="w-8 h-8 rounded-lg bg-[#E75B5B]/10 flex items-center justify-center text-[#E75B5B] group-hover:bg-[#E75B5B] group-hover:text-white transition-colors">
                   <LogOut className="h-4 w-4" />
                 </div>
                 <div className="min-w-0 flex-1">
                   <span className="text-xs font-semibold block">Encerrar Sessão</span>
-                  <p className="text-[10px] text-red-600/70 truncate">Sair do sistema</p>
+                  <p className="text-[10px] text-[#E75B5B]/70 truncate">Sair do sistema</p>
                 </div>
               </button>
             </nav>
@@ -215,10 +215,10 @@ export function Sidebar({ open, onOpenChange, activeTab = 'financial', onTabChan
         </div>
 
         {/* Footer do Sidebar */}
-        <div className="p-4 border-t border-border bg-muted/30">
-          <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+        <div className="p-4 border-t border-[#2A4D6E] bg-[#13283E]">
+          <div className="flex items-center justify-between text-[11px] text-[#608BA6]">
             <span>Versão 1.0.0</span>
-            <span className="font-semibold text-foreground">Johnathan Herbert</span>
+            <span className="font-semibold text-[#AEE4FF]">Johnathan Herbert</span>
           </div>
         </div>
       </SheetContent>

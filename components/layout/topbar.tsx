@@ -82,36 +82,36 @@ export function Topbar({ onToggleSidebar, activeTab = 'financial', onTabChange, 
     'U';
 
   return (
-    <header className="sticky top-0 z-40 w-full h-16 bg-gradient-to-r from-[#002e52] via-[#003b66] to-[#002e52] text-white shadow-md border-b border-white/10 px-4 flex items-center justify-between backdrop-blur-md">
+    <header className="sticky top-0 z-40 w-full h-16 bg-[#13283E] text-white shadow-md border-b border-[#2A4D6E] px-4 flex items-center justify-between backdrop-blur-md">
       {/* Esquerda: Menu toggle + Marca / Logo */}
       <div className="flex items-center gap-3">
         <Button
           variant="ghost"
           size="icon"
           onClick={onToggleSidebar}
-          className="text-white hover:bg-white/15 rounded-xl h-9 w-9"
+          className="text-white hover:bg-white/10 rounded-xl h-9 w-9"
           title="Abrir Menu Lateral"
         >
           <Menu className="h-5 w-5" />
         </Button>
 
         <div className="flex items-center gap-2.5">
-          <div className="h-9 w-9 rounded-xl bg-white/15 border border-white/20 flex items-center justify-center font-black text-sm tracking-wider shadow-xs">
+          <div className="h-9 w-9 rounded-xl bg-[#1B3550] border border-[#2A4D6E] flex items-center justify-center font-black text-sm text-[#AEE4FF] tracking-wider shadow-xs">
             EMS
           </div>
           <div className="hidden sm:flex flex-col">
-            <span className="font-extrabold text-sm tracking-tight leading-none text-white">
-              Sistema de Aging & Pesagem
+            <span className="font-extrabold text-sm tracking-tight leading-none text-[#AEE4FF] uppercase">
+              Grupo EMS
             </span>
-            <span className="text-[10px] text-blue-200/80 font-medium">
-              Gestão Inteligente de Estoque
+            <span className="text-[10px] text-[#608BA6] font-medium">
+              Controle de Estoque & Pesagem
             </span>
           </div>
         </div>
       </div>
 
       {/* Centro: Navegação rápida em desktop */}
-      <nav className="hidden md:flex items-center gap-1 bg-black/20 p-1 rounded-xl border border-white/10">
+      <nav className="hidden md:flex items-center gap-1 bg-[#1B3550] p-1 rounded-xl border border-[#2A4D6E]">
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = activeTab === item.id;
@@ -121,8 +121,8 @@ export function Topbar({ onToggleSidebar, activeTab = 'financial', onTabChange, 
               onClick={() => onTabChange?.(item.id)}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                 isActive
-                  ? 'bg-primary text-primary-foreground shadow-sm'
-                  : 'text-white/70 hover:text-white hover:bg-white/10'
+                  ? 'bg-[#AEE4FF] text-[#13283E] font-bold shadow-xs'
+                  : 'text-[#608BA6] hover:text-white hover:bg-[#234465]'
               }`}
             >
               <Icon className="h-3.5 w-3.5" />
@@ -136,8 +136,8 @@ export function Topbar({ onToggleSidebar, activeTab = 'financial', onTabChange, 
       <div className="flex items-center gap-2 sm:gap-3">
         {/* Relógio */}
         {time && (
-          <div className="hidden lg:flex items-center gap-1.5 px-3 py-1 rounded-lg bg-white/10 border border-white/10 text-xs font-mono font-bold text-blue-100 shadow-2xs">
-            <Clock className="w-3.5 h-3.5 text-blue-300" />
+          <div className="hidden lg:flex items-center gap-1.5 px-3 py-1 rounded-lg bg-[#1B3550] border border-[#2A4D6E] text-xs font-mono font-bold text-[#AEE4FF] shadow-2xs">
+            <Clock className="w-3.5 h-3.5 text-[#AEE4FF]" />
             <span>{time}</span>
           </div>
         )}
@@ -147,7 +147,7 @@ export function Topbar({ onToggleSidebar, activeTab = 'financial', onTabChange, 
           <Button
             size="sm"
             onClick={onOpenUpload}
-            className="h-8 text-xs font-bold gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm border-0"
+            className="h-8 text-xs font-bold gap-1.5 bg-[#AEE4FF] hover:bg-[#86d4fa] text-[#13283E] shadow-sm border-0"
             title="Importar planilhas"
           >
             <Upload className="h-3.5 w-3.5" />
@@ -160,13 +160,13 @@ export function Topbar({ onToggleSidebar, activeTab = 'financial', onTabChange, 
           variant="ghost"
           size="icon"
           onClick={toggleTheme}
-          className="text-white hover:bg-white/15 rounded-xl h-9 w-9 transition-colors"
+          className="text-white hover:bg-white/10 rounded-xl h-9 w-9 transition-colors"
           title={theme === 'dark' ? 'Mudar para modo claro' : 'Mudar para modo escuro'}
         >
           {theme === 'dark' ? (
-            <Sun className="h-4 w-4 text-amber-300" />
+            <Sun className="h-4 w-4 text-[#E29A36]" />
           ) : (
-            <Moon className="h-4 w-4 text-blue-200" />
+            <Moon className="h-4 w-4 text-[#AEE4FF]" />
           )}
         </Button>
 
@@ -176,31 +176,31 @@ export function Topbar({ onToggleSidebar, activeTab = 'financial', onTabChange, 
             <Button
               variant="ghost"
               size="icon"
-              className="relative h-9 w-9 rounded-xl bg-white/15 border border-white/25 hover:bg-white/25 text-white font-mono font-bold text-xs shadow-xs"
+              className="relative h-9 w-9 rounded-xl bg-[#1B3550] border border-[#2A4D6E] hover:bg-[#234465] text-[#AEE4FF] font-mono font-bold text-xs shadow-xs"
             >
               <span>{userInitial}</span>
-              <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-400 border border-[#002e52]" />
+              <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-400 border border-[#13283E]" />
             </Button>
           </DropdownMenuTrigger>
 
-          <DropdownMenuContent align="end" className="w-64 p-0 rounded-2xl shadow-xl border border-border overflow-hidden">
+          <DropdownMenuContent align="end" className="w-64 p-0 rounded-2xl shadow-xl border border-[#2A4D6E] bg-[#1B3550] text-slate-100 overflow-hidden">
             {/* Header do Perfil */}
-            <div className="p-4 bg-gradient-to-br from-[#002e52] to-[#003b66] text-white">
+            <div className="p-4 bg-[#13283E] border-b border-[#2A4D6E] text-white">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-white/20 border border-white/30 flex items-center justify-center font-mono font-bold text-sm text-white">
+                <div className="w-10 h-10 rounded-xl bg-[#1B3550] border border-[#2A4D6E] flex items-center justify-center font-mono font-bold text-sm text-[#AEE4FF]">
                   {userInitial}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="font-bold text-xs truncate leading-tight">
+                  <p className="font-bold text-xs truncate leading-tight text-[#AEE4FF]">
                     {userData?.name || user?.displayName || 'Usuário'}
                   </p>
-                  <p className="text-[11px] text-blue-200/80 truncate font-mono mt-0.5">
+                  <p className="text-[11px] text-[#608BA6] truncate font-mono mt-0.5">
                     {user?.email}
                   </p>
                 </div>
               </div>
               <div className="mt-2.5 flex items-center gap-1">
-                <Badge variant="outline" className="text-[9px] px-1.5 py-0 bg-white/15 text-white border-white/20">
+                <Badge variant="outline" className="text-[9px] px-1.5 py-0 bg-[#1B3550] text-[#AEE4FF] border-[#2A4D6E]">
                   {user?.email === ADMIN_EMAIL ? 'Administrador' : 'Colaborador'}
                 </Badge>
               </div>
@@ -209,17 +209,17 @@ export function Topbar({ onToggleSidebar, activeTab = 'financial', onTabChange, 
             <div className="p-1">
               <DropdownMenuItem
                 onClick={() => onTabChange?.('settings')}
-                className="cursor-pointer text-xs font-semibold py-2 px-3 gap-2"
+                className="cursor-pointer text-xs font-semibold py-2 px-3 gap-2 text-slate-200 hover:bg-[#234465] hover:text-[#AEE4FF] focus:bg-[#234465] focus:text-[#AEE4FF]"
               >
-                <Settings className="h-4 w-4 text-muted-foreground" />
+                <Settings className="h-4 w-4 text-[#608BA6]" />
                 <span>Configurações</span>
               </DropdownMenuItem>
 
-              <DropdownMenuSeparator />
+              <DropdownMenuSeparator className="bg-[#2A4D6E]" />
 
               <DropdownMenuItem
                 onClick={() => signOut()}
-                className="cursor-pointer text-xs font-semibold py-2 px-3 gap-2 text-red-600 dark:text-red-400 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-950/50"
+                className="cursor-pointer text-xs font-semibold py-2 px-3 gap-2 text-[#E75B5B] hover:bg-[#E75B5B]/10 hover:text-[#E75B5B] focus:text-[#E75B5B] focus:bg-[#E75B5B]/10"
               >
                 <LogOut className="h-4 w-4" />
                 <span>Sair da conta</span>

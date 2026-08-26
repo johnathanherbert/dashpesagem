@@ -199,15 +199,15 @@ export function OnepageView({
       xAxis: {
         type: 'category',
         data: ['Normal (<7d)', 'Alerta (7–19d)', 'Crítico (≥20d)'],
-        axisLine: { lineStyle: { color: 'var(--border)' } },
-        axisLabel: { color: '#94a3b8', fontSize: 11 },
+        axisLine: { lineStyle: { color: '#2A4D6E' } },
+        axisLabel: { color: '#608BA6', fontSize: 11, fontWeight: '600' },
       },
       yAxis: {
         type: 'value',
         axisLine: { show: false },
-        splitLine: { lineStyle: { color: 'rgba(148, 163, 184, 0.1)' } },
+        splitLine: { lineStyle: { color: '#2A4D6E' } },
         axisLabel: {
-          color: '#94a3b8',
+          color: '#608BA6',
           fontSize: 10,
           formatter: (v: number) => {
             if (v >= 1000000) return `R$ ${(v / 1000000).toFixed(1)}M`;
@@ -223,36 +223,36 @@ export function OnepageView({
           data: [
             {
               value: normalVal,
-              itemStyle: { color: '#0ea5e9', borderRadius: [4, 4, 0, 0] },
+              itemStyle: { color: '#AEE4FF', borderRadius: [6, 6, 0, 0] },
               label: {
                 show: normalLotes > 0,
                 position: 'inside',
                 formatter: `${normalLotes} lotes`,
-                color: '#fff',
+                color: '#13283E',
                 fontSize: 11,
                 fontWeight: 'bold',
               },
             },
             {
               value: alertaVal,
-              itemStyle: { color: '#f59e0b', borderRadius: [4, 4, 0, 0] },
+              itemStyle: { color: '#E29A36', borderRadius: [6, 6, 0, 0] },
               label: {
                 show: alertaLotes > 0,
                 position: 'inside',
                 formatter: `${alertaLotes} lotes`,
-                color: '#fff',
+                color: '#13283E',
                 fontSize: 11,
                 fontWeight: 'bold',
               },
             },
             {
               value: criticoVal,
-              itemStyle: { color: '#ef4444', borderRadius: [4, 4, 0, 0] },
+              itemStyle: { color: '#E75B5B', borderRadius: [6, 6, 0, 0] },
               label: {
                 show: criticoLotes > 0,
                 position: 'top',
                 formatter: `${criticoLotes} lotes`,
-                color: '#ef4444',
+                color: '#E75B5B',
                 fontSize: 11,
                 fontWeight: 'bold',
               },
@@ -306,23 +306,23 @@ export function OnepageView({
         orient: 'horizontal',
         top: 0,
         right: 0,
-        textStyle: { color: '#94a3b8', fontSize: 11 },
-        itemWidth: 12,
+        textStyle: { color: '#AEE4FF', fontSize: 10 },
+        itemWidth: 10,
         itemHeight: 10,
       },
       grid: { top: 35, right: 15, bottom: 25, left: 65 },
       xAxis: {
         type: 'category',
         data: ['Em Investigação', 'Aguardando Próx. Chamado'],
-        axisLine: { lineStyle: { color: 'var(--border)' } },
-        axisLabel: { color: '#94a3b8', fontSize: 11 },
+        axisLine: { lineStyle: { color: '#2A4D6E' } },
+        axisLabel: { color: '#608BA6', fontSize: 10, fontWeight: '600' },
       },
       yAxis: {
         type: 'value',
         axisLine: { show: false },
-        splitLine: { lineStyle: { color: 'rgba(148, 163, 184, 0.1)' } },
+        splitLine: { lineStyle: { color: '#2A4D6E' } },
         axisLabel: {
-          color: '#94a3b8',
+          color: '#608BA6',
           fontSize: 10,
           formatter: (v: number) => {
             if (v >= 1000000) return `R$ ${(v / 1000000).toFixed(1)}M`;
@@ -333,26 +333,25 @@ export function OnepageView({
       },
       series: [
         {
-          name: 'Normal (<7d)',
-          type: 'bar',
-          stack: 'total',
-          barWidth: '40%',
-          itemStyle: { color: '#0ea5e9' },
-          data: [invNormal, chaNormal],
-        },
-        {
           name: 'Alerta (7-19d)',
           type: 'bar',
           stack: 'total',
-          itemStyle: { color: '#f59e0b' },
+          itemStyle: { color: '#E29A36' },
           data: [invAlerta, chaAlerta],
         },
         {
           name: 'Crítico (≥20d)',
           type: 'bar',
           stack: 'total',
-          itemStyle: { color: '#ef4444' },
+          itemStyle: { color: '#E75B5B' },
           data: [invCritico, chaCritico],
+        },
+        {
+          name: 'Normal (<7d)',
+          type: 'bar',
+          stack: 'total',
+          itemStyle: { color: '#AEE4FF' },
+          data: [invNormal, chaNormal],
         },
       ],
     };
@@ -402,7 +401,7 @@ export function OnepageView({
     const values = sorted.map((s) => ({
       value: s.totalValor,
       itemStyle: {
-        color: s.maxDias >= 20 ? '#ef4444' : s.maxDias >= 7 ? '#f59e0b' : '#0ea5e9',
+        color: s.maxDias >= 20 ? '#E75B5B' : s.maxDias >= 7 ? '#E29A36' : '#AEE4FF',
         borderRadius: [0, 4, 4, 0],
       },
       materialName: s.texto,
@@ -424,9 +423,9 @@ export function OnepageView({
       xAxis: {
         type: 'value',
         axisLine: { show: false },
-        splitLine: { lineStyle: { color: 'rgba(148, 163, 184, 0.1)' } },
+        splitLine: { lineStyle: { color: '#2A4D6E' } },
         axisLabel: {
-          color: '#94a3b8',
+          color: '#608BA6',
           fontSize: 10,
           formatter: (v: number) => {
             if (v >= 1000) return `R$ ${(v / 1000).toFixed(0)}k`;
@@ -437,8 +436,8 @@ export function OnepageView({
       yAxis: {
         type: 'category',
         data: names,
-        axisLine: { lineStyle: { color: 'var(--border)' } },
-        axisLabel: { color: '#94a3b8', fontSize: 10 },
+        axisLine: { lineStyle: { color: '#2A4D6E' } },
+        axisLabel: { color: '#608BA6', fontSize: 10, fontWeight: '600' },
       },
       series: [
         {
@@ -455,55 +454,55 @@ export function OnepageView({
   return (
     <div className="space-y-5">
       {/* Header com estilo elegante */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-card border border-border/80 rounded-xl p-4 shadow-sm">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-ems-card border border-ems-border rounded-xl p-4 shadow-lg">
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary font-black border border-primary/20">
+          <div className="h-10 w-10 rounded-lg bg-ems-navy flex items-center justify-center text-ems-ice font-black border border-ems-border text-base tracking-wider">
             EMS
           </div>
           <div>
-            <h2 className="text-base font-black tracking-wide text-foreground uppercase">
+            <h2 className="text-base font-black tracking-wide text-ems-ice uppercase">
               Controle de Estoque & Posições (Onepage)
             </h2>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-ems-steel">
               Visão consolidada de Pesagem, Ajuste e Aju-Saída baseada em aging do último movimento
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
-          <div className="text-[11px] font-semibold text-muted-foreground bg-muted/60 px-3 py-1.5 rounded-lg border border-border/50">
-            Base: <span className="text-foreground">Último Movimento</span>
+          <div className="text-xs font-semibold text-ems-steel bg-ems-navy px-3.5 py-1.5 rounded-lg border border-ems-border shadow-inner">
+            Base: <span className="text-ems-ice font-medium">Último Movimento</span>
           </div>
         </div>
       </div>
 
       {/* TOP KPI GRID - 3 Cards Principais */}
-      <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <section className="grid grid-cols-1 md:grid-cols-3 gap-5">
         {/* Card: PESAGEM */}
-        <div className="bg-card border border-border rounded-xl p-5 shadow-sm flex flex-col justify-between hover:border-primary/40 transition-colors">
+        <div className="bg-ems-card border border-ems-border rounded-xl p-5 shadow-lg flex flex-col justify-between hover:border-ems-steel transition duration-200">
           <div>
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                <span className="h-2 w-2 rounded-full bg-sky-500"></span>
+              <h3 className="text-xs font-bold uppercase tracking-wider text-ems-ice flex items-center gap-1.5">
+                <span className="h-2 w-2 rounded-full bg-ems-ice"></span>
                 Posição: PESAGEM
               </h3>
-              <Badge variant="outline" className="text-[10px] px-2 py-0.5 bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-500/20">
+              <Badge variant="outline" className="text-[10px] px-2 py-0.5 bg-ems-ice/10 text-ems-ice border-ems-ice/20">
                 Ativa
               </Badge>
             </div>
 
-            <div className="grid grid-cols-3 gap-3 pb-4 border-b border-border">
+            <div className="grid grid-cols-3 gap-2 pb-4 border-b border-ems-border">
               <div>
-                <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider mb-1">Materiais</p>
-                <p className="text-2xl font-black text-foreground font-mono">{pesagemMetrics.materiaisCount}</p>
+                <p className="text-[10px] uppercase font-bold text-ems-steel tracking-wider mb-1">Materiais</p>
+                <p className="text-2xl font-black text-white font-mono">{pesagemMetrics.materiaisCount}</p>
               </div>
               <div>
-                <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider mb-1">Lotes</p>
-                <p className="text-2xl font-black text-foreground font-mono">{pesagemMetrics.lotesCount}</p>
+                <p className="text-[10px] uppercase font-bold text-ems-steel tracking-wider mb-1">Lotes</p>
+                <p className="text-2xl font-black text-white font-mono">{pesagemMetrics.lotesCount}</p>
               </div>
               <div className="text-right">
-                <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider mb-1">Valor Avaliado</p>
-                <p className="text-base font-black text-sky-600 dark:text-sky-400 truncate" title={formatCurrency(pesagemMetrics.totalValor)}>
+                <p className="text-[10px] uppercase font-bold text-ems-steel tracking-wider mb-1">Valor Avaliado</p>
+                <p className="text-lg font-black text-ems-ice truncate" title={formatCurrency(pesagemMetrics.totalValor)}>
                   {formatCurrency(pesagemMetrics.totalValor)}
                 </p>
               </div>
@@ -511,28 +510,28 @@ export function OnepageView({
           </div>
 
           <div className="mt-4">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-2.5">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-ems-steel mb-2.5">
               TOP 3 Mais Antigos
             </p>
             {pesagemMetrics.top3.length === 0 ? (
-              <p className="text-xs text-muted-foreground italic">Nenhum registro encontrado</p>
+              <p className="text-xs text-ems-steel italic">Nenhum registro encontrado</p>
             ) : (
-              <ul className="space-y-2 text-xs">
+              <ul className="space-y-2.5 text-xs">
                 {pesagemMetrics.top3.map((item, idx) => {
                   const statusColor =
-                    item.maxDias >= 20 ? 'bg-rose-500 text-rose-500' : item.maxDias >= 7 ? 'bg-amber-500 text-amber-500' : 'bg-sky-500 text-sky-500';
+                    item.maxDias >= 20 ? 'bg-ems-critico text-ems-critico' : item.maxDias >= 7 ? 'bg-ems-alerta text-ems-alerta' : 'bg-ems-ice text-ems-ice';
                   return (
                     <li key={idx} className="grid grid-cols-12 items-center gap-1.5 py-0.5">
                       <div className="col-span-6 flex items-center gap-1.5 min-w-0">
                         <span className={`h-2 w-2 rounded-full ${statusColor.split(' ')[0]} shrink-0`}></span>
-                        <span className="truncate font-medium text-foreground text-xs" title={item.texto}>
+                        <span className="truncate font-medium text-slate-200 text-xs" title={item.texto}>
                           {item.texto}
                         </span>
                       </div>
                       <div className={`col-span-3 text-center font-semibold text-[11px] ${statusColor.split(' ')[1]}`}>
-                        {item.maxDias}d <span className="text-muted-foreground font-normal text-[10px]">{item.lotesCount} {item.lotesCount > 1 ? 'lotes' : 'lote'}</span>
+                        {item.maxDias}d <span className="text-ems-steel font-normal text-[10px]">{item.lotesCount} {item.lotesCount > 1 ? 'lotes' : 'lote'}</span>
                       </div>
-                      <div className="col-span-3 text-right font-bold text-foreground text-[11px] font-mono">
+                      <div className="col-span-3 text-right font-bold text-slate-100 text-[11px] font-mono">
                         {formatCurrency(item.valorTotal)}
                       </div>
                     </li>
@@ -544,35 +543,35 @@ export function OnepageView({
         </div>
 
         {/* Card: AJUSTE */}
-        <div className="bg-card border border-border rounded-xl p-5 shadow-sm flex flex-col justify-between hover:border-primary/40 transition-colors">
+        <div className="bg-ems-card border border-ems-border rounded-xl p-5 shadow-lg flex flex-col justify-between hover:border-ems-steel transition duration-200">
           <div>
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                <span className="h-2 w-2 rounded-full bg-amber-500"></span>
+              <h3 className="text-xs font-bold uppercase tracking-wider text-ems-ice flex items-center gap-1.5">
+                <span className="h-2 w-2 rounded-full bg-ems-alerta"></span>
                 Posição: AJUSTE
               </h3>
               <div className="flex items-center gap-1.5">
-                <Badge variant="outline" className="text-[10px] px-2 py-0.5 bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20">
+                <Badge variant="outline" className="text-[10px] px-2 py-0.5 bg-ems-alerta/10 text-ems-alerta border-ems-alerta/20">
                   {ajusteInvestigacao.length} Inv.
                 </Badge>
-                <Badge variant="outline" className="text-[10px] px-2 py-0.5 bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-500/20">
+                <Badge variant="outline" className="text-[10px] px-2 py-0.5 bg-ems-ice/10 text-ems-ice border-ems-ice/20">
                   {ajusteChamado.length} Cham.
                 </Badge>
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-3 pb-4 border-b border-border">
+            <div className="grid grid-cols-3 gap-2 pb-4 border-b border-ems-border">
               <div>
-                <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider mb-1">Materiais</p>
-                <p className="text-2xl font-black text-foreground font-mono">{ajusteMetrics.materiaisCount}</p>
+                <p className="text-[10px] uppercase font-bold text-ems-steel tracking-wider mb-1">Materiais</p>
+                <p className="text-2xl font-black text-white font-mono">{ajusteMetrics.materiaisCount}</p>
               </div>
               <div>
-                <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider mb-1">Lotes</p>
-                <p className="text-2xl font-black text-foreground font-mono">{ajusteMetrics.lotesCount}</p>
+                <p className="text-[10px] uppercase font-bold text-ems-steel tracking-wider mb-1">Lotes</p>
+                <p className="text-2xl font-black text-white font-mono">{ajusteMetrics.lotesCount}</p>
               </div>
               <div className="text-right">
-                <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider mb-1">Valor Avaliado</p>
-                <p className="text-base font-black text-amber-600 dark:text-amber-400 truncate" title={formatCurrency(ajusteMetrics.totalValor)}>
+                <p className="text-[10px] uppercase font-bold text-ems-steel tracking-wider mb-1">Valor Avaliado</p>
+                <p className="text-lg font-black text-ems-ice truncate" title={formatCurrency(ajusteMetrics.totalValor)}>
                   {formatCurrency(ajusteMetrics.totalValor)}
                 </p>
               </div>
@@ -580,28 +579,28 @@ export function OnepageView({
           </div>
 
           <div className="mt-4">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-2.5">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-ems-steel mb-2.5">
               TOP 3 Mais Antigos
             </p>
             {ajusteMetrics.top3.length === 0 ? (
-              <p className="text-xs text-muted-foreground italic">Nenhum registro encontrado</p>
+              <p className="text-xs text-ems-steel italic">Nenhum registro encontrado</p>
             ) : (
-              <ul className="space-y-2 text-xs">
+              <ul className="space-y-2.5 text-xs">
                 {ajusteMetrics.top3.map((item, idx) => {
                   const statusColor =
-                    item.maxDias >= 20 ? 'bg-rose-500 text-rose-500' : item.maxDias >= 7 ? 'bg-amber-500 text-amber-500' : 'bg-sky-500 text-sky-500';
+                    item.maxDias >= 20 ? 'bg-ems-critico text-ems-critico' : item.maxDias >= 7 ? 'bg-ems-alerta text-ems-alerta' : 'bg-ems-ice text-ems-ice';
                   return (
                     <li key={idx} className="grid grid-cols-12 items-center gap-1.5 py-0.5">
                       <div className="col-span-6 flex items-center gap-1.5 min-w-0">
                         <span className={`h-2 w-2 rounded-full ${statusColor.split(' ')[0]} shrink-0`}></span>
-                        <span className="truncate font-medium text-foreground text-xs" title={item.texto}>
+                        <span className="truncate font-medium text-slate-200 text-xs" title={item.texto}>
                           {item.texto}
                         </span>
                       </div>
                       <div className={`col-span-3 text-center font-semibold text-[11px] ${statusColor.split(' ')[1]}`}>
-                        {item.maxDias}d <span className="text-muted-foreground font-normal text-[10px]">{item.lotesCount} {item.lotesCount > 1 ? 'lotes' : 'lote'}</span>
+                        {item.maxDias}d <span className="text-ems-steel font-normal text-[10px]">{item.lotesCount} {item.lotesCount > 1 ? 'lotes' : 'lote'}</span>
                       </div>
-                      <div className="col-span-3 text-right font-bold text-foreground text-[11px] font-mono">
+                      <div className="col-span-3 text-right font-bold text-slate-100 text-[11px] font-mono">
                         {formatCurrency(item.valorTotal)}
                       </div>
                     </li>
@@ -613,30 +612,30 @@ export function OnepageView({
         </div>
 
         {/* Card: AJU-SAÍDA */}
-        <div className="bg-card border border-border rounded-xl p-5 shadow-sm flex flex-col justify-between hover:border-primary/40 transition-colors">
+        <div className="bg-ems-card border border-ems-border rounded-xl p-5 shadow-lg flex flex-col justify-between hover:border-ems-steel transition duration-200">
           <div>
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                <span className="h-2 w-2 rounded-full bg-emerald-500"></span>
+              <h3 className="text-xs font-bold uppercase tracking-wider text-ems-ice flex items-center gap-1.5">
+                <span className="h-2 w-2 rounded-full bg-ems-ice"></span>
                 Posição: AJU-SAÍDA
               </h3>
-              <Badge variant="outline" className="text-[10px] px-2 py-0.5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20">
+              <Badge variant="outline" className="text-[10px] px-2 py-0.5 bg-ems-ice/10 text-ems-ice border-ems-ice/20">
                 Saída
               </Badge>
             </div>
 
-            <div className="grid grid-cols-3 gap-3 pb-4 border-b border-border">
+            <div className="grid grid-cols-3 gap-2 pb-4 border-b border-ems-border">
               <div>
-                <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider mb-1">Materiais</p>
-                <p className="text-2xl font-black text-foreground font-mono">{ajuSaidaMetrics.materiaisCount}</p>
+                <p className="text-[10px] uppercase font-bold text-ems-steel tracking-wider mb-1">Materiais</p>
+                <p className="text-2xl font-black text-white font-mono">{ajuSaidaMetrics.materiaisCount}</p>
               </div>
               <div>
-                <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider mb-1">Lotes</p>
-                <p className="text-2xl font-black text-foreground font-mono">{ajuSaidaMetrics.lotesCount}</p>
+                <p className="text-[10px] uppercase font-bold text-ems-steel tracking-wider mb-1">Lotes</p>
+                <p className="text-2xl font-black text-white font-mono">{ajuSaidaMetrics.lotesCount}</p>
               </div>
               <div className="text-right">
-                <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider mb-1">Valor Avaliado</p>
-                <p className="text-base font-black text-emerald-600 dark:text-emerald-400 truncate" title={formatCurrency(ajuSaidaMetrics.totalValor)}>
+                <p className="text-[10px] uppercase font-bold text-ems-steel tracking-wider mb-1">Valor Avaliado</p>
+                <p className="text-lg font-black text-ems-ice truncate" title={formatCurrency(ajuSaidaMetrics.totalValor)}>
                   {formatCurrency(ajuSaidaMetrics.totalValor)}
                 </p>
               </div>
@@ -644,28 +643,28 @@ export function OnepageView({
           </div>
 
           <div className="mt-4">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-2.5">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-ems-steel mb-2.5">
               TOP 3 Mais Antigos
             </p>
             {ajuSaidaMetrics.top3.length === 0 ? (
-              <p className="text-xs text-muted-foreground italic">Nenhum registro encontrado</p>
+              <p className="text-xs text-ems-steel italic">Nenhum registro encontrado</p>
             ) : (
-              <ul className="space-y-2 text-xs">
+              <ul className="space-y-2.5 text-xs">
                 {ajuSaidaMetrics.top3.map((item, idx) => {
                   const statusColor =
-                    item.maxDias >= 20 ? 'bg-rose-500 text-rose-500' : item.maxDias >= 7 ? 'bg-amber-500 text-amber-500' : 'bg-sky-500 text-sky-500';
+                    item.maxDias >= 20 ? 'bg-ems-critico text-ems-critico' : item.maxDias >= 7 ? 'bg-ems-alerta text-ems-alerta' : 'bg-ems-ice text-ems-ice';
                   return (
                     <li key={idx} className="grid grid-cols-12 items-center gap-1.5 py-0.5">
                       <div className="col-span-6 flex items-center gap-1.5 min-w-0">
                         <span className={`h-2 w-2 rounded-full ${statusColor.split(' ')[0]} shrink-0`}></span>
-                        <span className="truncate font-medium text-foreground text-xs" title={item.texto}>
+                        <span className="truncate font-medium text-slate-200 text-xs" title={item.texto}>
                           {item.texto}
                         </span>
                       </div>
                       <div className={`col-span-3 text-center font-semibold text-[11px] ${statusColor.split(' ')[1]}`}>
-                        {item.maxDias}d <span className="text-muted-foreground font-normal text-[10px]">{item.lotesCount} {item.lotesCount > 1 ? 'lotes' : 'lote'}</span>
+                        {item.maxDias}d <span className="text-ems-steel font-normal text-[10px]">{item.lotesCount} {item.lotesCount > 1 ? 'lotes' : 'lote'}</span>
                       </div>
-                      <div className="col-span-3 text-right font-bold text-foreground text-[11px] font-mono">
+                      <div className="col-span-3 text-right font-bold text-slate-100 text-[11px] font-mono">
                         {formatCurrency(item.valorTotal)}
                       </div>
                     </li>
@@ -678,22 +677,22 @@ export function OnepageView({
       </section>
 
       {/* Section Divider */}
-      <div className="border-t border-border pt-2 flex items-center justify-between">
-        <h3 className="text-xs font-bold uppercase tracking-wider text-primary">
-          Valor Total por Status de Aging & Posição
+      <div className="border-t border-ems-border pt-4 flex items-center justify-between">
+        <h3 className="text-xs font-bold uppercase tracking-widest text-ems-ice">
+          VALOR TOTAL POR STATUS DE AGING & POSIÇÃO
         </h3>
-        <span className="text-[11px] text-muted-foreground">
+        <span className="text-[11px] text-ems-steel">
           Normal (&lt;7d) • Alerta (7-19d) • Crítico (≥20d)
         </span>
       </div>
 
       {/* BOTTOM ANALYTICS GRID - 3 Gráficos alinhados */}
-      <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <section className="grid grid-cols-1 md:grid-cols-3 gap-5">
         {/* Chart 1: Pesagem */}
-        <div className="bg-card border border-border rounded-xl p-5 shadow-sm flex flex-col justify-between">
+        <div className="bg-ems-card border border-ems-border rounded-xl p-5 shadow-lg flex flex-col justify-between">
           <div>
-            <h4 className="text-xs font-bold uppercase text-foreground">PESAGEM</h4>
-            <p className="text-[11px] text-muted-foreground mb-2">Total por status • nº de lotes dentro da barra</p>
+            <h4 className="text-xs font-bold uppercase text-ems-ice">PESAGEM</h4>
+            <p className="text-[11px] text-ems-steel mb-4">Total por status • nº de lotes dentro da barra</p>
           </div>
           <div className="relative h-64 w-full">
             <ReactECharts option={chartPesagemOption} style={{ height: '100%', width: '100%' }} />
@@ -701,10 +700,10 @@ export function OnepageView({
         </div>
 
         {/* Chart 2: Ajuste Stacked */}
-        <div className="bg-card border border-border rounded-xl p-5 shadow-sm flex flex-col justify-between">
+        <div className="bg-ems-card border border-ems-border rounded-xl p-5 shadow-lg flex flex-col justify-between">
           <div>
-            <h4 className="text-xs font-bold uppercase text-foreground">AJUSTE - Investigação vs Chamado</h4>
-            <p className="text-[11px] text-muted-foreground mb-2">Base: Último Movimento | Valor por status</p>
+            <h4 className="text-xs font-bold uppercase text-ems-ice">AJUSTE - Investigação vs Chamado</h4>
+            <p className="text-[11px] text-ems-steel mb-4">Base: Último Movimento | Valor por status de aging</p>
           </div>
           <div className="relative h-64 w-full">
             <ReactECharts option={chartAjusteOption} style={{ height: '100%', width: '100%' }} />
@@ -712,17 +711,17 @@ export function OnepageView({
         </div>
 
         {/* Chart 3: Top 5 Materiais AJU-SAÍDA */}
-        <div className="bg-card border border-border rounded-xl p-5 shadow-sm flex flex-col justify-between">
+        <div className="bg-ems-card border border-ems-border rounded-xl p-5 shadow-lg flex flex-col justify-between">
           <div>
-            <h4 className="text-xs font-bold uppercase text-foreground">Top 5 Materiais — AJU-SAÍDA</h4>
-            <p className="text-[11px] text-muted-foreground mb-2">Por valor imobilizado • cor = status de aging</p>
+            <h4 className="text-xs font-bold uppercase text-ems-ice">Top 5 Materiais — AJU-SAÍDA</h4>
+            <p className="text-[11px] text-ems-steel mb-4">Por valor imobilizado • cor = status de aging</p>
           </div>
           <div className="relative h-64 w-full">
             <ReactECharts option={chartTopMateriaisOption} style={{ height: '100%', width: '100%' }} />
           </div>
-          <div className="mt-1 text-right">
-            <span className="text-[11px] font-bold text-muted-foreground">
-              Maior valor: <span className="text-foreground">{formatCurrency(maiorValorAjuSaida)}</span>
+          <div className="mt-2 text-right">
+            <span className="text-xs font-bold text-ems-ice">
+              Maior valor: {formatCurrency(maiorValorAjuSaida)}
             </span>
           </div>
         </div>
