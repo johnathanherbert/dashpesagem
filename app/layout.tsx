@@ -15,8 +15,15 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Sistema de Aging v1.0.0 - Gestão Inteligente de Estoque",
+  title: "Dashboard - Gestão de Estoque v2.1.0",
   description: "Sistema de aging para gestão inteligente de estoque. Desenvolvido por Johnathan Herbert, ID75710",
+  icons: {
+    icon: [
+      { url: '/icon.svg', type: 'image/svg+xml' },
+    ],
+    shortcut: '/icon.svg',
+    apple: '/icon.svg',
+  },
 };
 
 export default function RootLayout({

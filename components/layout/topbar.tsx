@@ -31,12 +31,38 @@ interface TopbarProps {
   activeTab?: string;
   onTabChange?: (tab: string) => void;
   onOpenUpload?: () => void;
+  lastUpdate?: string | Date | null;
 }
 
-export function Topbar({ onToggleSidebar, activeTab = 'financial', onTabChange, onOpenUpload }: TopbarProps) {
+export function Topbar({
+  onToggleSidebar,
+  activeTab = 'financial',
+  onTabChange,
+  onOpenUpload,
+  lastUpdate,
+}: TopbarProps) {
   const { user, userData, signOut } = useFirebase();
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [time, setTime] = useState<string>('');
+
+  const formattedLastUpdate = (() => {
+    if (!lastUpdate) return '';
+    try {
+      const d = typeof lastUpdate === 'string' ? new Date(lastUpdate) : lastUpdate;
+      if (isNaN(d.getTime())) {
+        return String(lastUpdate);
+      }
+      return d.toLocaleString('pt-BR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+    } catch {
+      return String(lastUpdate);
+    }
+  })();
 
   useEffect(() => {
     // Carregar tema inicial
@@ -132,8 +158,20 @@ export function Topbar({ onToggleSidebar, activeTab = 'financial', onTabChange, 
         })}
       </nav>
 
-      {/* Direita: Relógio + Upload + Tema + Usuário */}
+      {/* Direita: Última Atualização + Relógio + Upload + Tema + Usuário */}
       <div className="flex items-center gap-2 sm:gap-3">
+        {/* Última Atualização */}
+        {formattedLastUpdate && (
+          <div className="hidden sm:flex flex-col items-end text-right">
+            <span className="text-[10px] text-[#608BA6] font-medium leading-tight">
+              Última atualização:
+            </span>
+            <span className="text-[10px] text-[#AEE4FF] font-medium leading-tight">
+              {formattedLastUpdate}
+            </span>
+          </div>
+        )}
+
         {/* Relógio */}
         {time && (
           <div className="hidden lg:flex items-center gap-1.5 px-3 py-1 rounded-lg bg-[#1B3550] border border-[#2A4D6E] text-xs font-mono font-bold text-[#AEE4FF] shadow-2xs">

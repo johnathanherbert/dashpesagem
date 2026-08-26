@@ -49,6 +49,7 @@ export default function Home() {
   const [viewMode, setViewMode] = useState<'geral' | 'ajustes'>('geral');
   const [previousSnapshot, setPreviousSnapshot] = useState<DashboardSnapshot | null>(null);
   const [lotesInvestigacao, setLotesInvestigacao] = useState<LoteInvestigacao[]>([]);
+  const [lastUpdate, setLastUpdate] = useState<string | Date | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
   const { user, userData } = useFirebase();
@@ -77,6 +78,10 @@ export default function Home() {
       setLotesInvestigacao(lotesInv);
       // O snapshot mais recente é o [0] (ordenado desc); o anterior é o [1]
       setPreviousSnapshot(historico[1] ?? null);
+
+      // Atualizar data da última atualização com base no histórico, dados de aging ou data atual
+      const latestTimestamp = historico[0]?.snapshot_at || agingData[0]?.created_at || new Date().toISOString();
+      setLastUpdate(latestTimestamp);
     } catch (err) {
       console.error('Erro ao carregar dados:', err);
       setError('Erro ao carregar dados. Verifique a configuração do banco de dados.');
@@ -211,6 +216,7 @@ export default function Home() {
           activeTab={activeTab}
           onTabChange={handleTabChange}
           onOpenUpload={() => setUploadModalOpen(true)}
+          lastUpdate={lastUpdate}
         />
 
         {/* Sidebar controlada */}

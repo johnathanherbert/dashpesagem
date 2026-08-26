@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1B3550"/>
+      <stop offset="100%" stop-color="#0E1D2D"/>
+    </linearGradient>
+    <linearGradient id="boxTop" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#BAE6FD"/>
+      <stop offset="100%" stop-color="#38BDF8"/>
+    </linearGradient>
+    <linearGradient id="boxLeft" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38BDF8"/>
+      <stop offset="100%" stop-color="#0284C7"/>
+    </linearGradient>
+    <linearGradient id="boxRight" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0369A1"/>
+      <stop offset="100%" stop-color="#0C4A6E"/>
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="4" stdDeviation="4" flood-color="#000000" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+
+  <!-- Container Box Background -->
+  <rect x="6" y="6" width="116" height="116" rx="26" fill="url(#bgGrad)" stroke="#2A4D6E" stroke-width="3.5"/>
+
+  <!-- Glowing isometric cube representing inventory / aging / weighing -->
+  <g filter="url(#shadow)">
+    <!-- Top Face -->
+    <polygon points="64,24 96,42 64,60 32,42" fill="url(#boxTop)"/>
+    <!-- Left Face -->
+    <polygon points="32,42 64,60 64,98 32,80" fill="url(#boxLeft)"/>
+    <!-- Right Face -->
+    <polygon points="64,60 96,42 96,80 64,98" fill="url(#boxRight)"/>
+    
+    <!-- Package tape lines / seam for stock precision -->
+    <polyline points="64,24 64,60 64,98" fill="none" stroke="#0E1D2D" stroke-width="2.5" opacity="0.35"/>
+    <line x1="32" y1="42" x2="64" y2="60" stroke="#FFFFFF" stroke-width="1.5" opacity="0.6"/>
+    <line x1="64" y1="60" x2="96" y2="42" stroke="#BAE6FD" stroke-width="1.5" opacity="0.4"/>
+  </g>
+
+  <!-- Real-time / Status badge dot (EMS Green / Cyan) -->
+  <circle cx="98" cy="30" r="10" fill="#10B981" stroke="#0E1D2D" stroke-width="3"/>
+  <circle cx="98" cy="30" r="4" fill="#FFFFFF"/>
+</svg>
