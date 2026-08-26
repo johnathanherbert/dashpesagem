@@ -71,39 +71,50 @@ export function FirebaseProvider({
       setUser(currentUser);
       
       if (currentUser) {
+        // Obter dados básicos de fallback caso o Firestore esteja inacessível
+        const fallbackUserData: UserData = {
+          uid: currentUser.uid,
+          email: currentUser.email || '',
+          name: currentUser.displayName || currentUser.email?.split('@')[0] || 'Usuário',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          isApproved: true,
+        };
+
         try {
           const userDocRef = doc(db, 'users', currentUser.uid);
           const userDoc = await getDoc(userDocRef);
           
           if (userDoc.exists()) {
             const data = userDoc.data() as UserData;
-            setUserData(data);
-            
-            await setDoc(userDocRef, {
-              lastActive: serverTimestamp(),
-              isOnline: true
-            }, { merge: true });
-          } else {
-            const isApproved = currentUser.email === ADMIN_EMAIL;
-            
-            const newUserData: UserData = {
-              uid: currentUser.uid,
-              email: currentUser.email || '',
-              name: currentUser.displayName || currentUser.email?.split('@')[0] || 'Usuário',
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
-              isApproved,
+            // Usuários do agilework têm acesso permitido a menos que estejam explicitamente desativados (isApproved === false)
+            const resolvedUserData: UserData = {
+              ...data,
+              isApproved: data.isApproved !== false,
             };
+            setUserData(resolvedUserData);
             
-            await setDoc(userDocRef, {
-              ...newUserData,
+            // Atualizar presença em segundo plano sem travar o login
+            setDoc(userDocRef, {
               lastActive: serverTimestamp(),
               isOnline: true
+            }, { merge: true }).catch((err) => {
+              console.warn('⚠️ Não foi possível atualizar presença no Firestore:', err);
             });
-            setUserData(newUserData);
+          } else {
+            // Se o documento não existir, cria com aprovação ativa
+            await setDoc(userDocRef, {
+              ...fallbackUserData,
+              lastActive: serverTimestamp(),
+              isOnline: true
+            }).catch((err) => {
+              console.warn('⚠️ Não foi possível criar documento do usuário no Firestore:', err);
+            });
+            setUserData(fallbackUserData);
           }
         } catch (error) {
-          console.error('❌ Erro ao carregar/criar dados do usuário:', error);
+          console.warn('⚠️ Erro ao consultar documento no Firestore, usando dados do Auth:', error);
+          setUserData(fallbackUserData);
         }
       } else {
         setUserData(null);
@@ -132,8 +143,6 @@ export function FirebaseProvider({
       await updateProfile(createdUser, {
         displayName: name
       });
-      
-      const isApproved = email === ADMIN_EMAIL;
 
       const newUserData: UserData = {
         uid: createdUser.uid,
@@ -141,10 +150,12 @@ export function FirebaseProvider({
         name: name,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
-        isApproved,
+        isApproved: true,
       };
       
-      await setDoc(doc(db, 'users', createdUser.uid), newUserData);
+      await setDoc(doc(db, 'users', createdUser.uid), newUserData).catch((err) => {
+        console.warn('⚠️ Não foi possível salvar perfil no Firestore:', err);
+      });
       
       return { error: null, success: true };
     } catch (error) {

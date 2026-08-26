@@ -31,27 +31,17 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
     );
   }
 
-  if (user && !userData) {
-    return (
-      <div className="flex h-screen w-full items-center justify-center bg-background">
-        <div className="flex flex-col items-center space-y-4">
-          <Loader2 className="h-10 w-10 animate-spin text-primary" />
-          <p className="text-sm font-medium text-muted-foreground">Verificando conta...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (userData && !userData.isApproved) {
+  // Bloqueia apenas se a conta for explicitamente desativada (isApproved === false)
+  if (userData && userData.isApproved === false) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-background p-4">
         <div className="max-w-md w-full bg-card border border-border p-8 rounded-xl shadow-lg text-center">
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-amber-500/10 text-amber-500 mb-6">
             <AlertTriangle className="h-8 w-8" />
           </div>
-          <h2 className="text-2xl font-bold mb-4 text-foreground">Conta Pendente</h2>
+          <h2 className="text-2xl font-bold mb-4 text-foreground">Conta Desativada</h2>
           <p className="text-muted-foreground mb-6 font-medium">
-            Sua conta está aguardando aprovação ou foi desabilitada por um administrador.
+            Sua conta foi desabilitada por um administrador.
           </p>
           <p className="text-xs text-muted-foreground mb-6">
             Entre em contato com johnathan.herbert47@gmail.com para solicitar o acesso.
