@@ -482,28 +482,28 @@ export function OnepageView({
         {/* Card: PESAGEM */}
         <div className="bg-card border border-border rounded-xl p-5 shadow-sm flex flex-col justify-between hover:border-primary/40 transition-colors">
           <div>
-            <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center justify-between mb-4">
               <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
                 <span className="h-2 w-2 rounded-full bg-sky-500"></span>
                 Posição: PESAGEM
               </h3>
-              <Badge variant="outline" className="text-[10px] bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-500/20">
+              <Badge variant="outline" className="text-[10px] px-2 py-0.5 bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-500/20">
                 Ativa
               </Badge>
             </div>
 
-            <div className="grid grid-cols-3 gap-2 pb-4 border-b border-border">
+            <div className="grid grid-cols-3 gap-3 pb-4 border-b border-border">
               <div>
-                <p className="text-[10px] uppercase font-bold text-muted-foreground">Materiais</p>
-                <p className="text-xl font-black text-foreground">{pesagemMetrics.materiaisCount}</p>
+                <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider mb-1">Materiais</p>
+                <p className="text-2xl font-black text-foreground font-mono">{pesagemMetrics.materiaisCount}</p>
               </div>
               <div>
-                <p className="text-[10px] uppercase font-bold text-muted-foreground">Lotes</p>
-                <p className="text-xl font-black text-foreground">{pesagemMetrics.lotesCount}</p>
+                <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider mb-1">Lotes</p>
+                <p className="text-2xl font-black text-foreground font-mono">{pesagemMetrics.lotesCount}</p>
               </div>
-              <div>
-                <p className="text-[10px] uppercase font-bold text-muted-foreground">Valor Avaliado</p>
-                <p className="text-sm font-black text-sky-600 dark:text-sky-400 truncate">
+              <div className="text-right">
+                <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider mb-1">Valor Avaliado</p>
+                <p className="text-base font-black text-sky-600 dark:text-sky-400 truncate" title={formatCurrency(pesagemMetrics.totalValor)}>
                   {formatCurrency(pesagemMetrics.totalValor)}
                 </p>
               </div>
@@ -511,7 +511,7 @@ export function OnepageView({
           </div>
 
           <div className="mt-4">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-2">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-2.5">
               TOP 3 Mais Antigos
             </p>
             {pesagemMetrics.top3.length === 0 ? (
@@ -522,19 +522,19 @@ export function OnepageView({
                   const statusColor =
                     item.maxDias >= 20 ? 'bg-rose-500 text-rose-500' : item.maxDias >= 7 ? 'bg-amber-500 text-amber-500' : 'bg-sky-500 text-sky-500';
                   return (
-                    <li key={idx} className="flex items-center justify-between gap-1">
-                      <span className="flex items-center gap-1.5 truncate max-w-[150px] sm:max-w-[180px]">
+                    <li key={idx} className="grid grid-cols-12 items-center gap-1.5 py-0.5">
+                      <div className="col-span-6 flex items-center gap-1.5 min-w-0">
                         <span className={`h-2 w-2 rounded-full ${statusColor.split(' ')[0]} shrink-0`}></span>
-                        <span className="truncate font-medium text-foreground" title={item.texto}>
+                        <span className="truncate font-medium text-foreground text-xs" title={item.texto}>
                           {item.texto}
                         </span>
-                      </span>
-                      <span className={`font-semibold text-[11px] ${statusColor.split(' ')[1]}`}>
-                        {item.maxDias}d <span className="text-muted-foreground font-normal">{item.lotesCount} {item.lotesCount > 1 ? 'lotes' : 'lote'}</span>
-                      </span>
-                      <span className="font-bold text-foreground text-[11px]">
+                      </div>
+                      <div className={`col-span-3 text-center font-semibold text-[11px] ${statusColor.split(' ')[1]}`}>
+                        {item.maxDias}d <span className="text-muted-foreground font-normal text-[10px]">{item.lotesCount} {item.lotesCount > 1 ? 'lotes' : 'lote'}</span>
+                      </div>
+                      <div className="col-span-3 text-right font-bold text-foreground text-[11px] font-mono">
                         {formatCurrency(item.valorTotal)}
-                      </span>
+                      </div>
                     </li>
                   );
                 })}
@@ -546,33 +546,33 @@ export function OnepageView({
         {/* Card: AJUSTE */}
         <div className="bg-card border border-border rounded-xl p-5 shadow-sm flex flex-col justify-between hover:border-primary/40 transition-colors">
           <div>
-            <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center justify-between mb-4">
               <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
                 <span className="h-2 w-2 rounded-full bg-amber-500"></span>
                 Posição: AJUSTE
               </h3>
-              <div className="flex items-center gap-1">
-                <Badge variant="outline" className="text-[10px] bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20">
+              <div className="flex items-center gap-1.5">
+                <Badge variant="outline" className="text-[10px] px-2 py-0.5 bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20">
                   {ajusteInvestigacao.length} Inv.
                 </Badge>
-                <Badge variant="outline" className="text-[10px] bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-500/20">
+                <Badge variant="outline" className="text-[10px] px-2 py-0.5 bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-500/20">
                   {ajusteChamado.length} Cham.
                 </Badge>
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-2 pb-4 border-b border-border">
+            <div className="grid grid-cols-3 gap-3 pb-4 border-b border-border">
               <div>
-                <p className="text-[10px] uppercase font-bold text-muted-foreground">Materiais</p>
-                <p className="text-xl font-black text-foreground">{ajusteMetrics.materiaisCount}</p>
+                <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider mb-1">Materiais</p>
+                <p className="text-2xl font-black text-foreground font-mono">{ajusteMetrics.materiaisCount}</p>
               </div>
               <div>
-                <p className="text-[10px] uppercase font-bold text-muted-foreground">Lotes</p>
-                <p className="text-xl font-black text-foreground">{ajusteMetrics.lotesCount}</p>
+                <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider mb-1">Lotes</p>
+                <p className="text-2xl font-black text-foreground font-mono">{ajusteMetrics.lotesCount}</p>
               </div>
-              <div>
-                <p className="text-[10px] uppercase font-bold text-muted-foreground">Valor Avaliado</p>
-                <p className="text-sm font-black text-amber-600 dark:text-amber-400 truncate">
+              <div className="text-right">
+                <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider mb-1">Valor Avaliado</p>
+                <p className="text-base font-black text-amber-600 dark:text-amber-400 truncate" title={formatCurrency(ajusteMetrics.totalValor)}>
                   {formatCurrency(ajusteMetrics.totalValor)}
                 </p>
               </div>
@@ -580,7 +580,7 @@ export function OnepageView({
           </div>
 
           <div className="mt-4">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-2">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-2.5">
               TOP 3 Mais Antigos
             </p>
             {ajusteMetrics.top3.length === 0 ? (
@@ -591,19 +591,19 @@ export function OnepageView({
                   const statusColor =
                     item.maxDias >= 20 ? 'bg-rose-500 text-rose-500' : item.maxDias >= 7 ? 'bg-amber-500 text-amber-500' : 'bg-sky-500 text-sky-500';
                   return (
-                    <li key={idx} className="flex items-center justify-between gap-1">
-                      <span className="flex items-center gap-1.5 truncate max-w-[150px] sm:max-w-[180px]">
+                    <li key={idx} className="grid grid-cols-12 items-center gap-1.5 py-0.5">
+                      <div className="col-span-6 flex items-center gap-1.5 min-w-0">
                         <span className={`h-2 w-2 rounded-full ${statusColor.split(' ')[0]} shrink-0`}></span>
-                        <span className="truncate font-medium text-foreground" title={item.texto}>
+                        <span className="truncate font-medium text-foreground text-xs" title={item.texto}>
                           {item.texto}
                         </span>
-                      </span>
-                      <span className={`font-semibold text-[11px] ${statusColor.split(' ')[1]}`}>
-                        {item.maxDias}d <span className="text-muted-foreground font-normal">{item.lotesCount} {item.lotesCount > 1 ? 'lotes' : 'lote'}</span>
-                      </span>
-                      <span className="font-bold text-foreground text-[11px]">
+                      </div>
+                      <div className={`col-span-3 text-center font-semibold text-[11px] ${statusColor.split(' ')[1]}`}>
+                        {item.maxDias}d <span className="text-muted-foreground font-normal text-[10px]">{item.lotesCount} {item.lotesCount > 1 ? 'lotes' : 'lote'}</span>
+                      </div>
+                      <div className="col-span-3 text-right font-bold text-foreground text-[11px] font-mono">
                         {formatCurrency(item.valorTotal)}
-                      </span>
+                      </div>
                     </li>
                   );
                 })}
@@ -615,28 +615,28 @@ export function OnepageView({
         {/* Card: AJU-SAÍDA */}
         <div className="bg-card border border-border rounded-xl p-5 shadow-sm flex flex-col justify-between hover:border-primary/40 transition-colors">
           <div>
-            <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center justify-between mb-4">
               <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
                 <span className="h-2 w-2 rounded-full bg-emerald-500"></span>
                 Posição: AJU-SAÍDA
               </h3>
-              <Badge variant="outline" className="text-[10px] bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20">
+              <Badge variant="outline" className="text-[10px] px-2 py-0.5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20">
                 Saída
               </Badge>
             </div>
 
-            <div className="grid grid-cols-3 gap-2 pb-4 border-b border-border">
+            <div className="grid grid-cols-3 gap-3 pb-4 border-b border-border">
               <div>
-                <p className="text-[10px] uppercase font-bold text-muted-foreground">Materiais</p>
-                <p className="text-xl font-black text-foreground">{ajuSaidaMetrics.materiaisCount}</p>
+                <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider mb-1">Materiais</p>
+                <p className="text-2xl font-black text-foreground font-mono">{ajuSaidaMetrics.materiaisCount}</p>
               </div>
               <div>
-                <p className="text-[10px] uppercase font-bold text-muted-foreground">Lotes</p>
-                <p className="text-xl font-black text-foreground">{ajuSaidaMetrics.lotesCount}</p>
+                <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider mb-1">Lotes</p>
+                <p className="text-2xl font-black text-foreground font-mono">{ajuSaidaMetrics.lotesCount}</p>
               </div>
-              <div>
-                <p className="text-[10px] uppercase font-bold text-muted-foreground">Valor Avaliado</p>
-                <p className="text-sm font-black text-emerald-600 dark:text-emerald-400 truncate">
+              <div className="text-right">
+                <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider mb-1">Valor Avaliado</p>
+                <p className="text-base font-black text-emerald-600 dark:text-emerald-400 truncate" title={formatCurrency(ajuSaidaMetrics.totalValor)}>
                   {formatCurrency(ajuSaidaMetrics.totalValor)}
                 </p>
               </div>
@@ -644,7 +644,7 @@ export function OnepageView({
           </div>
 
           <div className="mt-4">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-2">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-2.5">
               TOP 3 Mais Antigos
             </p>
             {ajuSaidaMetrics.top3.length === 0 ? (
@@ -655,19 +655,19 @@ export function OnepageView({
                   const statusColor =
                     item.maxDias >= 20 ? 'bg-rose-500 text-rose-500' : item.maxDias >= 7 ? 'bg-amber-500 text-amber-500' : 'bg-sky-500 text-sky-500';
                   return (
-                    <li key={idx} className="flex items-center justify-between gap-1">
-                      <span className="flex items-center gap-1.5 truncate max-w-[150px] sm:max-w-[180px]">
+                    <li key={idx} className="grid grid-cols-12 items-center gap-1.5 py-0.5">
+                      <div className="col-span-6 flex items-center gap-1.5 min-w-0">
                         <span className={`h-2 w-2 rounded-full ${statusColor.split(' ')[0]} shrink-0`}></span>
-                        <span className="truncate font-medium text-foreground" title={item.texto}>
+                        <span className="truncate font-medium text-foreground text-xs" title={item.texto}>
                           {item.texto}
                         </span>
-                      </span>
-                      <span className={`font-semibold text-[11px] ${statusColor.split(' ')[1]}`}>
-                        {item.maxDias}d <span className="text-muted-foreground font-normal">{item.lotesCount} {item.lotesCount > 1 ? 'lotes' : 'lote'}</span>
-                      </span>
-                      <span className="font-bold text-foreground text-[11px]">
+                      </div>
+                      <div className={`col-span-3 text-center font-semibold text-[11px] ${statusColor.split(' ')[1]}`}>
+                        {item.maxDias}d <span className="text-muted-foreground font-normal text-[10px]">{item.lotesCount} {item.lotesCount > 1 ? 'lotes' : 'lote'}</span>
+                      </div>
+                      <div className="col-span-3 text-right font-bold text-foreground text-[11px] font-mono">
                         {formatCurrency(item.valorTotal)}
-                      </span>
+                      </div>
                     </li>
                   );
                 })}
