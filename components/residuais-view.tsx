@@ -168,7 +168,6 @@ function ColumnFilterWidget({
           <SelectContent>
             <SelectItem value="__all__">Todos</SelectItem>
             <SelectItem value="Normal">Normal</SelectItem>
-            <SelectItem value="Atenção">Atenção</SelectItem>
             <SelectItem value="Alerta">Alerta</SelectItem>
             <SelectItem value="Crítico">Crítico</SelectItem>
           </SelectContent>
