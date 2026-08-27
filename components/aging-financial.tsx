@@ -57,8 +57,8 @@ interface AgingFinancialProps {
   valores: Record<string, number>;
   selectedTipoDeposito?: string;
   selectedMaterialEspecial?: 'inf' | 'cfa' | null;
-  selectedCriticality?: 'Normal' | 'Alerta' | 'Crítico' | null;
-  onCriticalityChange?: (value: 'Normal' | 'Alerta' | 'Crítico' | null) => void;
+  selectedCriticality?: string | null;
+  onCriticalityChange?: (value: string | null) => void;
   selectedMaterial?: string;
   onMaterialChange?: (value: string | undefined) => void;
   viewMode?: 'geral' | 'ajustes';
@@ -121,9 +121,9 @@ export function AgingFinancial({
         itensComValor++;
 
         const dias = item.dias_aging || 0;
-        if (dias > 20) {
+        if (dias >= 20) {
           valorCritico += valorTotal;
-        } else if (dias >= 10) {
+        } else if (dias >= 7) {
           valorAlerta += valorTotal;
         }
       }
@@ -189,8 +189,8 @@ export function AgingFinancial({
           totalValor += valorTotal;
 
           const dias = item.dias_aging || 0;
-          if (dias < 10) valorNormal += valorTotal;
-          else if (dias <= 20) valorAlerta += valorTotal;
+          if (dias < 7) valorNormal += valorTotal;
+          else if (dias < 20) valorAlerta += valorTotal;
           else valorCritico += valorTotal;
 
           return {
@@ -204,7 +204,7 @@ export function AgingFinancial({
             dias: item.dias_aging,
             valorUnitario: valor,
             valorTotal,
-            criticidade: dias > 20 ? 'Crítico' : dias >= 10 ? 'Alerta' : 'Normal',
+            criticidade: dias >= 20 ? 'Crítico' : dias >= 7 ? 'Alerta' : 'Normal',
           };
         })
         .filter(Boolean);
@@ -270,9 +270,9 @@ export function AgingFinancial({
         borderRadius: 8,
         padding: 12,
         formatter: (params: any) => {
-          const fullName = params.name === 'Normal' ? 'Normal (< 10 dias)' :
-                          params.name === 'Alerta' ? 'Alerta (10-20 dias)' :
-                          'Crítico (> 20 dias)';
+          const fullName = params.name === 'Normal' ? 'Normal (< 7 dias)' :
+                          params.name === 'Alerta' ? 'Alerta (7-19 dias)' :
+                          'Crítico (≥ 20 dias)';
           const dataItem = chartData.find(d => d.name === params.name);
           return `<strong style="color: #AEE4FF;">${fullName}</strong><br/>
                   <strong style="color: #fff;">${formatCurrency(params.value)}</strong>
@@ -285,9 +285,9 @@ export function AgingFinancial({
         textStyle: { color: '#608BA6', fontSize: 10 },
         formatter: (name: string) => {
           const dataItem = chartData.find(d => d.name === name);
-          const label = name === 'Normal' ? 'Normal (< 10d)' :
-                        name === 'Alerta' ? 'Alerta (10-20d)' :
-                        'Crítico (> 20d)';
+          const label = name === 'Normal' ? 'Normal (< 7d)' :
+                        name === 'Alerta' ? 'Alerta (7-19d)' :
+                        'Crítico (≥ 20d)';
           return `${label} · ${dataItem?.lotes || 0} lotes`;
         },
       },
@@ -401,8 +401,8 @@ export function AgingFinancial({
     const chartColor = selectedCriticality === 'Crítico' ? '#E75B5B' :
                        selectedCriticality === 'Alerta' ? '#E29A36' : '#AEE4FF';
 
-    const criticalityLabel = selectedCriticality === 'Normal' ? '< 10 dias' :
-                            selectedCriticality === 'Alerta' ? '10-20 dias' : '> 20 dias';
+    const criticalityLabel = selectedCriticality === 'Normal' ? '< 7 dias' :
+                            selectedCriticality === 'Alerta' ? '7-19 dias' : '≥ 20 dias';
 
     const totalValue = filteredMaterials.reduce((s, m) => s + (m?.valorTotal || 0), 0);
 

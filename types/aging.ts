@@ -82,11 +82,13 @@ export interface ConfiguracaoResiduais {
   limite_verde: number; // Max em gramas (default: 100g)
   limite_amarelo: number; // Max em gramas (default: 900g)
   limite_maximo: number; // Max em gramas para considerar residual (default: 999g)
-  // Verde: <= limite_verde
-  // Amarelo: > limite_verde e <= limite_amarelo
-  // Vermelho: > limite_amarelo e <= limite_maximo
-  // Acima de limite_maximo: NÃO é residual (estoque normal)
   materiais_alto_valor: string[]; // Lista de materiais para desconsiderar
+  
+  // Faixas de Aging em Dias (Alertas e Criticidade)
+  dias_atencao?: number; // Início do monitoramento (default: 3)
+  dias_alerta?: number; // Início de Alerta (default: 7)
+  dias_critico?: number; // Início de Crítico (default: 20)
+  dias_vencimento_proximo?: number; // Janela de vencimento próximo em dias (default: 30)
 }
 
 export interface AgingTableRow {

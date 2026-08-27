@@ -44,7 +44,7 @@ export default function Home() {
   const [materialFilter, setMaterialFilter] = useState<string | undefined>(undefined);
   const [selectedTipoDeposito, setSelectedTipoDeposito] = useState<string>('all');
   const [selectedMaterialEspecial, setSelectedMaterialEspecial] = useState<'inf' | 'cfa' | null>(null);
-  const [selectedCriticality, setSelectedCriticality] = useState<'Normal' | 'Alerta' | 'Crítico' | null>(null);
+  const [selectedCriticality, setSelectedCriticality] = useState<string | null>(null);
   const [selectedVencimento, setSelectedVencimento] = useState<'vencidos' | 'proximos30' | null>(null);
   const [viewMode, setViewMode] = useState<'geral' | 'ajustes'>('geral');
   const [previousSnapshot, setPreviousSnapshot] = useState<DashboardSnapshot | null>(null);
@@ -189,15 +189,6 @@ export default function Home() {
         item.tipo_deposito === 'PES' &&
         item.tipo_estoque === 'S'
       );
-    }
-
-    if (selectedCriticality) {
-      result = result.filter(item => {
-        const dias = item.dias_aging || 0;
-        if (selectedCriticality === 'Normal') return dias < 10;
-        if (selectedCriticality === 'Alerta') return dias >= 10 && dias <= 20;
-        return dias > 20; // Crítico
-      });
     }
 
     if (materialFilter) {
@@ -357,6 +348,13 @@ export default function Home() {
             {/* Statistics Cards */}
             <AgingStats
               data={filteredData}
+              allData={data}
+              activeTab={activeTab}
+              configResiduais={configResiduais}
+              valores={valores}
+              remessas={remessas}
+              selectedCriticality={selectedCriticality}
+              onCriticalityClick={setSelectedCriticality}
               onMaterialEspecialClick={setSelectedMaterialEspecial}
               selectedMaterialEspecial={selectedMaterialEspecial}
               onVencimentoClick={setSelectedVencimento}
@@ -365,7 +363,10 @@ export default function Home() {
             />
 
             {/* Tabs */}
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-3">
+            <Tabs value={activeTab} onValueChange={(t) => {
+              setActiveTab(t);
+              setSelectedCriticality(null);
+            }} className="space-y-3">
               {/* Filtro de Depósito */}
               <div className="flex items-center gap-1 flex-wrap">
                 <button
@@ -412,9 +413,12 @@ export default function Home() {
                     />
                     <ResiduaisView
                       agingData={tableFilteredData}
+                      allData={data}
                       valores={valores}
                       remessas={remessas}
                       configResiduais={configResiduais}
+                      selectedCriticality={selectedCriticality}
+                      onCriticalityChange={setSelectedCriticality}
                       onNavigateToRemessas={(material) => {
                         setMaterialFilter(material);
                         setActiveTab('remessas');
@@ -435,28 +439,33 @@ export default function Home() {
                 )}
               </TabsContent>
 
-              <TabsContent value="settings" className="space-y-4">
-                <div className="max-w-4xl space-y-4">
-                  <h2 className="text-lg font-bold">Configuracoes do Sistema</h2>
+              <TabsContent value="settings" className="space-y-6">
+                <div className="max-w-5xl space-y-6">
+                  <div className="flex items-center justify-between pb-3 border-b border-ems-border">
+                    <div>
+                      <h2 className="text-xl font-black uppercase text-white tracking-wide">Configurações do Sistema</h2>
+                      <p className="text-xs text-ems-steel mt-0.5">Gestão de faixas de aging, alertas de criticidade, limites de pesagem e integrações</p>
+                    </div>
+                  </div>
 
-                  <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <ValorUpload onUploadComplete={loadData} />
                     <RemessaUpload onUploadComplete={loadData} />
                   </div>
 
-                  <div className="pt-4">
-                    <h3 className="text-base font-semibold mb-3">Configuracao de Residuais</h3>
-                    <ConfiguracaoResiduaisComponent onConfigChange={loadData} />
-                  </div>
+                  <ConfiguracaoResiduaisComponent onConfigChange={loadData} />
                 </div>
               </TabsContent>
 
               <TabsContent value="residuais">
                 <ResiduaisView
                   agingData={tableFilteredData}
+                  allData={data}
                   valores={valores}
                   remessas={remessas}
                   configResiduais={configResiduais}
+                  selectedCriticality={selectedCriticality}
+                  onCriticalityChange={setSelectedCriticality}
                   onNavigateToRemessas={(material) => {
                     setMaterialFilter(material);
                     setActiveTab('remessas');

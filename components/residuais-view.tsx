@@ -73,25 +73,31 @@ const numberRangeFilter: FilterFn<AgingTableRow> = (row, columnId, filterValue) 
   return true;
 };
 
+// Helper para resolver o status de aging/residual de um item (Normal < 7d, Alerta 7-19d, Crítico >= 20d)
+function getItemStatusLabel(item: AgingTableRow, config?: ConfiguracaoResiduais, isAnalysis = false): string {
+  const diasAlerta = config?.dias_alerta ?? 7;
+  const diasCritico = config?.dias_critico ?? 20;
+
+  if (isAnalysis && item.is_residual && item.nivel) {
+    const nivelLabelMap: Record<string, string> = {
+      verde: 'Normal',
+      amarelo: 'Alerta',
+      vermelho: 'Crítico',
+    };
+    return nivelLabelMap[item.nivel] || 'Normal';
+  }
+
+  const dias = item.dias_aging ?? 0;
+  if (dias >= diasCritico || (item.is_residual && item.nivel === 'vermelho')) return 'Crítico';
+  if (dias >= diasAlerta || (item.is_residual && item.nivel === 'amarelo')) return 'Alerta';
+  return 'Normal';
+}
+
 // Custom filter for aging status
 const statusAgingFilter: FilterFn<AgingTableRow> = (row, columnId, filterValue) => {
   if (!filterValue || filterValue === '__all__') return true;
   const item = row.original;
-  
-  // Se for residual com nível
-  if (item.is_residual && item.nivel) {
-    const nivelLabelMap: Record<string, string> = {
-      verde: 'Atenção',
-      amarelo: 'Alerta',
-      vermelho: 'Crítico',
-    };
-    const residualStatus = nivelLabelMap[item.nivel] || 'Normal';
-    if (residualStatus === filterValue) return true;
-  }
-
-  const dias = item.dias_aging ?? 0;
-  const status = dias >= 20 ? 'Crítico' : dias >= 10 ? 'Alerta' : 'Normal';
-  
+  const status = getItemStatusLabel(item);
   return status === filterValue;
 };
 
@@ -113,6 +119,7 @@ import toast from 'react-hot-toast';
 
 interface ResiduaisViewProps {
   agingData: AgingData[];
+  allData?: AgingData[];
   valores: Record<string, number>;
   remessas: RemessaData[];
   configResiduais: ConfiguracaoResiduais;
@@ -120,6 +127,8 @@ interface ResiduaisViewProps {
   lotesInvestigacao?: LoteInvestigacao[];
   onInvestigacaoChange?: () => void;
   currentUserEmail?: string;
+  selectedCriticality?: string | null;
+  onCriticalityChange?: (crit: string | null) => void;
 }
 
 // Column filter widget
@@ -291,6 +300,7 @@ const COLUMN_FILTER_TYPES: Record<string, FilterType> = {
 
 export function ResiduaisView({
   agingData,
+  allData,
   valores,
   remessas,
   configResiduais,
@@ -298,6 +308,8 @@ export function ResiduaisView({
   lotesInvestigacao = [],
   onInvestigacaoChange,
   currentUserEmail,
+  selectedCriticality,
+  onCriticalityChange,
 }: ResiduaisViewProps) {
   const [analysisMode, setAnalysisMode] = useState(false);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
@@ -336,10 +348,17 @@ export function ResiduaisView({
 
   // Enriched data
   const tableData: AgingTableRow[] = useMemo(() => {
-    return enriquecerAgingComAnalise(agingData, configResiduais, valores, remessas);
-  }, [agingData, configResiduais, valores, remessas]);
+    const isTrZoneActive = selectedCriticality && (
+      selectedCriticality.toLowerCase() === 'tr-zone' ||
+      selectedCriticality.toLowerCase() === 'trzone' ||
+      selectedCriticality.toLowerCase() === 'negativo' ||
+      selectedCriticality.toLowerCase() === 'tr-zone negativo'
+    );
+    const sourceData = (isTrZoneActive && allData && allData.length > 0) ? allData : agingData;
+    return enriquecerAgingComAnalise(sourceData, configResiduais, valores, remessas);
+  }, [agingData, allData, selectedCriticality, configResiduais, valores, remessas]);
 
-  // Filtered data based on analysis mode
+  // Filtered data based on analysis mode, local nivel filter, and top card selectedCriticality
   const displayData: AgingTableRow[] = useMemo(() => {
     let filtered = tableData;
     
@@ -348,13 +367,51 @@ export function ResiduaisView({
       filtered = filtered.filter(item => item.is_residual);
     }
     
-    // Filtrar por nível (se houver filtro ativo)
+    // Filtrar por nível (se houver filtro ativo na barra de ferramentas)
     if (nivelFilter) {
       filtered = filtered.filter(item => item.nivel === nivelFilter);
     }
+
+    // Filtrar por criticidade / nível vindo dos cards do topo
+    if (selectedCriticality) {
+      const diasAlerta = configResiduais?.dias_alerta ?? 7;
+      const diasCritico = configResiduais?.dias_critico ?? 20;
+
+      const crit = selectedCriticality.toLowerCase();
+      if (crit === 'tr-zone' || crit === 'trzone' || crit === 'negativo' || crit === 'tr-zone negativo') {
+        filtered = filtered.filter(item => {
+          const tipo = (item.tipo_deposito || '').trim().toUpperCase();
+          const pos = (item.posicao_deposito || '').trim().toUpperCase();
+          const is922OrTrZone =
+            tipo === '922' ||
+            tipo.includes('922') ||
+            pos.includes('TR-ZONE') ||
+            pos.includes('TR_ZONE') ||
+            pos.includes('TRZONE') ||
+            pos.includes('TR ZONE');
+          const isNegativo = (item.estoque_disponivel || 0) < 0;
+          return is922OrTrZone && isNegativo;
+        });
+      } else if (crit === 'normal' || crit === 'verde') {
+        filtered = filtered.filter(item => {
+          const dias = item.dias_aging || 0;
+          return dias < diasAlerta;
+        });
+      } else if (crit === 'alerta' || crit === 'amarelo') {
+        filtered = filtered.filter(item => {
+          const dias = item.dias_aging || 0;
+          return (dias >= diasAlerta && dias < diasCritico) || item.nivel === 'amarelo';
+        });
+      } else if (crit === 'critico' || crit === 'crítico' || crit === 'vermelho') {
+        filtered = filtered.filter(item => {
+          const dias = item.dias_aging || 0;
+          return dias >= diasCritico || item.nivel === 'vermelho';
+        });
+      }
+    }
     
     return filtered;
-  }, [tableData, analysisMode, nivelFilter]);
+  }, [tableData, analysisMode, nivelFilter, selectedCriticality]);
 
   // Analysis stats
   const analysisStats = useMemo(() => {
@@ -551,66 +608,40 @@ export function ResiduaisView({
       {
         id: 'status_aging',
         header: 'Status',
-        accessorFn: (row) => {
-          if (analysisMode && row.is_residual && row.nivel) {
-            const nivelLabelMap: Record<string, string> = {
-              verde: 'Atenção',
-              amarelo: 'Alerta',
-              vermelho: 'Crítico',
-            };
-            return nivelLabelMap[row.nivel] || 'Normal';
-          }
-          const dias = row.dias_aging ?? 0;
-          return dias >= 20 ? 'Crítico' : dias >= 10 ? 'Alerta' : 'Normal';
-        },
+        accessorFn: (row) => getItemStatusLabel(row, configResiduais, analysisMode),
         cell: ({ row }) => {
           const item = row.original;
+          const status = getItemStatusLabel(item, configResiduais, analysisMode);
 
-          // Se estiver em modo de análise ou for residual com nível definido
-          if (analysisMode && item.is_residual) {
-            const nivel = item.nivel || 'normal';
-            const configs = {
-              vermelho: { label: 'Crítico', variant: 'destructive' as const, icon: AlertCircle, className: '' },
-              amarelo: { label: 'Alerta', variant: 'default' as const, icon: AlertTriangle, className: 'bg-yellow-500 hover:bg-yellow-600' },
-              verde: { label: 'Atenção', variant: 'default' as const, icon: CheckCircle, className: 'bg-green-600 hover:bg-green-700' },
-              normal: { label: 'Normal', variant: 'outline' as const, icon: CheckCircle, className: '' },
-            };
-            const config = configs[nivel] || configs.normal;
-            const Icon = config.icon;
+          if (status === 'Crítico') {
             return (
-              <Badge variant={config.variant} className={config.className || ''}>
-                <Icon className="h-3 w-3 mr-1" />
-                {config.label}
-              </Badge>
-            );
-          }
-
-          const dias = item.dias_aging ?? 0;
-          if (dias >= 20) {
-            return (
-              <Badge className="bg-[#E75B5B]/15 text-[#E75B5B] border border-[#E75B5B]/30 hover:bg-[#E75B5B]/25 gap-1 font-bold text-[11px] px-2 py-0.5 rounded-lg">
+              <Badge className="bg-[#E75B5B]/15 text-[#E75B5B] border border-[#E75B5B]/30 hover:bg-[#E75B5B]/25 gap-1 font-bold text-[11px] px-2 py-0.5 rounded-lg whitespace-nowrap">
                 <AlertCircle className="h-3 w-3" />
                 Crítico
               </Badge>
             );
-          } else if (dias >= 10) {
+          } else if (status === 'Alerta') {
             return (
-              <Badge className="bg-[#E29A36]/15 text-[#E29A36] border border-[#E29A36]/30 hover:bg-[#E29A36]/25 gap-1 font-bold text-[11px] px-2 py-0.5 rounded-lg">
+              <Badge className="bg-[#E29A36]/15 text-[#E29A36] border border-[#E29A36]/30 hover:bg-[#E29A36]/25 gap-1 font-bold text-[11px] px-2 py-0.5 rounded-lg whitespace-nowrap">
                 <AlertTriangle className="h-3 w-3" />
                 Alerta
               </Badge>
             );
           } else {
             return (
-              <Badge className="bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/25 gap-1 font-bold text-[11px] px-2 py-0.5 rounded-lg">
+              <Badge className="bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/25 gap-1 font-bold text-[11px] px-2 py-0.5 rounded-lg whitespace-nowrap">
                 <CheckCircle className="h-3 w-3" />
                 Normal
               </Badge>
             );
           }
         },
-        filterFn: statusAgingFilter,
-        size: 100,
+        filterFn: (row, columnId, filterValue) => {
+          if (!filterValue || filterValue === '__all__') return true;
+          const status = getItemStatusLabel(row.original, configResiduais, analysisMode);
+          return status === filterValue;
+        },
+        size: 105,
       },
       {
         accessorKey: 'ultimo_movimento',
@@ -865,13 +896,14 @@ export function ResiduaisView({
 
   // Clear all filters
   const handleClearFilters = () => {
-     setColumnFilters([]);
+    setColumnFilters([]);
     setGlobalFilter('');
     setRowSelection({});
     setNivelFilter(null);
+    onCriticalityChange?.(null);
   };
 
-  const hasActiveFilters = columnFilters.length > 0 || globalFilter !== '' || nivelFilter !== null;
+  const hasActiveFilters = columnFilters.length > 0 || globalFilter !== '' || nivelFilter !== null || !!selectedCriticality;
   const selectedCount = Object.keys(rowSelection).length;
   const selectedRows = table.getFilteredSelectedRowModel().rows;
   const allSelectedAreInvestigando =
@@ -902,6 +934,19 @@ export function ResiduaisView({
             <button
               onClick={() => setNivelFilter(null)}
               className="ml-1 hover:bg-white/20 rounded-full p-0.5 transition-colors"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          </Badge>
+        )}
+
+        {selectedCriticality && (
+          <Badge className="flex items-center gap-1.5 bg-[#1B3550] text-[#AEE4FF] border border-[#2A4D6E] text-xs font-semibold px-2.5 py-1 rounded-lg shadow-xs">
+            Status: <span className="capitalize text-white font-bold">{selectedCriticality}</span>
+            <button
+              onClick={() => onCriticalityChange?.(null)}
+              className="ml-1 hover:bg-white/20 rounded-full p-0.5 transition-colors"
+              title="Remover filtro"
             >
               <X className="h-3 w-3" />
             </button>
