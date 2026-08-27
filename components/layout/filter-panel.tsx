@@ -54,7 +54,7 @@ export function FilterPanel({ tiposDeposito, selectedTipo, onTipoChange }: Filte
         <div className="h-px bg-slate-200 dark:bg-slate-700 my-1" />
 
         {/* Lista de Tipos */}
-        <div className="flex flex-col gap-2 max-h-[calc(100vh-280px)] overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-slate-700">
+        <div className="flex flex-col gap-2 max-h-[calc(100vh-280px)] overflow-y-auto pr-1">
           {tiposDeposito.length === 0 ? (
             <div className="px-3 py-4 text-center">
               <Package className="h-4 w-4 mx-auto mb-1 text-muted-foreground opacity-50" />

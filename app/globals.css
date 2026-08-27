@@ -124,8 +124,79 @@
 @layer base {
   * {
     @apply border-border outline-ring/50;
+    scrollbar-width: thin;
+    scrollbar-color: #2A4D6E #0d1e30;
   }
   body {
     @apply bg-background text-foreground;
+  }
+
+  /* Custom WebKit Scrollbar Styling (Chrome, Safari, Edge, Opera) */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: #0d1e30;
+    border-radius: 9999px;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: #2A4D6E;
+    border-radius: 9999px;
+    border: 2px solid #0d1e30;
+    transition: background-color 0.2s ease;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: #608BA6;
+  }
+
+  ::-webkit-scrollbar-thumb:active {
+    background: #AEE4FF;
+  }
+
+  ::-webkit-scrollbar-corner {
+    background: #0d1e30;
+  }
+
+  /* Custom styling for range sliders (Sliders de input) */
+  input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    background: #1B3550;
+    border: 1px solid #2A4D6E;
+    border-radius: 9999px;
+    height: 6px;
+    outline: none;
+  }
+
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #AEE4FF;
+    border: 2px solid #13283E;
+    cursor: pointer;
+    box-shadow: 0 0 8px rgba(174, 228, 255, 0.5);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  input[type="range"]::-webkit-slider-thumb:hover {
+    transform: scale(1.2);
+    box-shadow: 0 0 12px rgba(174, 228, 255, 0.8);
+  }
+
+  input[type="range"]::-moz-range-thumb {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #AEE4FF;
+    border: 2px solid #13283E;
+    cursor: pointer;
+    box-shadow: 0 0 8px rgba(174, 228, 255, 0.5);
   }
 }
