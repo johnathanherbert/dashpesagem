@@ -78,6 +78,7 @@ function getItemStatusLabel(item: AgingTableRow, config?: ConfiguracaoResiduais,
   const diasAlerta = config?.dias_alerta ?? 7;
   const diasCritico = config?.dias_critico ?? 20;
 
+  // Quando o modo de análise de residuais estiver explicitamente ativo, utiliza a criticidade residual do lote
   if (isAnalysis && item.is_residual && item.nivel) {
     const nivelLabelMap: Record<string, string> = {
       verde: 'Normal',
@@ -87,9 +88,10 @@ function getItemStatusLabel(item: AgingTableRow, config?: ConfiguracaoResiduais,
     return nivelLabelMap[item.nivel] || 'Normal';
   }
 
+  // Na tabela geral, obedece estritamente à faixa de dias de aging
   const dias = item.dias_aging ?? 0;
-  if (dias >= diasCritico || (item.is_residual && item.nivel === 'vermelho')) return 'Crítico';
-  if (dias >= diasAlerta || (item.is_residual && item.nivel === 'amarelo')) return 'Alerta';
+  if (dias >= diasCritico) return 'Crítico';
+  if (dias >= diasAlerta) return 'Alerta';
   return 'Normal';
 }
 
@@ -394,24 +396,33 @@ export function ResiduaisView({
         });
       } else if (crit === 'normal' || crit === 'verde') {
         filtered = filtered.filter(item => {
+          if (analysisMode && item.is_residual) {
+            return item.nivel === 'verde';
+          }
           const dias = item.dias_aging || 0;
           return dias < diasAlerta;
         });
       } else if (crit === 'alerta' || crit === 'amarelo') {
         filtered = filtered.filter(item => {
+          if (analysisMode && item.is_residual) {
+            return item.nivel === 'amarelo';
+          }
           const dias = item.dias_aging || 0;
-          return (dias >= diasAlerta && dias < diasCritico) || item.nivel === 'amarelo';
+          return dias >= diasAlerta && dias < diasCritico;
         });
       } else if (crit === 'critico' || crit === 'crítico' || crit === 'vermelho') {
         filtered = filtered.filter(item => {
+          if (analysisMode && item.is_residual) {
+            return item.nivel === 'vermelho';
+          }
           const dias = item.dias_aging || 0;
-          return dias >= diasCritico || item.nivel === 'vermelho';
+          return dias >= diasCritico;
         });
       }
     }
     
     return filtered;
-  }, [tableData, analysisMode, nivelFilter, selectedCriticality]);
+  }, [tableData, analysisMode, nivelFilter, selectedCriticality, configResiduais]);
 
   // Analysis stats
   const analysisStats = useMemo(() => {
