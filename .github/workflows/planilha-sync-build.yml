@@ -1,0 +1,141 @@
+name: Build Planilha Sync — Windows .exe
+
+# Dispara em:
+#   1. push/PR em master que tocam arquivos da integração
+#   2. tag do padrão  planilha-sync/v*.*.*  → também cria uma GitHub Release
+#   3. botão manual (workflow_dispatch)
+on:
+  push:
+    branches: [master, main]
+    paths:
+      - 'integrations/planilha-sync/**'
+    tags:
+      - 'planilha-sync/v*.*.*'
+  pull_request:
+    branches: [master, main]
+    paths:
+      - 'integrations/planilha-sync/**'
+  workflow_dispatch:
+
+defaults:
+  run:
+    working-directory: integrations/planilha-sync
+
+jobs:
+  # ─────────────────────────────────────────────────────────────
+  # JOB 1 — Build do executável no Windows
+  # ─────────────────────────────────────────────────────────────
+  build-windows:
+    name: Build Windows .exe
+    runs-on: windows-latest
+
+    env:
+      PYTHONUTF8: "1"
+      PYTHONIOENCODING: "utf-8"
+
+    outputs:
+      version: ${{ steps.version.outputs.value }}
+
+    steps:
+      - name: Checkout repositório
+        uses: actions/checkout@v4
+
+      - name: Extrair versão (tag ou SHA curto)
+        id: version
+        shell: bash
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/planilha-sync/* ]]; then
+            VERSION="${GITHUB_REF#refs/tags/planilha-sync/}"
+          else
+            VERSION="dev-$(echo ${GITHUB_SHA} | cut -c1-8)"
+          fi
+          echo "value=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "Versão: ${VERSION}"
+
+      - name: Configurar Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+          cache-dependency-path: integrations/planilha-sync/requirements.txt
+
+      - name: Instalar dependências
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Build — One-File .exe + One-Dir portátil
+        run: |
+          python build.py --all
+
+      - name: Comprimir distribuição portátil
+        shell: pwsh
+        run: |
+          Compress-Archive `
+            -Path dist/planilha_sync `
+            -DestinationPath dist/planilha_sync_windows_portable.zip `
+            -Force
+
+      # ── Artefatos de CI (sempre disponíveis no Actions) ─────────
+      - name: Upload — Standalone .exe
+        uses: actions/upload-artifact@v4
+        with:
+          name: planilha_sync_standalone_exe
+          path: integrations/planilha-sync/dist/planilha_sync.exe
+          retention-days: 30
+
+      - name: Upload — Portátil .zip
+        uses: actions/upload-artifact@v4
+        with:
+          name: planilha_sync_windows_portable
+          path: integrations/planilha-sync/dist/planilha_sync_windows_portable.zip
+          retention-days: 30
+
+  # ─────────────────────────────────────────────────────────────
+  # JOB 2 — GitHub Release (somente em tags planilha-sync/v*.*.*)
+  # ─────────────────────────────────────────────────────────────
+  release:
+    name: Publicar GitHub Release
+    needs: build-windows
+    if: startsWith(github.ref, 'refs/tags/planilha-sync/')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write   # necessário para criar releases
+
+    steps:
+      - name: Baixar artefatos do build
+        uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+
+      - name: Listar artefatos
+        run: ls -lR release-assets/
+
+      - name: Criar GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "Planilha Sync ${{ needs.build-windows.outputs.version }}"
+          tag_name: ${{ github.ref_name }}
+          body: |
+            ## Planilha Sync ${{ needs.build-windows.outputs.version }}
+
+            Serviço standalone que monitora planilhas Excel e sincroniza o banco PostgreSQL do **dashpesagem** automaticamente.
+
+            ### Downloads
+            | Arquivo | Descrição |
+            |---|---|
+            | `planilha_sync.exe` | Executável único — sem instalação necessária |
+            | `planilha_sync_windows_portable.zip` | Versão portátil — pasta com dependências (inicialização mais rápida) |
+
+            ### Configuração rápida
+            1. Baixe `planilha_sync.exe`
+            2. Crie um arquivo `.env` na mesma pasta (use `.env.example` como referência)
+            3. Ajuste `DATABASE_DIR` para a pasta das planilhas e as credenciais PostgreSQL
+            4. Execute `planilha_sync.exe`
+
+            > Consulte o [README](https://github.com/${{ github.repository }}/blob/master/integrations/planilha-sync/README.md) para instruções completas.
+          draft: false
+          prerelease: false
+          files: |
+            release-assets/planilha_sync_standalone_exe/planilha_sync.exe
+            release-assets/planilha_sync_windows_portable/planilha_sync_windows_portable.zip
