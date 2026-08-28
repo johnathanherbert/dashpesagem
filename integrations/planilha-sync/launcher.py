@@ -128,8 +128,46 @@ Logs em:          logs/planilha_sync.log
 """
 
 
+_ENV_EXAMPLE_CONTENT = """\
+# Configurações do Planilha Sync — dashpesagem
+# Copie este arquivo para .env e ajuste os valores
+
+# =====================================================
+# PostgreSQL — banco do dashpesagem
+# =====================================================
+POSTGRES_HOST=192.168.15.16
+POSTGRES_PORT=5432
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=07Huk0594@#$
+POSTGRES_DB=postgres
+
+# =====================================================
+# Planilhas
+# =====================================================
+# Diretório onde ficam as planilhas (pode ser OneDrive ou pasta de rede).
+# Se não definido, usa a pasta database/ ao lado do executável.
+# DATABASE_DIR=C:\\Users\\SeuUsuario\\OneDrive\\Pasta\\Planilhas
+
+# Padrão de nome dos arquivos (glob)
+ESTOQUE_FILE_PATTERN=ajuste.xlsx
+VALOR_UNIT_PATTERN=*unit*.xlsx
+REMESSAS_FILE_PATTERN=*remessa*.xlsx
+
+# Linha de cabeçalho (0-indexed) de cada planilha
+ESTOQUE_HEADER_ROW=3
+VALOR_UNIT_HEADER_ROW=0
+REMESSAS_HEADER_ROW=3
+
+# =====================================================
+# Comportamento do watcher
+# =====================================================
+POLL_INTERVAL_SECONDS=30
+LOG_LEVEL=INFO
+"""
+
+
 def _seed_database_dir() -> Path:
-    """Cria pasta database/ ao lado do .exe e coloca um README."""
+    """Cria pasta database/ ao lado do .exe e gera arquivos de ajuda."""
     db_dir = EXE_DIR / 'database'
     db_dir.mkdir(parents=True, exist_ok=True)
 
@@ -137,18 +175,16 @@ def _seed_database_dir() -> Path:
     if not readme.exists():
         readme.write_text(
             _DATABASE_README.format(interval=POLL_INTERVAL_SECONDS),
-            encoding='utf-8'
+            encoding='utf-8',
         )
 
-    # Também cria .env.example ao lado do exe (se ainda não existir)
+    # Gera .env.example ao lado do exe (conteúdo embutido — sem dependência de arquivo externo)
     env_example = EXE_DIR / '.env.example'
     if not env_example.exists():
-        template_src = BASE_DIR / '.env.example'
-        if template_src.exists():
-            import shutil
-            shutil.copy2(template_src, env_example)
+        env_example.write_text(_ENV_EXAMPLE_CONTENT, encoding='utf-8')
 
     return db_dir
+
 
 
 # ---------------------------------------------------------------------------
