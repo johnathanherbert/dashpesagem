@@ -56,7 +56,9 @@ export function AgingTable({ data }: AgingTableProps) {
   }, [data]);
 
   const centros = useMemo(() => {
-    const centrosSet = new Set(data.map(item => item.centro).filter(Boolean));
+    const centrosSet = new Set(
+      data.map(item => (item.centro ? String(item.centro).replace(/\.0$/, '').trim() : '')).filter(Boolean)
+    );
     return Array.from(centrosSet).sort();
   }, [data]);
 
@@ -76,7 +78,9 @@ export function AgingTable({ data }: AgingTableProps) {
 
     // Aplicar filtro por centro
     if (centroFilter !== 'all') {
-      filtered = filtered.filter(item => item.centro === centroFilter);
+      filtered = filtered.filter(
+        item => (item.centro ? String(item.centro).replace(/\.0$/, '').trim() : '') === centroFilter
+      );
     }
 
     // Aplicar filtro por unidade de medida
@@ -402,7 +406,7 @@ export function AgingTable({ data }: AgingTableProps) {
                     <TableCell>{item.unidade_medida}</TableCell>
                     <TableCell>{item.deposito || '-'}</TableCell>
                     <TableCell>{item.tipo_deposito || '-'}</TableCell>
-                    <TableCell>{item.centro || '-'}</TableCell>
+                    <TableCell>{item.centro ? String(item.centro).replace(/\.0$/, '') : '-'}</TableCell>
                     <TableCell className="text-sm">{item.ultimo_movimento || '-'}</TableCell>
                     <TableCell>
                       {item.tipo_estoque ? (

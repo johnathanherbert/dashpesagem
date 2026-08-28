@@ -59,14 +59,14 @@ export function parseExcelFile(file: File): Promise<AgingData[]> {
         // Processa e mapeia os dados da estrutura real da planilha
         const agingData: AgingData[] = validData.map((row: any) => {
           // Mapeia as colunas da planilha real (nomes em português)
-          const material = String(row['Material'] || '');
-          const textoBreve = String(row['Texto breve material'] || '');
-          const unidadeMedida = String(row['UMB'] || 'KG');
-          const lote = String(row['Lote'] || '');
-          const centro = String(row['Centro'] || '');
-          const deposito = String(row['Depósito'] || '');
-          const tipoDeposito = String(row['Tipo de depósito'] || '');
-          const posicaoDeposito = String(row['Posição no depósito'] || '');
+          const material = String(row['Material'] || '').trim().replace(/\.0$/, '');
+          const textoBreve = String(row['Texto breve material'] || '').trim();
+          const unidadeMedida = String(row['UMB'] || 'KG').trim();
+          const lote = String(row['Lote'] || '').trim().replace(/\.0$/, '');
+          const centro = String(row['Centro'] || '').trim().replace(/\.0$/, '');
+          const deposito = String(row['Depósito'] || '').trim().replace(/\.0$/, '');
+          const tipoDeposito = String(row['Tipo de depósito'] || '').trim().replace(/\.0$/, '');
+          const posicaoDeposito = String(row['Posição no depósito'] || '').trim();
           
           // Estoque disponível (peso)
           const estoqueDisponivel = parseFloat(row['Estoque disponível'] || 0);

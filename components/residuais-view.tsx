@@ -525,6 +525,10 @@ export function ResiduaisView({
       {
         accessorKey: 'centro',
         header: 'Centro',
+        cell: ({ getValue }) => {
+          const val = getValue<string>();
+          return val ? String(val).replace(/\.0$/, '') : '-';
+        },
         size: 70,
       },
       {

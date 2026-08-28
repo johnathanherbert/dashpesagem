@@ -1,6 +1,6 @@
 """
 parser.py — Leitura e processamento das planilhas Excel.
-Trata strings vazias e valores NaN do pandas para garantir dados limpos.
+Trata strings vazias, floats .0 (como Centro 600.0 -> 600) e valores NaN do pandas.
 """
 
 from __future__ import annotations
@@ -25,21 +25,26 @@ def _clean_str(val) -> str:
     return s
 
 
+def _normalize_int_str(val) -> str:
+    """Remove sufixo decimal .0 de inteiros lidos como float (ex: 600.0 -> 600)."""
+    s = _clean_str(val)
+    if not s:
+        return ''
+    if s.endswith('.0'):
+        inteiro = s[:-2]
+        if inteiro.lstrip('-').isdigit():
+            return inteiro
+    return s
+
+
 def _normalize_lote(val) -> str:
     if pd.isna(val):
         return ''
-    lote = _clean_str(val)
-    if not lote:
-        return ''
-    if lote.endswith('.0'):
-        inteiro = lote[:-2]
-        if inteiro.isdigit():
-            return inteiro
-    return lote
+    return _normalize_int_str(val)
 
 
 def _normalize_deposito(val) -> str:
-    s = _clean_str(val)
+    s = _normalize_int_str(val)
     if not s:
         return ''
     _MAP = {'922': 'TR-ZONE', 'PES': 'PES', 'DEP': 'DEP', '999': '999'}
@@ -113,7 +118,7 @@ def parse_estoque(path: Path, header_row: int = 3) -> Tuple[List[Dict[str, Any]]
 
     records: List[Dict[str, Any]] = []
     for _, row in df.iterrows():
-        raw_mat = _clean_str(row.get('Material'))
+        raw_mat = _normalize_int_str(row.get('Material'))
         mat_norm = raw_mat.zfill(6) if raw_mat else ''
 
         records.append({
@@ -121,7 +126,7 @@ def parse_estoque(path: Path, header_row: int = 3) -> Tuple[List[Dict[str, Any]]
             'texto_breve_material':   _clean_str(row.get('Descricao_Material')),
             'unidade_medida':         _clean_str(row.get('Unidade_Medida')) or 'KG',
             'lote':                   _normalize_lote(row.get('Lote')),
-            'centro':                 _clean_str(row.get('Centro')),
+            'centro':                 _normalize_int_str(row.get('Centro')),
             'deposito':               _normalize_deposito(row.get('Depósito')),
             'tipo_deposito':          _normalize_deposito(row.get('Tipo de depósito')),
             'posicao_deposito':       _clean_str(row.get('Posição no depósito')),
