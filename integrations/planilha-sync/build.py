@@ -29,6 +29,7 @@ SPEC_CONFIG = {
     'console': True,   # True = janela de console visível (útil para debug em produção)
     'add_data': [
         f"{BASE_DIR / 'app'}{os.pathsep}app",
+        f"{BASE_DIR / '.env.example'}{os.pathsep}.",
     ],
     'hidden_imports': [
         'pandas',
