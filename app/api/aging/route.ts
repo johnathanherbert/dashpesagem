@@ -64,6 +64,36 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Gerar snapshot automático do histórico com timestamp atual
+    const totalItens = data.length;
+    let somaAging = 0;
+    let maxAging = 0;
+    let itensCriticos = 0;
+    let itensAlerta = 0;
+    let itensAjuste = 0;
+    let itensAjuSaida = 0;
+
+    for (const item of data) {
+      const dias = Number(item.dias_aging || 0);
+      somaAging += dias;
+      if (dias > maxAging) maxAging = dias;
+      if (dias >= 20) itensCriticos++;
+      else if (dias >= 7) itensAlerta++;
+
+      const pos = String(item.posicao_deposito || '').toUpperCase();
+      if (pos === 'AJUSTE') itensAjuste++;
+      else if (pos === 'AJU-SAIDA' || pos === 'AJU-SAÍDA') itensAjuSaida++;
+    }
+    const mediaAging = totalItens > 0 ? somaAging / totalItens : 0;
+
+    await client.query(
+      `INSERT INTO dashboard_historico (
+        snapshot_at, total_itens, media_aging, max_aging, itens_criticos, itens_alerta,
+        itens_ajuste, itens_aju_saida
+      ) VALUES (NOW(), $1, $2, $3, $4, $5, $6, $7)`,
+      [totalItens, mediaAging, maxAging, itensCriticos, itensAlerta, itensAjuste, itensAjuSaida]
+    );
+
     await client.query('COMMIT');
     return NextResponse.json({ success: true, count: data.length });
   } catch (error) {

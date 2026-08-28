@@ -83,8 +83,8 @@ export default function Home() {
       // O snapshot mais recente é o [0] (ordenado desc); o anterior é o [1]
       setPreviousSnapshot(historico[1] ?? null);
 
-      // Atualizar data da última atualização com base no histórico, dados de aging ou data atual
-      const latestTimestamp = historico[0]?.snapshot_at || agingData[0]?.created_at || new Date().toISOString();
+      // Atualizar data da última atualização com base na data real do estoque atual
+      const latestTimestamp = agingData[0]?.created_at || historico[0]?.snapshot_at || new Date().toISOString();
       setLastUpdate(latestTimestamp);
       if (agingData[0]?.created_at) {
         lastSyncTimestampRef.current = String(agingData[0].created_at);
