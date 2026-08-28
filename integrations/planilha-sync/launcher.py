@@ -92,10 +92,8 @@ def _seed_database_dir() -> Path:
     readme = db_dir / 'LEIA-ME.txt'
     if not readme.exists():
         readme.write_text(
-            f"Coloque aqui as planilhas Excel:\n\n"
-            f"  ajuste.xlsx        -> aging_estoque\n"
-            f"  *unit*.xlsx        -> material_valores\n"
-            f"  *remessa*.xlsx     -> remessas\n\n"
+            f"Coloque aqui a planilha Excel de estoque:\n\n"
+            f"  ajuste.xlsx        -> aging_estoque (sincronizacao automatica)\n\n"
             f"Verificacao a cada {POLL_INTERVAL_SECONDS}s automaticamente.\n"
             f"Logs em: logs/planilha_sync.log\n",
             encoding='utf-8',
@@ -253,12 +251,10 @@ def main() -> None:
     logger.info("API OK -> %s", API_BASE_URL)
     _set_loading(status_file, 52, 'API OK')
 
-    # Configurar watcher com diretórios de busca dinâmicos
+    # Configurar watcher com diretórios de busca dinâmicos (focado em ajuste.xlsx)
     _animate_loading(status_file, 52, 65, 'Configurando monitoramento', 0.3)
     watcher = DirectoryWatcher(directories=search_dirs, poll_interval=float(POLL_INTERVAL_SECONDS))
     watcher.add_rule('estoque', ESTOQUE_FILE_PATTERN, _on_estoque_change)
-    watcher.add_rule('valor_unitario', VALOR_UNIT_PATTERN, _on_valor_unitario_change)
-    watcher.add_rule('remessas', REMESSAS_FILE_PATTERN, _on_remessas_change)
 
     # Sync inicial (busca em todas as pastas)
     _animate_loading(status_file, 65, 88, 'Sincronizacao inicial', 0.3)

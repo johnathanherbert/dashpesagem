@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import toast from 'react-hot-toast';
 import { AgingData, RemessaData, ConfiguracaoResiduais } from '@/types/aging';
 import { isMaterialEspecial } from '@/lib/materiais-especiais';
 import { fetchAgingData, fetchMaterialValores, fetchRemessas, fetchConfiguracaoResiduais, fetchDashboardHistorico, fetchLotesInvestigacao, LoteInvestigacao, DashboardSnapshot } from '@/lib/api';
@@ -53,10 +54,13 @@ export default function Home() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
   const { user, userData } = useFirebase();
+  const lastSyncTimestampRef = useRef<string | null>(null);
 
-  const loadData = async () => {
+  const loadData = async (showLoadingSpinner = true) => {
     try {
-      setLoading(true);
+      if (showLoadingSpinner) {
+        setLoading(true);
+      }
       setError(null);
       const [agingData, valoresData, remessasData, configData, historico, lotesInv] = await Promise.all([
         fetchAgingData(),
@@ -82,11 +86,18 @@ export default function Home() {
       // Atualizar data da última atualização com base no histórico, dados de aging ou data atual
       const latestTimestamp = historico[0]?.snapshot_at || agingData[0]?.created_at || new Date().toISOString();
       setLastUpdate(latestTimestamp);
+      if (agingData[0]?.created_at) {
+        lastSyncTimestampRef.current = String(agingData[0].created_at);
+      }
     } catch (err) {
       console.error('Erro ao carregar dados:', err);
-      setError('Erro ao carregar dados. Verifique a configuração do banco de dados.');
+      if (showLoadingSpinner) {
+        setError('Erro ao carregar dados. Verifique a configuração do banco de dados.');
+      }
     } finally {
-      setLoading(false);
+      if (showLoadingSpinner) {
+        setLoading(false);
+      }
     }
   };
 
@@ -96,7 +107,33 @@ export default function Home() {
   };
 
   useEffect(() => {
-    loadData();
+    loadData(true);
+
+    // Polling a cada 15 segundos para detectar atualizações automáticas via API
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch('/api/aging/status');
+        if (!res.ok) return;
+        const status = await res.json();
+        if (status?.last_updated) {
+          const currentTimestamp = String(status.last_updated);
+          if (lastSyncTimestampRef.current && lastSyncTimestampRef.current !== currentTimestamp) {
+            lastSyncTimestampRef.current = currentTimestamp;
+            toast.success(
+              `Dados de estoque atualizados via integração! (${status.total_rows} itens)`,
+              { duration: 6000, icon: '🔄' }
+            );
+            loadData(false);
+          } else if (!lastSyncTimestampRef.current) {
+            lastSyncTimestampRef.current = currentTimestamp;
+          }
+        }
+      } catch (err) {
+        // Silencioso em caso de erro no polling
+      }
+    }, 15000);
+
+    return () => clearInterval(interval);
   }, []);
 
   const handleUploadComplete = () => {
