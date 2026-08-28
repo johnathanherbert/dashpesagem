@@ -1,10 +1,10 @@
 """
-watcher.py — Monitor de mudanças nas planilhas.
+watcher.py — Monitor dinâmico de diretórios e planilhas.
 
 Estratégia:
-  - Polling baseado em mtime (modificação) e tamanho dos arquivos.
-  - Quando algum arquivo muda, processa e envia ao banco.
-  - Roda em thread daemon, pode ser parado com stop().
+  - Monitora diretórios procurando por padrões de arquivo (ex: ajuste.xlsx, *unit*.xlsx, *remessa*.xlsx).
+  - Escaneia dinamicamente os diretórios a cada ciclo de polling (detecta arquivos novos adicionados depois).
+  - Roda em thread daemon e suporta sincronização forçada manual.
 """
 
 from __future__ import annotations
@@ -12,9 +12,9 @@ from __future__ import annotations
 import logging
 import threading
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, Dict, Optional
+from typing import Callable, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -40,31 +40,32 @@ class _FileState:
 SyncCallback = Callable[[Path, str], bool]
 
 
-class FileWatcher:
+@dataclass
+class _WatchRule:
+    kind: str
+    pattern: str
+    callback: SyncCallback
+
+
+class DirectoryWatcher:
     """
-    Monitora um conjunto de arquivos por polling e dispara callbacks quando detecta mudanças.
+    Monitora diretórios em busca de padrões de planilhas e dispara callbacks quando arquivos mudam ou surgem.
     """
 
-    def __init__(self, poll_interval: float = 30.0):
+    def __init__(self, directories: List[Path], poll_interval: float = 15.0):
+        self._directories = directories
         self._poll_interval = poll_interval
-        self._entries: Dict[Path, tuple[str, _FileState]] = {}  # path -> (kind, last_state)
-        self._callbacks: Dict[str, SyncCallback] = {}           # kind -> callback
+        self._rules: List[_WatchRule] = []
+        self._file_states: Dict[Path, tuple[str, _FileState]] = {}
         self._lock = threading.Lock()
         self._stop_event = threading.Event()
         self._thread: Optional[threading.Thread] = None
 
-    def register(self, path: Path, kind: str, callback: SyncCallback) -> None:
-        """
-        Registra um arquivo para monitorar.
-
-        :param path:     Caminho do arquivo
-        :param kind:     Identificador do tipo ('estoque', 'valor_unitario', 'remessas')
-        :param callback: Função chamada quando o arquivo muda: callback(path, kind) -> bool
-        """
+    def add_rule(self, kind: str, pattern: str, callback: SyncCallback) -> None:
+        """Registra uma regra de monitoramento (ex: 'estoque', 'ajuste.xlsx', callback)."""
         with self._lock:
-            self._entries[path] = (kind, _FileState.from_path(path))
-            self._callbacks[kind] = callback
-        logger.info("Watcher: registrado '%s' (%s)", path.name, kind)
+            self._rules.append(_WatchRule(kind=kind, pattern=pattern, callback=callback))
+        logger.info("Watcher: regra registrada '%s' com padrão '%s'", kind, pattern)
 
     def start(self) -> None:
         """Inicia o loop de polling em thread daemon."""
@@ -82,47 +83,76 @@ class FileWatcher:
             self._thread.join(timeout=5)
         logger.info("Watcher parado.")
 
-    def force_sync_all(self) -> None:
-        """Força sincronização imediata de todos os arquivos registrados."""
-        logger.info("Sincronização forçada de todos os arquivos...")
+    def scan_and_sync_all(self, force: bool = False) -> int:
+        """
+        Varre todos os diretórios monitorados e sincroniza os arquivos encontrados.
+        Se force=True, sincroniza mesmo que o arquivo não tenha sido modificado.
+        Retorna o número de arquivos sincronizados.
+        """
+        synced_count = 0
         with self._lock:
-            entries = list(self._entries.items())
-        for path, (kind, _) in entries:
-            self._sync_file(path, kind)
+            rules = list(self._rules)
+            dirs = list(self._directories)
+
+        found_any = False
+        for d in dirs:
+            if not d.exists() or not d.is_dir():
+                continue
+
+            for rule in rules:
+                matches = list(d.glob(rule.pattern))
+                if matches:
+                    found_any = True
+
+                for file_path in matches:
+                    if not file_path.is_file():
+                        continue
+
+                    current_state = _FileState.from_path(file_path)
+                    
+                    with self._lock:
+                        last_info = self._file_states.get(file_path)
+
+                    should_sync = force
+                    if not should_sync:
+                        if last_info is None:
+                            logger.info("Novo arquivo detectado: '%s' (%s)", file_path.name, rule.kind)
+                            should_sync = True
+                        elif last_info[1].changed(current_state):
+                            logger.info(
+                                "Modificação detectada em '%s': mtime=%s, size=%s",
+                                file_path.name, current_state.mtime_ns, current_state.size
+                            )
+                            should_sync = True
+
+                    if should_sync:
+                        logger.info("Processando '%s' (%s)...", file_path.name, rule.kind)
+                        try:
+                            ok = rule.callback(file_path, rule.kind)
+                            if ok:
+                                with self._lock:
+                                    self._file_states[file_path] = (rule.kind, current_state)
+                                synced_count += 1
+                                logger.info("Sincronização de '%s' concluída com sucesso.", file_path.name)
+                            else:
+                                logger.warning("Sincronização de '%s' retornou status de falha.", file_path.name)
+                        except Exception as exc:
+                            logger.error("Erro ao executar callback de sync em '%s': %s", file_path.name, exc, exc_info=True)
+
+        if not found_any and force:
+            logger.warning("Nenhuma planilha encontrada nos diretórios monitorados: %s", [str(d) for d in dirs if d.exists()])
+
+        return synced_count
+
+    def force_sync_all(self) -> int:
+        """Força a sincronização imediata de todas as planilhas existentes."""
+        logger.info("Sincronização forçada iniciada...")
+        return self.scan_and_sync_all(force=True)
 
     def _run(self) -> None:
         while not self._stop_event.is_set():
-            self._check_all()
+            try:
+                self.scan_and_sync_all(force=False)
+            except Exception as exc:
+                logger.error("Erro no ciclo de monitoramento: %s", exc)
             self._stop_event.wait(timeout=self._poll_interval)
-
-    def _check_all(self) -> None:
-        with self._lock:
-            entries = list(self._entries.items())
-
-        for path, (kind, last_state) in entries:
-            current_state = _FileState.from_path(path)
-            if not path.exists():
-                logger.debug("Watcher: '%s' não encontrado, aguardando...", path.name)
-                continue
-
-            if last_state.changed(current_state):
-                logger.info(
-                    "Mudança detectada: '%s' (mtime: %s → %s, size: %s → %s)",
-                    path.name, last_state.mtime_ns, current_state.mtime_ns,
-                    last_state.size, current_state.size,
-                )
-                success = self._sync_file(path, kind)
-                if success:
-                    # Atualiza estado salvo somente se sync foi bem-sucedido
-                    with self._lock:
-                        self._entries[path] = (kind, current_state)
-
-    def _sync_file(self, path: Path, kind: str) -> bool:
-        callback = self._callbacks.get(kind)
-        if callback is None:
-            return False
-        try:
-            return callback(path, kind)
-        except Exception as exc:
-            logger.error("Erro ao sincronizar '%s' (%s): %s", path.name, kind, exc)
-            return False

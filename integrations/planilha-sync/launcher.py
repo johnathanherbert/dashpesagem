@@ -44,6 +44,7 @@ except Exception:
 # ---------------------------------------------------------------------------
 from app.config import (
     DATABASE_DIR,
+    get_search_directories,
     API_BASE_URL,
     POLL_INTERVAL_SECONDS,
     ESTOQUE_FILE_PATTERN, VALOR_UNIT_PATTERN, REMESSAS_FILE_PATTERN,
@@ -51,7 +52,7 @@ from app.config import (
     LOG_LEVEL,
 )
 from app import db, sync
-from app.watcher import FileWatcher
+from app.watcher import DirectoryWatcher
 
 # ---------------------------------------------------------------------------
 # Logging
@@ -130,10 +131,8 @@ def _open_loading_terminal(status_file: Path):
     Abre janela PowerShell separada com barra de progresso.
     Salva o script como UTF-8 com BOM para evitar tela preta.
     """
-    # Caminho do status file em formato seguro para PowerShell (sem chars especiais)
     sf = str(status_file).replace("'", "''")
 
-    # IMPORTANTE: usar apenas ASCII puro no script para evitar problemas de encoding
     lines = [
         "$ErrorActionPreference = 'SilentlyContinue'",
         "$ProgressPreference    = 'SilentlyContinue'",
@@ -144,7 +143,6 @@ def _open_loading_terminal(status_file: Path):
         "$start   = Get-Date",
         f"$sf      = '{sf}'",
         "",
-        "# Cabecalho (escrito UMA vez antes do loop)",
         "Write-Host ''",
         "Write-Host '  ==========================================' -ForegroundColor DarkGreen",
         "Write-Host '    Planilha Sync  -  dashpesagem           ' -ForegroundColor Green",
@@ -176,9 +174,7 @@ def _open_loading_terminal(status_file: Path):
     ]
 
     script = "\r\n".join(lines)
-
     tmp = Path(tempfile.gettempdir()) / '_planilha_sync_load.ps1'
-    # Escrever com UTF-8 BOM — PowerShell interpreta corretamente
     tmp.write_bytes(b'\xef\xbb\xbf' + script.encode('utf-8'))
 
     try:
@@ -192,18 +188,7 @@ def _open_loading_terminal(status_file: Path):
         )
         return proc, tmp
     except FileNotFoundError:
-        # Sem PowerShell (Linux/macOS em dev)
         return None, tmp
-
-
-# ---------------------------------------------------------------------------
-# Descoberta de planilhas
-# ---------------------------------------------------------------------------
-
-def _find_files(directory: Path, pattern: str) -> list[Path]:
-    if not directory.exists():
-        return []
-    return sorted(directory.glob(pattern))
 
 
 # ---------------------------------------------------------------------------
@@ -227,23 +212,23 @@ def _on_remessas_change(path: Path, kind: str) -> bool:
 def main() -> None:
     global logger
 
-    # Status file — escrito em ASCII puro (sem problemas de encoding com PS1)
     status_file = Path(tempfile.gettempdir()) / '_planilha_sync_status.txt'
     _set_loading(status_file, 2, 'Preparando')
 
-    # Abre terminal PowerShell de loading
     loading_proc, loading_tmp = _open_loading_terminal(status_file)
     _animate_loading(status_file, 2, 15, 'Carregando modulos', 0.5)
 
-    # Logging apenas em arquivo (sem console — exe e windowed)
     _setup_logging()
     logger = logging.getLogger('launcher')
     _set_loading(status_file, 18, 'Logging OK')
+
+    search_dirs = get_search_directories()
 
     logger.info("=" * 55)
     logger.info("  Planilha Sync - dashpesagem")
     logger.info("  EXE_DIR      : %s", EXE_DIR)
     logger.info("  DATABASE_DIR : %s", DATABASE_DIR)
+    logger.info("  PASTAS BUSCA : %s", [str(d) for d in search_dirs])
     logger.info("  API          : %s", API_BASE_URL)
     logger.info("  Intervalo    : %ss", POLL_INTERVAL_SECONDS)
     logger.info("  Log          : %s", LOG_FILE)
@@ -268,35 +253,30 @@ def main() -> None:
     logger.info("API OK -> %s", API_BASE_URL)
     _set_loading(status_file, 52, 'API OK')
 
-    # Registrar planilhas no watcher
-    _animate_loading(status_file, 52, 65, 'Registrando planilhas', 0.3)
-    watcher = FileWatcher(poll_interval=float(POLL_INTERVAL_SECONDS))
-    n = 0
-    for f in _find_files(DATABASE_DIR, ESTOQUE_FILE_PATTERN):
-        watcher.register(f, 'estoque', _on_estoque_change); n += 1
-    for f in _find_files(DATABASE_DIR, VALOR_UNIT_PATTERN):
-        watcher.register(f, 'valor_unitario', _on_valor_unitario_change); n += 1
-    for f in _find_files(DATABASE_DIR, REMESSAS_FILE_PATTERN):
-        watcher.register(f, 'remessas', _on_remessas_change); n += 1
+    # Configurar watcher com diretórios de busca dinâmicos
+    _animate_loading(status_file, 52, 65, 'Configurando monitoramento', 0.3)
+    watcher = DirectoryWatcher(directories=search_dirs, poll_interval=float(POLL_INTERVAL_SECONDS))
+    watcher.add_rule('estoque', ESTOQUE_FILE_PATTERN, _on_estoque_change)
+    watcher.add_rule('valor_unitario', VALOR_UNIT_PATTERN, _on_valor_unitario_change)
+    watcher.add_rule('remessas', REMESSAS_FILE_PATTERN, _on_remessas_change)
 
-    if n == 0:
-        logger.warning("Nenhuma planilha em '%s'. Coloque os arquivos na pasta database/", DATABASE_DIR)
-    else:
-        logger.info("%d planilha(s) registrada(s)", n)
-
-    # Sync inicial
+    # Sync inicial (busca em todas as pastas)
     _animate_loading(status_file, 65, 88, 'Sincronizacao inicial', 0.3)
     logger.info("Sincronizacao inicial...")
-    watcher.force_sync_all()
+    synced = watcher.scan_and_sync_all(force=True)
+    logger.info("Sincronizacao inicial concluida: %d arquivo(s) sincronizado(s).", synced)
 
-    # Iniciar watcher
+    # Iniciar watcher em background
     watcher.start()
     _animate_loading(status_file, 88, 96, 'Iniciando monitoramento', 0.2)
 
     # System tray
     def _force_sync():
         logger.info("Sync manual via bandeja")
-        watcher.force_sync_all()
+        cnt = watcher.force_sync_all()
+        if cnt == 0:
+            from app import tray
+            tray.notify("Planilha Sync", "Nenhum arquivo novo ou alterado encontrado.")
 
     def _shutdown():
         logger.info("Encerrando por solicitacao do usuario")
@@ -323,7 +303,7 @@ def main() -> None:
         pass
 
     # Loop principal
-    logger.info("Servico em background. Use a bandeja para encerrar.")
+    logger.info("Servico em background. Use a bandeja para sincronizar ou encerrar.")
     try:
         while not _shutdown_event.wait(timeout=1):
             pass

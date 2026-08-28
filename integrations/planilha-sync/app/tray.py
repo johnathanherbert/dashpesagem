@@ -11,6 +11,8 @@ from typing import Callable, Optional
 
 logger = logging.getLogger(__name__)
 
+_global_icon = None
+
 
 def _create_tray_image():
     from PIL import Image, ImageDraw
@@ -26,6 +28,16 @@ def _create_tray_image():
     return image
 
 
+def notify(title: str, message: str) -> None:
+    """Exibe notificação tipo balão na bandeja do Windows."""
+    global _global_icon
+    if _global_icon is not None:
+        try:
+            _global_icon.notify(message, title)
+        except Exception as exc:
+            logger.debug("Falha ao enviar notificacao na bandeja: %s", exc)
+
+
 def start_tray(
     shutdown_callback: Callable,
     force_sync_callback: Optional[Callable] = None,
@@ -39,6 +51,7 @@ def start_tray(
     :param log_path:            Caminho do arquivo de log (para "Abrir log")
     :return: True se pystray estiver disponível
     """
+    global _global_icon
     try:
         import pystray
     except ImportError:
@@ -73,12 +86,12 @@ def start_tray(
     menu_items.append(pystray.Menu.SEPARATOR)
     menu_items.append(pystray.MenuItem('Encerrar', _quit))
 
-    icon = pystray.Icon(
+    _global_icon = pystray.Icon(
         'planilha-sync',
         _create_tray_image(),
         'Planilha Sync',
         menu=pystray.Menu(*menu_items),
     )
-    threading.Thread(target=icon.run, daemon=True, name="tray-thread").start()
+    threading.Thread(target=_global_icon.run, daemon=True, name="tray-thread").start()
     logger.info("Ícone de bandeja iniciado.")
     return True
