@@ -620,9 +620,7 @@ export function OnepageView({
             </div>
           )}
 
-          <div className="text-xs font-semibold text-ems-steel bg-ems-navy px-3.5 py-1.5 rounded-lg border border-ems-border shadow-inner">
-            Base: <span className="text-ems-ice font-medium">Último Movimento</span>
-          </div>
+          
         </div>
       </div>
 
