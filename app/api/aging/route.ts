@@ -3,13 +3,21 @@ import pool from '@/lib/db';
 import { AgingData } from '@/types/aging';
 import { validateSyncKey } from '@/lib/sync-auth';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export async function GET() {
   const client = await pool.connect();
   try {
     const result = await client.query(
       'SELECT * FROM aging_estoque ORDER BY created_at DESC'
     );
-    return NextResponse.json(result.rows);
+    return NextResponse.json(result.rows, {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+        'Pragma': 'no-cache',
+      },
+    });
   } catch (error) {
     console.error('[API /aging GET]', error);
     return NextResponse.json({ error: 'Erro ao buscar dados de aging' }, { status: 500 });

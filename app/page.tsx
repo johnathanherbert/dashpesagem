@@ -109,10 +109,13 @@ export default function Home() {
   useEffect(() => {
     loadData(true);
 
-    // Polling a cada 15 segundos para detectar atualizações automáticas via API
+    // Polling a cada 8 segundos para detectar atualizações automáticas via API
     const interval = setInterval(async () => {
       try {
-        const res = await fetch('/api/aging/status');
+        const res = await fetch(`/api/aging/status?_t=${Date.now()}`, {
+          cache: 'no-store',
+          headers: { 'Cache-Control': 'no-cache' },
+        });
         if (!res.ok) return;
         const status = await res.json();
         if (status?.last_updated) {
@@ -133,7 +136,7 @@ export default function Home() {
       } catch (err) {
         // Silencioso em caso de erro no polling
       }
-    }, 15000);
+    }, 8000);
 
     return () => clearInterval(interval);
   }, []);

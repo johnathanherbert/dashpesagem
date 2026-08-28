@@ -70,7 +70,10 @@ export function invalidateMaterialValoresCache(): void {
 // =====================================================
 
 export async function fetchAgingData(): Promise<AgingData[]> {
-  const res = await fetch('/api/aging');
+  const res = await fetch(`/api/aging?_t=${Date.now()}`, {
+    cache: 'no-store',
+    headers: { 'Cache-Control': 'no-cache' },
+  });
   if (!res.ok) throw new Error('Erro ao buscar dados de aging');
   return res.json();
 }
