@@ -119,6 +119,7 @@ export default function Home() {
           const currentTimestamp = String(status.last_updated);
           if (lastSyncTimestampRef.current && lastSyncTimestampRef.current !== currentTimestamp) {
             lastSyncTimestampRef.current = currentTimestamp;
+            setLastUpdate(currentTimestamp);
             toast.success(
               `Dados de estoque atualizados via integração! (${status.total_rows} itens)`,
               { duration: 6000, icon: '🔄' }
@@ -126,6 +127,7 @@ export default function Home() {
             loadData(false);
           } else if (!lastSyncTimestampRef.current) {
             lastSyncTimestampRef.current = currentTimestamp;
+            setLastUpdate(currentTimestamp);
           }
         }
       } catch (err) {

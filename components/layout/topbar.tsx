@@ -48,9 +48,13 @@ export function Topbar({
   const formattedLastUpdate = (() => {
     if (!lastUpdate) return '';
     try {
+      const raw = String(lastUpdate).trim();
+      if (!raw || raw.toLowerCase() === 'nan' || raw.toLowerCase() === 'null' || raw.toLowerCase() === 'undefined' || raw === 'Invalid Date') {
+        return '';
+      }
       const d = typeof lastUpdate === 'string' ? new Date(lastUpdate) : lastUpdate;
       if (isNaN(d.getTime())) {
-        return String(lastUpdate);
+        return '';
       }
       return d.toLocaleString('pt-BR', {
         day: '2-digit',
@@ -60,7 +64,7 @@ export function Topbar({
         minute: '2-digit',
       });
     } catch {
-      return String(lastUpdate);
+      return '';
     }
   })();
 
