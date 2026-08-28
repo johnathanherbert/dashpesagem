@@ -6,4 +6,3 @@ pystray>=0.19.5
 pillow>=10.2.0
 pyinstaller>=6.0.0
 pyarrow>=14.0.0
-python-dotenv>=1.0.0

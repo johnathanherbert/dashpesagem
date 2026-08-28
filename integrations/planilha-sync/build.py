@@ -1,15 +1,14 @@
 """
-build.py — Gera o executável standalone do Planilha Sync com PyInstaller.
+build.py — Gera o executavel standalone do Planilha Sync com PyInstaller.
 
 Uso:
-  python build.py --onefile   # Um único .exe standalone
-  python build.py --onedir    # Pasta com executável + dependências
-  python build.py --all       # Ambos os formatos
+  python build.py           # onefile (padrao)
+  python build.py --onedir  # pasta com dependencias (inicializacao mais rapida)
+  python build.py --all     # ambos
 """
 
 import argparse
 import os
-import shutil
 import sys
 from pathlib import Path
 
@@ -26,7 +25,7 @@ BUILD_ASSETS_DIR = BASE_DIR / 'build_assets'
 
 SPEC_CONFIG = {
     'name': 'planilha_sync',
-    'console': True,   # True = janela de console visível (útil para debug em produção)
+    'console': False,          # windowed — o loading terminal PowerShell cuida do feedback visual
     'add_data': [
         f"{BASE_DIR / 'app'}{os.pathsep}app",
     ],
@@ -60,6 +59,7 @@ SPEC_CONFIG = {
         'flask',
         'jinja2',
         'werkzeug',
+        'psycopg2',
         'fastparquet',
         'scipy',
         'numba',
@@ -67,16 +67,18 @@ SPEC_CONFIG = {
         'tkinter',
         'pytest',
         'unittest',
+        'IPython',
+        'notebook',
     ],
 }
 
 
 def build_variant(onefile: bool = True) -> bool:
-    mode_str = "One-File (.exe único)" if onefile else "One-Dir (pasta)"
-    print(f"\n{'=' * 55}")
-    print(f"[*] Compilando: {mode_str}")
-    print(f"[*] Diretório base: {BASE_DIR}")
-    print('=' * 55)
+    mode = "One-File (.exe unico)" if onefile else "One-Dir (pasta)"
+    print(f"\n{'=' * 50}")
+    print(f"[*] Compilando: {mode}")
+    print(f"[*] Base: {BASE_DIR}")
+    print('=' * 50)
 
     dist_dir = BASE_DIR / 'dist'
     work_dir = BASE_DIR / 'build' / ('onefile' if onefile else 'onedir')
@@ -88,17 +90,15 @@ def build_variant(onefile: bool = True) -> bool:
         f'--workpath={work_dir}',
         '--specpath=.',
         '--onefile' if onefile else '--onedir',
-        '--console' if SPEC_CONFIG['console'] else '--windowed',
+        '--windowed',            # sem janela de console dupla
         '--noconfirm',
         '--clean',
     ]
 
     for data in SPEC_CONFIG['add_data']:
         args.append(f'--add-data={data}')
-
     for imp in SPEC_CONFIG['hidden_imports']:
         args.append(f'--hidden-import={imp}')
-
     for exc in SPEC_CONFIG['exclude_modules']:
         args.append(f'--exclude-module={exc}')
 
@@ -111,50 +111,41 @@ def build_variant(onefile: bool = True) -> bool:
     try:
         PyInstaller.__main__.run(args)
 
-        is_win = sys.platform == 'win32'
-        exe_suffix = '.exe' if is_win else ''
-
+        exe_suffix = '.exe' if sys.platform == 'win32' else ''
         if onefile:
             exe_path = dist_dir / f"{SPEC_CONFIG['name']}{exe_suffix}"
         else:
             exe_path = dist_dir / SPEC_CONFIG['name'] / f"{SPEC_CONFIG['name']}{exe_suffix}"
 
         if exe_path.exists():
-            print(f"\n[OK] Build concluído!")
-            print(f"[+] Executável: {exe_path}")
-            print("[INFO] Copie o executável para a máquina de destino.")
-            print("[INFO] Configure DATABASE_DIR e variáveis de banco via arquivo .env ou variáveis de ambiente.")
+            print(f"\n[OK] Executavel: {exe_path}")
+            print("[INFO] Copie o .exe para a maquina de destino e execute.")
+            print("[INFO] A pasta database/ e o log sao criados automaticamente.")
             return True
         else:
-            print(f"\n[ERROR] Executável não encontrado em {exe_path}")
+            print(f"\n[ERROR] Executavel nao encontrado em {exe_path}")
             return False
-
     except Exception as e:
-        print(f"\n[ERROR] Falha durante o build: {e}")
+        print(f"\n[ERROR] Falha no build: {e}")
         return False
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Build Planilha Sync Standalone")
+    parser = argparse.ArgumentParser()
     parser.add_argument('--onefile', action='store_true')
     parser.add_argument('--onedir',  action='store_true')
     parser.add_argument('--all',     action='store_true')
     args = parser.parse_args()
-
     os.chdir(BASE_DIR)
 
     if not (args.onefile or args.onedir or args.all):
         args.onefile = True
 
-    success = True
     if args.all:
-        success = build_variant(True) and build_variant(False)
-    elif args.onefile:
-        success = build_variant(True)
+        return 0 if (build_variant(True) and build_variant(False)) else 1
     elif args.onedir:
-        success = build_variant(False)
-
-    return 0 if success else 1
+        return 0 if build_variant(False) else 1
+    return 0 if build_variant(True) else 1
 
 
 if __name__ == '__main__':
