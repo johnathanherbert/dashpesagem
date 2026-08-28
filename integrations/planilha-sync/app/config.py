@@ -1,6 +1,6 @@
 """
 config.py — Configurações centrais do Planilha Sync.
-Resolve diretório das planilhas tanto em modo dev quanto em modo frozen (PyInstaller).
+Conexão via API HTTP (Cloudflare) em vez de PostgreSQL direto.
 """
 
 import os
@@ -9,7 +9,6 @@ from pathlib import Path
 
 PROJECT_DIR = Path(__file__).resolve().parent.parent
 
-# Diretório padrão de planilhas (pode ser sobrescrito via env DATABASE_DIR)
 LEGACY_DATABASE_DIR = Path(os.environ.get(
     'DATABASE_DIR',
     r"C:\Users\j0038150\OneDrive - EMS S A\Aplicativos\Microsoft Power Query\Uploaded Files"
@@ -30,7 +29,6 @@ def _resolve_database_dir() -> Path:
         return Path(env_dir).expanduser()
     if getattr(sys, 'frozen', False):
         return _runtime_base_dir() / 'database'
-    # Em modo dev: procura a pasta database dentro do projeto
     candidates = [
         PROJECT_DIR / 'database',
         PROJECT_DIR / 'app' / 'database',
@@ -45,29 +43,24 @@ def _resolve_database_dir() -> Path:
 DATABASE_DIR = _resolve_database_dir()
 
 # ------------------------------------------------------------------
-# Conexão com PostgreSQL do dashpesagem
+# API do dashpesagem (via Cloudflare)
 # ------------------------------------------------------------------
-DB_HOST     = os.environ.get('POSTGRES_HOST',     '192.168.15.16')
-DB_PORT     = int(os.environ.get('POSTGRES_PORT', '5432'))
-DB_USER     = os.environ.get('POSTGRES_USER',     'postgres')
-DB_PASSWORD = os.environ.get('POSTGRES_PASSWORD', '07Huk0594@#$')
-DB_NAME     = os.environ.get('POSTGRES_DB',       'postgres')
+API_BASE_URL  = os.environ.get('API_BASE_URL',  'https://dash.agilework.app.br')
+API_KEY       = os.environ.get('API_KEY',        '')           # X-Sync-Key header
+API_TIMEOUT   = int(os.environ.get('API_TIMEOUT',   '60'))    # segundos
+API_CHUNK_SIZE = int(os.environ.get('API_CHUNK_SIZE', '500')) # registros por POST
 
 # ------------------------------------------------------------------
 # Configurações do watcher
 # ------------------------------------------------------------------
-# Intervalo (segundos) entre verificações de mudança nos arquivos
 POLL_INTERVAL_SECONDS = int(os.environ.get('POLL_INTERVAL_SECONDS', '30'))
 
-# Padrão de arquivos de estoque a monitorar
-ESTOQUE_FILE_PATTERN   = os.environ.get('ESTOQUE_FILE_PATTERN',   'ajuste.xlsx')
-VALOR_UNIT_PATTERN     = os.environ.get('VALOR_UNIT_PATTERN',     '*unit*.xlsx')
-REMESSAS_FILE_PATTERN  = os.environ.get('REMESSAS_FILE_PATTERN',  '*remessa*.xlsx')
+ESTOQUE_FILE_PATTERN  = os.environ.get('ESTOQUE_FILE_PATTERN',  'ajuste.xlsx')
+VALOR_UNIT_PATTERN    = os.environ.get('VALOR_UNIT_PATTERN',    '*unit*.xlsx')
+REMESSAS_FILE_PATTERN = os.environ.get('REMESSAS_FILE_PATTERN', '*remessa*.xlsx')
 
-# Linha de cabeçalho (0-indexed) dentro da planilha de estoque
-ESTOQUE_HEADER_ROW   = int(os.environ.get('ESTOQUE_HEADER_ROW',   '3'))
+ESTOQUE_HEADER_ROW    = int(os.environ.get('ESTOQUE_HEADER_ROW',    '3'))
 VALOR_UNIT_HEADER_ROW = int(os.environ.get('VALOR_UNIT_HEADER_ROW', '0'))
-REMESSAS_HEADER_ROW  = int(os.environ.get('REMESSAS_HEADER_ROW',  '3'))
+REMESSAS_HEADER_ROW   = int(os.environ.get('REMESSAS_HEADER_ROW',   '3'))
 
-# Nível de log (DEBUG, INFO, WARNING, ERROR)
 LOG_LEVEL = os.environ.get('LOG_LEVEL', 'INFO')

@@ -1,5 +1,6 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import pool from '@/lib/db';
+import { validateSyncKey } from '@/lib/sync-auth';
 
 export async function GET() {
   const client = await pool.connect();
@@ -16,7 +17,10 @@ export async function GET() {
   }
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
+  const authError = validateSyncKey(request);
+  if (authError) return authError;
+
   const data: { material: string; valor_unitario: number }[] = await request.json();
 
   if (!data || data.length === 0) {

@@ -64,7 +64,7 @@ except Exception:
 # ---------------------------------------------------------------------------
 from app.config import (
     DATABASE_DIR,
-    DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_NAME,
+    API_BASE_URL, API_KEY, API_TIMEOUT, API_CHUNK_SIZE,
     POLL_INTERVAL_SECONDS,
     ESTOQUE_FILE_PATTERN, VALOR_UNIT_PATTERN, REMESSAS_FILE_PATTERN,
     ESTOQUE_HEADER_ROW, REMESSAS_HEADER_ROW,
@@ -129,37 +129,32 @@ Logs em:          logs/planilha_sync.log
 
 
 _ENV_EXAMPLE_CONTENT = """\
-# Configurações do Planilha Sync — dashpesagem
+# Planilha Sync — dashpesagem
 # Copie este arquivo para .env e ajuste os valores
 
 # =====================================================
-# PostgreSQL — banco do dashpesagem
+# API do dashpesagem (via Cloudflare)
 # =====================================================
-POSTGRES_HOST=192.168.15.16
-POSTGRES_PORT=5432
-POSTGRES_USER=postgres
-POSTGRES_PASSWORD=07Huk0594@#$
-POSTGRES_DB=postgres
+API_BASE_URL=https://dash.agilework.app.br
+API_KEY=
+API_TIMEOUT=60
+API_CHUNK_SIZE=500
 
 # =====================================================
 # Planilhas
 # =====================================================
-# Diretório onde ficam as planilhas (pode ser OneDrive ou pasta de rede).
-# Se não definido, usa a pasta database/ ao lado do executável.
+# Diretório das planilhas. Se vazio, usa a pasta database/ ao lado do exe.
 # DATABASE_DIR=C:\\Users\\SeuUsuario\\OneDrive\\Pasta\\Planilhas
 
-# Padrão de nome dos arquivos (glob)
 ESTOQUE_FILE_PATTERN=ajuste.xlsx
 VALOR_UNIT_PATTERN=*unit*.xlsx
 REMESSAS_FILE_PATTERN=*remessa*.xlsx
-
-# Linha de cabeçalho (0-indexed) de cada planilha
 ESTOQUE_HEADER_ROW=3
 VALOR_UNIT_HEADER_ROW=0
 REMESSAS_HEADER_ROW=3
 
 # =====================================================
-# Comportamento do watcher
+# Watcher
 # =====================================================
 POLL_INTERVAL_SECONDS=30
 LOG_LEVEL=INFO
@@ -316,7 +311,7 @@ def main() -> None:
     logger.info("  Planilha Sync — dashpesagem")
     logger.info("  EXE_DIR      : %s", EXE_DIR)
     logger.info("  DATABASE_DIR : %s", DATABASE_DIR)
-    logger.info("  PostgreSQL   : %s@%s:%s/%s", DB_USER, DB_HOST, DB_PORT, DB_NAME)
+    logger.info("  API          : %s", API_BASE_URL)
     logger.info("  Intervalo    : %ss", POLL_INTERVAL_SECONDS)
     logger.info("  Log          : %s", LOG_FILE)
     logger.info("=" * 60)
@@ -326,26 +321,28 @@ def main() -> None:
     runtime_db = _seed_database_dir()
     logger.info("Pasta database criada/verificada em: %s", runtime_db)
 
-    # ── Conexão com banco ─────────────────────────────────────────────────
-    _set_loading(status_file, 30, 'Conectando ao banco de dados')
-    try:
-        db.init_pool(DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_NAME)
-    except Exception as exc:
-        logger.critical("Falha ao inicializar pool de conexão: %s", exc)
-        _set_loading(status_file, 100, 'ERRO: falha na conexao')
-        time.sleep(2)
-        sys.exit(1)
+    # ── Inicializar cliente HTTP ──────────────────────────────────────────
+    _set_loading(status_file, 30, 'Conectando a API Cloudflare')
+    db.init(
+        base_url=API_BASE_URL,
+        api_key=API_KEY,
+        timeout=API_TIMEOUT,
+        chunk_size=API_CHUNK_SIZE,
+    )
 
-    _animate_loading(status_file, 30, 50, 'Testando conexao PostgreSQL', 0.5)
+    _animate_loading(status_file, 30, 50, 'Testando conectividade', 0.5)
 
     if not db.test_connection():
-        logger.critical("Não foi possível conectar ao PostgreSQL. Verifique as configurações.")
-        _set_loading(status_file, 100, 'ERRO: PostgreSQL inacessivel')
+        logger.critical(
+            "Não foi possível conectar à API em %s. "
+            "Verifique a URL e a conectividade com a internet.", API_BASE_URL
+        )
+        _set_loading(status_file, 100, 'ERRO: API inacessivel')
         time.sleep(2)
         sys.exit(1)
 
-    logger.info("Conexão com PostgreSQL OK.")
-    _set_loading(status_file, 52, 'Conexao OK')
+    logger.info("Conectividade com API OK → %s", API_BASE_URL)
+    _set_loading(status_file, 52, 'API OK')
 
     # ── Configurar watcher ────────────────────────────────────────────────
     _animate_loading(status_file, 52, 65, 'Registrando planilhas', 0.3)

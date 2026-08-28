@@ -1,206 +1,179 @@
 """
-db.py — Acesso ao PostgreSQL do dashpesagem.
-Operações de upsert / replace para aging_estoque, material_valores e remessas.
+db.py — Comunicação com o dashpesagem via API HTTP (Cloudflare → dash.agilework.app.br).
+
+Substitui a conexão direta PostgreSQL por chamadas HTTP às API Routes do Next.js.
+Funciona de qualquer rede, sem necessidade de VPN ou acesso direto ao banco.
 """
 
 from __future__ import annotations
 
+import json
 import logging
-from typing import List, Dict, Any
+import time
+from typing import Any, Dict, List
 
-import psycopg2
-import psycopg2.extras
-from psycopg2.pool import ThreadedConnectionPool
+import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 logger = logging.getLogger(__name__)
 
-_pool: ThreadedConnectionPool | None = None
+# Configurado via init()
+_base_url: str = ''
+_api_key: str = ''
+_session: requests.Session | None = None
+_timeout: int = 60          # segundos por request
+_chunk_size: int = 500      # registros por POST (evita payload muito grande)
 
 
-def init_pool(host: str, port: int, user: str, password: str, dbname: str,
-              minconn: int = 1, maxconn: int = 5) -> None:
-    """Inicializa o pool de conexões. Chame uma vez na inicialização."""
-    global _pool
-    _pool = ThreadedConnectionPool(
-        minconn, maxconn,
-        host=host, port=port, user=user, password=password, dbname=dbname,
-        connect_timeout=10,
+def _build_session() -> requests.Session:
+    session = requests.Session()
+    retry = Retry(
+        total=4,
+        backoff_factor=2,           # 2s, 4s, 8s, 16s
+        status_forcelist=[429, 500, 502, 503, 504],
+        allowed_methods=['POST', 'GET'],
     )
-    logger.info("Pool PostgreSQL inicializado (%s@%s:%s/%s)", user, host, port, dbname)
+    adapter = HTTPAdapter(max_retries=retry)
+    session.mount('https://', adapter)
+    session.mount('http://', adapter)
+    return session
 
 
-def _get_conn():
-    if _pool is None:
-        raise RuntimeError("Pool não inicializado. Chame init_pool() primeiro.")
-    return _pool.getconn()
+def init(base_url: str, api_key: str = '', timeout: int = 60, chunk_size: int = 500) -> None:
+    """
+    Inicializa o cliente HTTP.
+
+    :param base_url:   URL base do dashpesagem, ex: https://dash.agilework.app.br
+    :param api_key:    Chave secreta enviada no header X-Sync-Key (pode ser vazia)
+    :param timeout:    Timeout em segundos por requisição
+    :param chunk_size: Máximo de registros por requisição POST
+    """
+    global _base_url, _api_key, _timeout, _chunk_size, _session
+    _base_url   = base_url.rstrip('/')
+    _api_key    = api_key
+    _timeout    = timeout
+    _chunk_size = chunk_size
+    _session    = _build_session()
+    logger.info("API client inicializado → %s", _base_url)
 
 
-def _put_conn(conn) -> None:
-    if _pool is not None:
-        _pool.putconn(conn)
+def _headers() -> Dict[str, str]:
+    h = {'Content-Type': 'application/json'}
+    if _api_key:
+        h['X-Sync-Key'] = _api_key
+    return h
+
+
+def _post_chunked(endpoint: str, records: List[Dict[str, Any]]) -> int:
+    """
+    Envia records em chunks via POST para evitar payloads gigantes.
+    Retorna total de registros enviados.
+    """
+    if _session is None:
+        raise RuntimeError("Cliente não inicializado. Chame init() primeiro.")
+
+    url = f"{_base_url}{endpoint}"
+    total_sent = 0
+    chunks = [records[i:i + _chunk_size] for i in range(0, len(records), _chunk_size)]
+
+    for idx, chunk in enumerate(chunks, 1):
+        logger.debug("POST %s — chunk %d/%d (%d registros)", endpoint, idx, len(chunks), len(chunk))
+        t0 = time.perf_counter()
+
+        resp = _session.post(
+            url,
+            data=json.dumps(chunk, ensure_ascii=False, default=str),
+            headers=_headers(),
+            timeout=_timeout,
+        )
+
+        elapsed = time.perf_counter() - t0
+
+        if not resp.ok:
+            body = {}
+            try:
+                body = resp.json()
+            except Exception:
+                pass
+            raise RuntimeError(
+                f"POST {endpoint} chunk {idx} falhou: HTTP {resp.status_code} — "
+                f"{body.get('error', resp.text[:200])} ({elapsed:.1f}s)"
+            )
+
+        total_sent += len(chunk)
+        logger.debug("Chunk %d OK (%.1fs)", idx, elapsed)
+
+    return total_sent
 
 
 def test_connection() -> bool:
-    """Testa conectividade com o banco. Retorna True se ok."""
+    """Testa conectividade com a API. Retorna True se ok."""
+    if _session is None:
+        return False
     try:
-        conn = _get_conn()
-        try:
-            with conn.cursor() as cur:
-                cur.execute("SELECT 1")
-            return True
-        finally:
-            _put_conn(conn)
+        resp = _session.get(
+            f"{_base_url}/api/aging",
+            headers=_headers(),
+            timeout=10,
+            params={'limit': 1},
+        )
+        ok = resp.status_code < 500
+        if ok:
+            logger.info("Conectividade com API OK (HTTP %s)", resp.status_code)
+        else:
+            logger.error("API retornou HTTP %s", resp.status_code)
+        return ok
     except Exception as exc:
-        logger.error("Falha na conexão com o banco: %s", exc)
+        logger.error("Falha na conexão com a API: %s", exc)
         return False
 
 
 # ---------------------------------------------------------------------------
-# aging_estoque
+# aging_estoque  →  POST /api/aging
 # ---------------------------------------------------------------------------
 
 def replace_aging_estoque(records: List[Dict[str, Any]]) -> int:
     """
-    Substitui TODOS os registros de aging_estoque pelos registros fornecidos.
-    Usa TRUNCATE + INSERT em transação única para atomicidade.
-    Retorna o número de linhas inseridas.
+    Substitui TODOS os dados de aging_estoque enviando via POST /api/aging.
+    A rota do Next.js já faz DELETE + INSERT em transação.
     """
     if not records:
-        logger.warning("replace_aging_estoque: nenhum registro para inserir.")
+        logger.warning("replace_aging_estoque: nenhum registro para enviar.")
         return 0
 
-    conn = _get_conn()
-    try:
-        with conn:
-            with conn.cursor() as cur:
-                cur.execute("TRUNCATE TABLE aging_estoque RESTART IDENTITY CASCADE")
-
-                psycopg2.extras.execute_values(
-                    cur,
-                    """
-                    INSERT INTO aging_estoque
-                        (material, texto_breve_material, unidade_medida, lote,
-                         centro, deposito, tipo_deposito, posicao_deposito,
-                         estoque_disponivel, data_vencimento, ultimo_movimento,
-                         tipo_estoque, ultima_entrada_deposito, dias_aging)
-                    VALUES %s
-                    """,
-                    [
-                        (
-                            r['material'],
-                            r['texto_breve_material'],
-                            r['unidade_medida'],
-                            r['lote'],
-                            r['centro'],
-                            r['deposito'],
-                            r['tipo_deposito'],
-                            r['posicao_deposito'],
-                            r['estoque_disponivel'],
-                            r['data_vencimento'],
-                            r['ultimo_movimento'],
-                            r['tipo_estoque'],
-                            r['ultima_entrada_deposito'],
-                            r['dias_aging'],
-                        )
-                        for r in records
-                    ],
-                    page_size=500,
-                )
-        logger.info("aging_estoque: %d registros inseridos.", len(records))
-        return len(records)
-    except Exception as exc:
-        logger.error("Erro ao inserir aging_estoque: %s", exc)
-        raise
-    finally:
-        _put_conn(conn)
+    logger.info("Enviando %d registros para /api/aging...", len(records))
+    sent = _post_chunked('/api/aging', records)
+    logger.info("aging_estoque: %d registros enviados.", sent)
+    return sent
 
 
 # ---------------------------------------------------------------------------
-# material_valores
+# material_valores  →  POST /api/material-valores
 # ---------------------------------------------------------------------------
 
 def upsert_material_valores(records: List[Dict[str, Any]]) -> int:
-    """
-    Faz upsert em material_valores (INSERT … ON CONFLICT DO UPDATE).
-    Não apaga registros existentes que não estejam na planilha (merge seguro).
-    """
+    """Envia valores unitários via POST /api/material-valores."""
     if not records:
         return 0
 
-    conn = _get_conn()
-    try:
-        with conn:
-            with conn.cursor() as cur:
-                psycopg2.extras.execute_values(
-                    cur,
-                    """
-                    INSERT INTO material_valores (material, valor_unitario)
-                    VALUES %s
-                    ON CONFLICT (material) DO UPDATE
-                        SET valor_unitario = EXCLUDED.valor_unitario,
-                            updated_at     = NOW()
-                    """,
-                    [(r['material'], r['valor_unitario']) for r in records],
-                    page_size=500,
-                )
-        logger.info("material_valores: %d registros upserted.", len(records))
-        return len(records)
-    except Exception as exc:
-        logger.error("Erro ao upsert material_valores: %s", exc)
-        raise
-    finally:
-        _put_conn(conn)
+    logger.info("Enviando %d registros para /api/material-valores...", len(records))
+    sent = _post_chunked('/api/material-valores', records)
+    logger.info("material_valores: %d registros enviados.", sent)
+    return sent
 
 
 # ---------------------------------------------------------------------------
-# remessas
+# remessas  →  POST /api/remessas
 # ---------------------------------------------------------------------------
 
 def replace_remessas(records: List[Dict[str, Any]]) -> int:
-    """
-    Substitui TODOS os registros de remessas pelos registros fornecidos.
-    """
+    """Substitui todas as remessas via POST /api/remessas."""
     if not records:
-        logger.warning("replace_remessas: nenhum registro para inserir.")
+        logger.warning("replace_remessas: nenhum registro para enviar.")
         return 0
 
-    conn = _get_conn()
-    try:
-        with conn:
-            with conn.cursor() as cur:
-                cur.execute("TRUNCATE TABLE remessas RESTART IDENTITY CASCADE")
-
-                psycopg2.extras.execute_values(
-                    cur,
-                    """
-                    INSERT INTO remessas
-                        (numero_remessa, data_picking, peso_total_remessa, item,
-                         data_disponibilidade, quantidade, unidade_medida,
-                         material, centro, deposito, descricao_material)
-                    VALUES %s
-                    """,
-                    [
-                        (
-                            r['numero_remessa'],
-                            r['data_picking'],
-                            r['peso_total_remessa'],
-                            r['item'],
-                            r['data_disponibilidade'],
-                            r['quantidade'],
-                            r['unidade_medida'],
-                            r['material'],
-                            r['centro'],
-                            r['deposito'],
-                            r['descricao_material'],
-                        )
-                        for r in records
-                    ],
-                    page_size=500,
-                )
-        logger.info("remessas: %d registros inseridos.", len(records))
-        return len(records)
-    except Exception as exc:
-        logger.error("Erro ao inserir remessas: %s", exc)
-        raise
-    finally:
-        _put_conn(conn)
+    logger.info("Enviando %d registros para /api/remessas...", len(records))
+    sent = _post_chunked('/api/remessas', records)
+    logger.info("remessas: %d registros enviados.", sent)
+    return sent
