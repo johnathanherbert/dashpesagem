@@ -63,29 +63,39 @@ export function OnepageView({
   // SEGMENTAÇÃO DAS 3 POSIÇÕES PRINCIPAIS
   // ==========================================
 
-  // 1. PESAGEM: depósito ou tipo_depósito 'PES' ou posição 'PESAGEM'
+  // 1. PESAGEM: filtra apenas PES PESAGEM (tipo/depósito PES e posição PESAGEM)
   const pesagemItems = useMemo(() => {
     return agingData.filter((item) => {
-      const pos = item.posicao_deposito?.toUpperCase() || '';
-      const tipo = item.tipo_deposito?.toUpperCase() || '';
-      const dep = item.deposito?.toUpperCase() || '';
-      return pos === 'PESAGEM' || (tipo === 'PES' && pos !== 'AJUSTE' && pos !== 'AJU-SAIDA') || dep === 'PES';
+      const pos = (item.posicao_deposito || '').toUpperCase().trim();
+      const tipo = (item.tipo_deposito || '').toUpperCase().trim();
+      const dep = (item.deposito || '').toUpperCase().trim();
+      const isPes = tipo === 'PES' || dep === 'PES';
+      const isPosPesagem = pos === 'PESAGEM' || pos === 'PES' || (isPes && !pos);
+      return isPes && isPosPesagem && pos !== 'AJUSTE' && pos !== 'AJU-SAIDA' && pos !== 'AJU-SAÍDA';
     });
   }, [agingData]);
 
-  // 2. AJUSTE: posição 'AJUSTE'
+  // 2. AJUSTE: filtra apenas 999 AJUSTE (tipo/depósito 999 e posição AJUSTE)
   const ajusteItems = useMemo(() => {
     return agingData.filter((item) => {
-      const pos = item.posicao_deposito?.toUpperCase() || '';
-      return pos === 'AJUSTE';
+      const pos = (item.posicao_deposito || '').toUpperCase().trim();
+      const tipo = (item.tipo_deposito || '').toUpperCase().trim();
+      const dep = (item.deposito || '').toUpperCase().trim();
+      const is999 = tipo === '999' || dep === '999' || tipo.includes('999');
+      const isAjuste = pos === 'AJUSTE' || pos.includes('AJUSTE');
+      return is999 && isAjuste && pos !== 'AJU-SAIDA' && pos !== 'AJU-SAÍDA';
     });
   }, [agingData]);
 
-  // 3. AJU-SAÍDA: posição 'AJU-SAIDA' ou 'AJU-SAÍDA'
+  // 3. AJU-SAÍDA: filtra apenas 999 AJU-SAÍDA
   const ajuSaidaItems = useMemo(() => {
     return agingData.filter((item) => {
-      const pos = item.posicao_deposito?.toUpperCase() || '';
-      return pos === 'AJU-SAIDA' || pos === 'AJU-SAÍDA';
+      const pos = (item.posicao_deposito || '').toUpperCase().trim();
+      const tipo = (item.tipo_deposito || '').toUpperCase().trim();
+      const dep = (item.deposito || '').toUpperCase().trim();
+      const is999 = tipo === '999' || dep === '999' || tipo.includes('999');
+      const isAjuSaida = pos === 'AJU-SAIDA' || pos === 'AJU-SAÍDA' || pos.includes('AJU-SAIDA') || pos.includes('AJU SAIDA');
+      return is999 && isAjuSaida;
     });
   }, [agingData]);
 
