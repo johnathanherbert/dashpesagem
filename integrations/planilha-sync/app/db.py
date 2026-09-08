@@ -23,7 +23,7 @@ _base_url: str = ''
 _api_key: str = ''
 _session: requests.Session | None = None
 _timeout: int = 60          # segundos por request
-_chunk_size: int = 500      # registros por POST (evita payload muito grande)
+_timeout: int = 60          # segundos por request
 
 
 def _build_session() -> requests.Session:
@@ -40,20 +40,19 @@ def _build_session() -> requests.Session:
     return session
 
 
-def init(base_url: str, api_key: str = '', timeout: int = 60, chunk_size: int = 500) -> None:
+def init(base_url: str, api_key: str = '', timeout: int = 60, chunk_size: int | None = None) -> None:
     """
     Inicializa o cliente HTTP.
 
     :param base_url:   URL base do dashpesagem, ex: https://dash.agilework.app.br
     :param api_key:    Chave secreta enviada no header X-Sync-Key (pode ser vazia)
     :param timeout:    Timeout em segundos por requisição
-    :param chunk_size: Máximo de registros por requisição POST
+    :param chunk_size: Mantido para compatibilidade de assinatura
     """
-    global _base_url, _api_key, _timeout, _chunk_size, _session
+    global _base_url, _api_key, _timeout, _session
     _base_url   = base_url.rstrip('/')
     _api_key    = api_key
     _timeout    = timeout
-    _chunk_size = chunk_size
     _session    = _build_session()
     logger.info("API client inicializado → %s", _base_url)
 
@@ -65,46 +64,40 @@ def _headers() -> Dict[str, str]:
     return h
 
 
-def _post_chunked(endpoint: str, records: List[Dict[str, Any]]) -> int:
+def _post_all(endpoint: str, records: List[Dict[str, Any]]) -> int:
     """
-    Envia records em chunks via POST para evitar payloads gigantes.
-    Retorna total de registros enviados.
+    Envia todos os records em uma única requisição POST para a API.
+    A API Routes do Next.js executa a substituição completa (DELETE + INSERT) em transação única.
     """
     if _session is None:
         raise RuntimeError("Cliente não inicializado. Chame init() primeiro.")
 
     url = f"{_base_url}{endpoint}"
-    total_sent = 0
-    chunks = [records[i:i + _chunk_size] for i in range(0, len(records), _chunk_size)]
+    logger.debug("POST %s — %d registros", endpoint, len(records))
+    t0 = time.perf_counter()
 
-    for idx, chunk in enumerate(chunks, 1):
-        logger.debug("POST %s — chunk %d/%d (%d registros)", endpoint, idx, len(chunks), len(chunk))
-        t0 = time.perf_counter()
+    resp = _session.post(
+        url,
+        data=json.dumps(records, ensure_ascii=False, default=str),
+        headers=_headers(),
+        timeout=_timeout,
+    )
 
-        resp = _session.post(
-            url,
-            data=json.dumps(chunk, ensure_ascii=False, default=str),
-            headers=_headers(),
-            timeout=_timeout,
+    elapsed = time.perf_counter() - t0
+
+    if not resp.ok:
+        body = {}
+        try:
+            body = resp.json()
+        except Exception:
+            pass
+        raise RuntimeError(
+            f"POST {endpoint} falhou: HTTP {resp.status_code} — "
+            f"{body.get('error', resp.text[:200])} ({elapsed:.1f}s)"
         )
 
-        elapsed = time.perf_counter() - t0
-
-        if not resp.ok:
-            body = {}
-            try:
-                body = resp.json()
-            except Exception:
-                pass
-            raise RuntimeError(
-                f"POST {endpoint} chunk {idx} falhou: HTTP {resp.status_code} — "
-                f"{body.get('error', resp.text[:200])} ({elapsed:.1f}s)"
-            )
-
-        total_sent += len(chunk)
-        logger.debug("Chunk %d OK (%.1fs)", idx, elapsed)
-
-    return total_sent
+    logger.debug("POST %s OK: %d registros em %.1fs", endpoint, len(records), elapsed)
+    return len(records)
 
 
 def test_connection() -> bool:
@@ -143,7 +136,7 @@ def replace_aging_estoque(records: List[Dict[str, Any]]) -> int:
         return 0
 
     logger.info("Enviando %d registros para /api/aging...", len(records))
-    sent = _post_chunked('/api/aging', records)
+    sent = _post_all('/api/aging', records)
     logger.info("aging_estoque: %d registros enviados.", sent)
     return sent
 
@@ -158,7 +151,7 @@ def upsert_material_valores(records: List[Dict[str, Any]]) -> int:
         return 0
 
     logger.info("Enviando %d registros para /api/material-valores...", len(records))
-    sent = _post_chunked('/api/material-valores', records)
+    sent = _post_all('/api/material-valores', records)
     logger.info("material_valores: %d registros enviados.", sent)
     return sent
 
@@ -174,6 +167,6 @@ def replace_remessas(records: List[Dict[str, Any]]) -> int:
         return 0
 
     logger.info("Enviando %d registros para /api/remessas...", len(records))
-    sent = _post_chunked('/api/remessas', records)
+    sent = _post_all('/api/remessas', records)
     logger.info("remessas: %d registros enviados.", sent)
     return sent
