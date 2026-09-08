@@ -20,7 +20,9 @@ import {
   Shield,
   Layers,
   ChevronRight,
+  QrCode,
 } from 'lucide-react';
+import Link from 'next/link';
 import { Separator } from '@/components/ui/separator';
 import { useFirebase, ADMIN_EMAIL } from '@/components/auth-provider';
 import { Badge } from '@/components/ui/badge';
@@ -168,6 +170,33 @@ export function Sidebar({ open, onOpenChange, activeTab = 'financial', onTabChan
                   </button>
                 );
               })}
+            </nav>
+          </div>
+
+          {/* Sistema & Gestão */}
+          <div className="space-y-2">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-[#608BA6] px-2">
+              Ferramentas Móveis
+            </p>
+            <nav className="space-y-1">
+              <Link
+                href="/mobile"
+                onClick={() => onOpenChange(false)}
+                className="w-full flex items-center gap-3 p-2.5 rounded-xl text-left transition-all bg-sky-500/10 hover:bg-sky-500/20 text-[#AEE4FF] border border-sky-500/30 group"
+              >
+                <div className="w-8 h-8 rounded-lg bg-sky-500/20 flex items-center justify-center text-[#AEE4FF] group-hover:bg-[#AEE4FF] group-hover:text-[#13283E] transition-colors">
+                  <QrCode className="h-4 w-4" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-semibold block text-[#AEE4FF]">Consulta Mobile (Leitor)</span>
+                    <span className="text-[9px] px-1.5 py-0 rounded-full bg-[#AEE4FF] text-[#13283E] font-black">
+                      Code 128
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-[#608BA6] truncate">Leitura por câmera / Coletor</p>
+                </div>
+              </Link>
             </nav>
           </div>
 
