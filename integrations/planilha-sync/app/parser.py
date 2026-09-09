@@ -78,14 +78,152 @@ def _format_date(val) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Parser de estoque (ajuste.xlsx)
+# Parser de estoque (.txt / .tsv / exportação SAP tabulada)
+# ---------------------------------------------------------------------------
+
+def _parse_estoque_txt(path: Path) -> Tuple[List[Dict[str, Any]], date]:
+    """
+    Lê arquivo texto tabulado exportado do SAP (LX02 / LS24 / WM).
+    Processa linha a linha de forma leve e rápida, sem depender de pandas/openpyxl.
+    """
+    import re
+
+    logger.info("Lendo arquivo de estoque TXT tabulado: %s", path)
+
+    lines: List[str] = []
+    for enc in ['latin1', 'utf-8', 'cp1252']:
+        try:
+            with open(path, 'r', encoding=enc) as f:
+                lines = f.readlines()
+            break
+        except UnicodeDecodeError:
+            continue
+
+    if not lines:
+        raise ValueError(f"Arquivo vazio ou erro de codificação: {path}")
+
+    # Localiza linha de cabeçalho
+    header_idx = -1
+    for i, line in enumerate(lines):
+        if 'Material' in line and 'Lote' in line:
+            header_idx = i
+            break
+
+    if header_idx == -1:
+        raise ValueError("Cabeçalho com 'Material' e 'Lote' não encontrado no arquivo TXT.")
+
+    header_line = lines[header_idx].strip('\r\n')
+    raw_headers = [h.strip() for h in header_line.split('\t')]
+
+    hoje = date.today()
+
+    def parse_float_br(val_str: str) -> float:
+        if not val_str:
+            return 0.0
+        s = val_str.strip().replace('.', '').replace(',', '.')
+        try:
+            return float(s)
+        except ValueError:
+            return 0.0
+
+    def parse_date_br(val_str: str) -> Tuple[str, Optional[date]]:
+        if not val_str:
+            return '', None
+        s = val_str.strip()
+        m = re.match(r'^(\d{1,2})\.(\d{1,2})\.(\d{4})$', s)
+        if m:
+            d, mth, y = m.groups()
+            return f'{d.zfill(2)}/{mth.zfill(2)}/{y}', date(int(y), int(mth), int(d))
+        m2 = re.match(r'^(\d{1,2})/(\d{1,2})/(\d{4})$', s)
+        if m2:
+            d, mth, y = m2.groups()
+            return f'{d.zfill(2)}/{mth.zfill(2)}/{y}', date(int(y), int(mth), int(d))
+        return s, None
+
+    records: List[Dict[str, Any]] = []
+
+    for line in lines[header_idx + 1:]:
+        line = line.strip('\r\n')
+        if not line or line.startswith('*') or line.strip().startswith('*'):
+            continue
+        cols = [c.strip() for c in line.split('\t')]
+
+        row_dict: Dict[str, str] = {}
+        for h, c in zip(raw_headers, cols):
+            if h:
+                row_dict[h] = c
+
+        mat = row_dict.get('Material', '')
+        # Ignora linhas de totalização do SAP ou sem código numérico
+        if not mat or not re.match(r'^\d+$', mat):
+            continue
+
+        lote = row_dict.get('Lote', '')
+        desc = row_dict.get('Texto breve material', '')
+        umb = row_dict.get('UMB', 'KG')
+        cen = row_dict.get('Cen.', '600')
+        dep = row_dict.get('Dep.', 'PES')
+        tp = row_dict.get('Tp.', '999')
+        pos = row_dict.get('Posição', row_dict.get('Posiç', row_dict.get('PosiÃ§', '')))
+        estq_raw = row_dict.get('Estq.dispon.', row_dict.get('Estoque disponível', '0'))
+        venc_raw = row_dict.get('Data venc.', row_dict.get('Data do vencimento', ''))
+        mov_raw = row_dict.get('Últ.movim.', row_dict.get('Ã\x9alt.movim.', ''))
+        tp_estq = row_dict.get('T', row_dict.get('Tipo de estoque', ''))
+        entrd_raw = row_dict.get('Últ.entrd.', row_dict.get('Ã\x9alt.entrd.', ''))
+
+        mat_norm = mat.strip().zfill(6)
+        lote_norm = re.sub(r'\.0$', '', lote).strip()
+        cen_norm = re.sub(r'\.0$', '', cen).strip()
+
+        dep_norm = dep.strip()
+        if dep_norm == '922':
+            dep_norm = 'TR-ZONE'
+
+        tipo_dep_norm = tp.strip()
+        if tipo_dep_norm == '922':
+            tipo_dep_norm = 'TR-ZONE'
+
+        estq_disp = parse_float_br(estq_raw)
+        venc_str, _ = parse_date_br(venc_raw)
+        mov_str, mov_date = parse_date_br(mov_raw)
+        entrd_str, _ = parse_date_br(entrd_raw)
+
+        dias_aging = (hoje - mov_date).days if mov_date else 0
+
+        records.append({
+            'material': mat_norm,
+            'texto_breve_material': desc,
+            'unidade_medida': umb or 'KG',
+            'lote': lote_norm,
+            'centro': cen_norm,
+            'deposito': dep_norm,
+            'tipo_deposito': tipo_dep_norm,
+            'posicao_deposito': pos,
+            'estoque_disponivel': estq_disp,
+            'data_vencimento': venc_str,
+            'ultimo_movimento': mov_str,
+            'tipo_estoque': tp_estq,
+            'ultima_entrada_deposito': entrd_str,
+            'dias_aging': dias_aging,
+        })
+
+    logger.info("Arquivo TXT de estoque: %d registros processados com sucesso.", len(records))
+    return records, hoje
+
+
+# ---------------------------------------------------------------------------
+# Parser de estoque (ajuste.xlsx / dados.txt)
 # ---------------------------------------------------------------------------
 
 def parse_estoque(path: Path, header_row: int = 3) -> Tuple[List[Dict[str, Any]], date]:
     """
-    Lê a planilha de estoque e retorna lista de dicts limpos prontos para inserção
-    na tabela `aging_estoque`.
+    Lê a planilha de estoque (.xlsx, .xls) ou arquivo texto tabulado (.txt, .tsv)
+    e retorna lista de dicts limpos prontos para inserção na tabela `aging_estoque`.
     """
+    suffix = path.suffix.lower()
+    if suffix in ('.txt', '.tsv', '.csv'):
+        return _parse_estoque_txt(path)
+
     logger.info("Lendo planilha de estoque: %s (header_row=%d)", path, header_row)
 
     df = pd.read_excel(path, header=header_row, engine='openpyxl', dtype={0: str})

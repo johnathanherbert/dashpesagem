@@ -13,6 +13,7 @@ LEGACY_DATABASE_DIR = Path(os.environ.get(
     r"C:\Users\j0038150\OneDrive - EMS S A\Aplicativos\Microsoft Power Query\Uploaded Files"
 ))
 
+DEFAULT_ESTOQUE_FILE_NAMES = ['ajuste.xlsx', 'ajuste.txt', 'dados.txt', 'estoque.txt', 'estoque.xlsx']
 DEFAULT_ESTOQUE_FILE_NAME = 'ajuste.xlsx'
 
 
@@ -47,16 +48,18 @@ def get_search_directories() -> list[Path]:
 
 
 def _resolve_database_dir() -> Path:
-    # Retorna o primeiro diretório existente que contenha ajuste.xlsx ou o diretório local database
+    # Retorna o primeiro diretório existente que contenha qualquer arquivo de estoque ou a pasta database local
     search_dirs = get_search_directories()
     for d in search_dirs:
         try:
-            if d.exists() and (d / DEFAULT_ESTOQUE_FILE_NAME).exists():
-                return d
+            if d.exists():
+                for fname in DEFAULT_ESTOQUE_FILE_NAMES:
+                    if (d / fname).exists():
+                        return d
         except Exception:
             pass
             
-    # Se nenhum tiver ajuste.xlsx, retorna a pasta database local ao lado do exe
+    # Se nenhum tiver arquivo de estoque, retorna a pasta database local ao lado do exe
     return _runtime_base_dir() / 'database'
 
 

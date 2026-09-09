@@ -2,6 +2,127 @@ import * as XLSX from 'xlsx';
 import { AgingData } from '@/types/aging';
 import { differenceInDays, parseISO, isValid } from 'date-fns';
 
+export function parseTextFile(file: File): Promise<AgingData[]> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+
+    reader.onload = (e) => {
+      try {
+        const text = e.target?.result as string;
+        if (!text) {
+          reject(new Error('Não foi possível ler o conteúdo do arquivo TXT'));
+          return;
+        }
+
+        const lines = text.split(/\r?\n/);
+        let headerIdx = -1;
+        for (let i = 0; i < lines.length; i++) {
+          if (lines[i].includes('Material') && lines[i].includes('Lote')) {
+            headerIdx = i;
+            break;
+          }
+        }
+
+        if (headerIdx === -1) {
+          reject(new Error('Cabeçalho com Material e Lote não encontrado no arquivo TXT'));
+          return;
+        }
+
+        const rawHeaders = lines[headerIdx].split('\t').map((h) => h.trim());
+        const parseDateBr = (str: string) => {
+          if (!str) return { formatted: '', date: null };
+          const s = str.trim();
+          const m = s.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/) || s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+          if (m) {
+            const [, d, mth, y] = m;
+            const dt = new Date(parseInt(y), parseInt(mth) - 1, parseInt(d));
+            return { formatted: `${d.padStart(2, '0')}/${mth.padStart(2, '0')}/${y}`, date: dt };
+          }
+          return { formatted: s, date: null };
+        };
+
+        const parseFloatBr = (str: string) => {
+          if (!str) return 0;
+          const s = str.trim().replace(/\./g, '').replace(',', '.');
+          const num = parseFloat(s);
+          return isNaN(num) ? 0 : num;
+        };
+
+        const records: AgingData[] = [];
+        const today = new Date();
+
+        for (let i = headerIdx + 1; i < lines.length; i++) {
+          const line = lines[i].trimEnd();
+          if (!line || line.startsWith('*') || line.trim().startsWith('*')) continue;
+
+          const cols = line.split('\t').map((c) => c.trim());
+          const row: Record<string, string> = {};
+          rawHeaders.forEach((h, idx) => {
+            if (h) row[h] = cols[idx] || '';
+          });
+
+          const mat = row['Material'] || '';
+          if (!mat || !/^\d+$/.test(mat)) continue;
+
+          const lote = row['Lote'] || '';
+          const desc = row['Texto breve material'] || '';
+          const umb = row['UMB'] || 'KG';
+          const cen = row['Cen.'] || '600';
+          let dep = row['Dep.'] || 'PES';
+          let tp = row['Tp.'] || '999';
+          const pos = row['Posição'] || row['Posiç'] || row['PosiÃ§'] || '';
+          const estqRaw = row['Estq.dispon.'] || row['Estoque disponível'] || '0';
+          const vencRaw = row['Data venc.'] || row['Data do vencimento'] || '';
+          const movRaw = row['Últ.movim.'] || row['Ã\x9alt.movim.'] || '';
+          const tpEstq = row['T'] || row['Tipo de estoque'] || '';
+          const entrdRaw = row['Últ.entrd.'] || row['Ã\x9alt.entrd.'] || '';
+
+          if (dep === '922') dep = 'TR-ZONE';
+          if (tp === '922') tp = 'TR-ZONE';
+
+          const estq = parseFloatBr(estqRaw);
+          const { formatted: vencStr } = parseDateBr(vencRaw);
+          const { formatted: movStr, date: movDate } = parseDateBr(movRaw);
+          const { formatted: entrdStr } = parseDateBr(entrdRaw);
+
+          let diasAging = 0;
+          if (movDate) {
+            const diffTime = today.getTime() - movDate.getTime();
+            diasAging = Math.max(0, Math.floor(diffTime / (1000 * 60 * 60 * 24)));
+          }
+
+          records.push({
+            material: mat.padStart(6, '0'),
+            texto_breve_material: desc,
+            unidade_medida: umb,
+            lote,
+            centro: cen,
+            deposito: dep,
+            tipo_deposito: tp,
+            posicao_deposito: pos,
+            estoque_disponivel: estq,
+            data_vencimento: vencStr,
+            ultimo_movimento: movStr,
+            tipo_estoque: tpEstq,
+            ultima_entrada_deposito: entrdStr,
+            dias_aging: diasAging,
+          });
+        }
+
+        resolve(records);
+      } catch (err: any) {
+        reject(new Error(`Erro ao processar TXT: ${err?.message || 'Arquivo inválido'}`));
+      }
+    };
+
+    reader.onerror = () => {
+      reject(new Error('Erro ao ler arquivo'));
+    };
+
+    reader.readAsText(file, 'latin1');
+  });
+}
+
 export function parseExcelFile(file: File): Promise<AgingData[]> {
   return new Promise((resolve, reject) => {
     if (!file) {
@@ -9,8 +130,13 @@ export function parseExcelFile(file: File): Promise<AgingData[]> {
       return;
     }
 
+    if (file.name.match(/\.(txt|tsv|csv)$/i)) {
+      parseTextFile(file).then(resolve).catch(reject);
+      return;
+    }
+
     if (!file.name.match(/\.(xlsx|xls)$/i)) {
-      reject(new Error('Formato de arquivo inválido. Use .xlsx ou .xls'));
+      reject(new Error('Formato de arquivo inválido. Use .xlsx, .xls ou .txt'));
       return;
     }
 

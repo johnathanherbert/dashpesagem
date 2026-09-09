@@ -121,7 +121,7 @@ export function ExcelUpload({ onUploadComplete }: ExcelUploadProps) {
           <Input
             id="excel-file"
             type="file"
-            accept=".xlsx,.xls"
+            accept=".xlsx,.xls,.txt,.tsv"
             onChange={handleFileChange}
             disabled={uploading}
             className="cursor-pointer"

@@ -38,9 +38,9 @@ export function UploadButton({ onUploadComplete }: UploadButtonProps) {
       </DialogTrigger>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>Upload de Planilha Excel</DialogTitle>
+          <DialogTitle>Upload de Estoque (Excel ou TXT)</DialogTitle>
           <DialogDescription>
-            Selecione um arquivo .xlsx ou .xls para atualizar os dados do dashboard
+            Selecione um arquivo .xlsx, .xls ou .txt tabulado exportado do SAP para atualizar os dados do dashboard
           </DialogDescription>
         </DialogHeader>
         <div className="mt-4">

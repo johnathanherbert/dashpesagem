@@ -92,8 +92,8 @@ def _seed_database_dir() -> Path:
     readme = db_dir / 'LEIA-ME.txt'
     if not readme.exists():
         readme.write_text(
-            f"Coloque aqui a planilha Excel de estoque:\n\n"
-            f"  ajuste.xlsx        -> aging_estoque (sincronizacao automatica)\n\n"
+            f"Coloque aqui o arquivo de estoque (Excel ou TXT do SAP):\n\n"
+            f"  dados.txt ou ajuste.xlsx -> aging_estoque (sincronizacao automatica)\n\n"
             f"Verificacao a cada {POLL_INTERVAL_SECONDS}s automaticamente.\n"
             f"Logs em: logs/planilha_sync.log\n",
             encoding='utf-8',
@@ -251,10 +251,14 @@ def main() -> None:
     logger.info("API OK -> %s", API_BASE_URL)
     _set_loading(status_file, 52, 'API OK')
 
-    # Configurar watcher com diretórios de busca dinâmicos (focado em ajuste.xlsx)
+    # Configurar watcher com diretórios de busca dinâmicos (suporta .xlsx e .txt tabulado)
     _animate_loading(status_file, 52, 65, 'Configurando monitoramento', 0.3)
     watcher = DirectoryWatcher(directories=search_dirs, poll_interval=float(POLL_INTERVAL_SECONDS))
     watcher.add_rule('estoque', ESTOQUE_FILE_PATTERN, _on_estoque_change)
+    watcher.add_rule('estoque', '*.txt', _on_estoque_change)
+    watcher.add_rule('estoque', '*.tsv', _on_estoque_change)
+    if ESTOQUE_FILE_PATTERN != 'ajuste*.xlsx':
+        watcher.add_rule('estoque', 'ajuste*.xlsx', _on_estoque_change)
 
     # Sync inicial (busca em todas as pastas)
     _animate_loading(status_file, 65, 88, 'Sincronizacao inicial', 0.3)
