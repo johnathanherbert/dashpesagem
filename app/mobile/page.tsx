@@ -45,10 +45,16 @@ export default function MobileConsultaPage() {
   const [scannedResult, setScannedResult] = useState<ParsedBarcode | null>(null);
   const [processingImage, setProcessingImage] = useState<boolean>(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   // Scanner HTML element ref & Html5Qrcode instance
   const scannerContainerId = 'mobile-barcode-reader';
   const html5QrCodeRef = useRef<any>(null);
+
+  // Buffer para coletor Bluetooth
+  const barcodeBufferRef = useRef<string>('');
+  const lastKeyTimeRef = useRef<number>(0);
+  const bufferTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Detect Mobile device screen width / user-agent
   useEffect(() => {
@@ -84,6 +90,69 @@ export default function MobileConsultaPage() {
   useEffect(() => {
     loadStockData();
   }, []);
+
+  // Foca automaticamente no campo para facilitar coletores
+  useEffect(() => {
+    if (inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, []);
+
+  // Ouvinte global de teclas para Coletor Bluetooth / Scanner Físico (Modo Teclado HID)
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      // Ignora teclas de controle especiais
+      if (['Shift', 'Control', 'Alt', 'Meta', 'CapsLock', 'Tab'].includes(e.key)) {
+        return;
+      }
+
+      const now = Date.now();
+      const timeDiff = now - lastKeyTimeRef.current;
+      lastKeyTimeRef.current = now;
+
+      // Se passou muito tempo (> 400ms), limpa o buffer pois pode ter sido digitação manual lenta
+      if (timeDiff > 400 && barcodeBufferRef.current.length > 0) {
+        barcodeBufferRef.current = '';
+      }
+
+      // Se for tecla Enter / Retorno do coletor
+      if (e.key === 'Enter') {
+        const textToProcess = barcodeBufferRef.current.trim() || (document.activeElement === inputRef.current ? manualInput.trim() : '');
+        if (textToProcess) {
+          e.preventDefault();
+          handleBarcodeScanned(textToProcess);
+          barcodeBufferRef.current = '';
+          if (bufferTimeoutRef.current) clearTimeout(bufferTimeoutRef.current);
+          return;
+        }
+      }
+
+      // Se for um caractere imprimível
+      if (e.key.length === 1) {
+        barcodeBufferRef.current += e.key;
+
+        // Limpa timeout anterior
+        if (bufferTimeoutRef.current) {
+          clearTimeout(bufferTimeoutRef.current);
+        }
+
+        // Se o coletor não mandar Enter no final, mas enviou vários caracteres rápido (velocidade de leitor < 100ms)
+        bufferTimeoutRef.current = setTimeout(() => {
+          if (barcodeBufferRef.current.length >= 4) {
+            const buffered = barcodeBufferRef.current.trim();
+            handleBarcodeScanned(buffered);
+            barcodeBufferRef.current = '';
+          }
+        }, 250);
+      }
+    };
+
+    window.addEventListener('keydown', handleGlobalKeyDown, true);
+    return () => {
+      window.removeEventListener('keydown', handleGlobalKeyDown, true);
+      if (bufferTimeoutRef.current) clearTimeout(bufferTimeoutRef.current);
+    };
+  }, [manualInput]);
 
   // Controles de câmera
   const [torchOn, setTorchOn] = useState<boolean>(false);
@@ -529,11 +598,19 @@ export default function MobileConsultaPage() {
             <form onSubmit={handleManualSearch} className="space-y-2 pt-1">
               <div className="relative">
                 <input
+                  ref={inputRef}
                   type="text"
                   value={manualInput}
-                  onChange={(e) => setManualInput(e.target.value)}
-                  placeholder="Ex: 010311    M5B4344    24..."
-                  className="w-full pl-3 pr-10 py-2.5 bg-[#0E1C2B] border border-[#2A4D6E] rounded-xl text-sm text-slate-100 placeholder:text-slate-500 focus:outline-hidden focus:border-[#AEE4FF] transition-all font-mono"
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setManualInput(val);
+                    // Se o leitor colou/digitou o código inteiro de uma vez
+                    if (val.trim().length >= 6 && (val.includes(' ') || val.includes('\t') || val.includes(';') || val.includes('|'))) {
+                      handleBarcodeScanned(val);
+                    }
+                  }}
+                  placeholder="Bipe com o coletor ou digite..."
+                  className="w-full pl-3 pr-10 py-2.5 bg-[#0E1C2B] border border-[#2A4D6E] rounded-xl text-sm text-slate-100 placeholder:text-slate-500 focus:outline-hidden focus:border-[#AEE4FF] focus:ring-1 focus:ring-[#AEE4FF] transition-all font-mono"
                 />
                 <button
                   type="submit"
@@ -542,9 +619,10 @@ export default function MobileConsultaPage() {
                   <Search className="h-4 w-4" />
                 </button>
               </div>
-              <p className="text-[10px] text-[#608BA6] leading-tight">
-                Aceita leitura de pistola coletora, scanner bluetooth ou digitação com espaços (Código + Lote + Qtd).
-              </p>
+              <div className="flex items-center justify-between text-[10px] text-[#608BA6]">
+                <span>📡 Pronto para Coletor Bluetooth / USB</span>
+                <span>(Enter ou bip automático)</span>
+              </div>
             </form>
           </div>
 
