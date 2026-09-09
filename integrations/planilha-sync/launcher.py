@@ -53,6 +53,7 @@ from app.config import (
 )
 from app import db, sync
 from app.watcher import DirectoryWatcher
+from app.vba_runner import VbaScheduler
 
 # ---------------------------------------------------------------------------
 # Logging
@@ -268,7 +269,17 @@ def main() -> None:
 
     # Iniciar watcher em background
     watcher.start()
-    _animate_loading(status_file, 88, 96, 'Iniciando monitoramento', 0.2)
+    _animate_loading(status_file, 88, 94, 'Iniciando monitoramento', 0.2)
+
+    # Iniciar Agendador VBA (se ativado em vba_config.json)
+    _animate_loading(status_file, 94, 98, 'Carregando agendador VBA', 0.1)
+    
+    def _on_vba_output_ready(out_file: Path):
+        logger.info("VBA gerou arquivo: %s. Sincronizando...", out_file)
+        sync.sync_estoque(out_file, 'estoque', header_row=ESTOQUE_HEADER_ROW)
+
+    vba_scheduler = VbaScheduler(base_dir=EXE_DIR, on_sync_trigger=_on_vba_output_ready)
+    vba_scheduler.start()
 
     # System tray
     def _force_sync():
@@ -278,14 +289,22 @@ def main() -> None:
             from app import tray
             tray.notify("Planilha Sync", "Nenhum arquivo novo ou alterado encontrado.")
 
+    def _force_vba_extraction():
+        logger.info("Extração VBA manual solicitada via bandeja")
+        vba_scheduler.run_once(notify_user=True)
+
     def _shutdown():
         logger.info("Encerrando por solicitacao do usuario")
         _shutdown_event.set()
 
     try:
         from app.tray import start_tray
-        start_tray(shutdown_callback=_shutdown, force_sync_callback=_force_sync,
-                   log_path=str(LOG_FILE))
+        start_tray(
+            shutdown_callback=_shutdown,
+            force_sync_callback=_force_sync,
+            run_vba_callback=_force_vba_extraction,
+            log_path=str(LOG_FILE),
+        )
     except Exception as exc:
         logger.warning("Bandeja indisponivel: %s", exc)
 
@@ -310,6 +329,7 @@ def main() -> None:
     except KeyboardInterrupt:
         logger.info("Interrompido via Ctrl+C")
     finally:
+        vba_scheduler.stop()
         watcher.stop()
         logger.info("Planilha Sync encerrado.")
         os._exit(0)

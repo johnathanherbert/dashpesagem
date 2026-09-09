@@ -1,0 +1,17 @@
+{
+  "enabled": false,
+  "interval_minutes": 15,
+  "vba_script_path": "C:\\Automacoes\\extrair_sap.vbs",
+  "macro_name": "",
+  "output_data_path": "database\\dados.txt",
+  "timeout_seconds": 180,
+  "run_on_startup": true,
+  "_comentarios": {
+    "enabled": "Defina como true para ativar a extração automática periódica",
+    "interval_minutes": "Intervalo em minutos entre cada extração do SAP",
+    "vba_script_path": "Caminho do script VBA (.vbs, .xlsm, .xls, .bat ou .ps1)",
+    "macro_name": "Se o script for uma planilha .xlsm/.xls com Macro, informe o nome da sub (ex: Modulo1.ExtrairRelatorio)",
+    "output_data_path": "Caminho onde o script salva o arquivo de dados (.txt ou .xlsx)",
+    "timeout_seconds": "Tempo limite em segundos para execução do script"
+  }
+}

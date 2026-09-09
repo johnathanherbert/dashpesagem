@@ -10,14 +10,21 @@ from datetime import date, datetime
 from pathlib import Path
 from typing import List, Dict, Any, Tuple
 
-import pandas as pd
+try:
+    import pandas as pd
+    _HAS_PANDAS = True
+except ImportError:
+    pd = None
+    _HAS_PANDAS = False
 
 logger = logging.getLogger(__name__)
 
 
 def _clean_str(val) -> str:
     """Limpa valor para string pura, tratando NaN, None e vazios."""
-    if val is None or pd.isna(val):
+    if val is None:
+        return ''
+    if _HAS_PANDAS and pd is not None and pd.isna(val):
         return ''
     s = str(val).strip()
     if s.lower() in ('nan', 'none', 'null', 'nat', '<na>'):
@@ -38,8 +45,6 @@ def _normalize_int_str(val) -> str:
 
 
 def _normalize_lote(val) -> str:
-    if pd.isna(val):
-        return ''
     return _normalize_int_str(val)
 
 
@@ -53,9 +58,14 @@ def _normalize_deposito(val) -> str:
 
 def _format_date(val) -> str:
     """Converte serial Excel ou datetime/Timestamp para DD/MM/YYYY."""
-    if val is None or pd.isna(val):
+    if val is None:
         return ''
-    if isinstance(val, (datetime, pd.Timestamp)):
+    if isinstance(val, datetime):
+        try:
+            return val.strftime('%d/%m/%Y')
+        except Exception:
+            return ''
+    if _HAS_PANDAS and pd is not None and isinstance(val, pd.Timestamp):
         try:
             return val.strftime('%d/%m/%Y')
         except Exception:

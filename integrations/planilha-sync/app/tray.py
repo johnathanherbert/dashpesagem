@@ -41,6 +41,7 @@ def notify(title: str, message: str) -> None:
 def start_tray(
     shutdown_callback: Callable,
     force_sync_callback: Optional[Callable] = None,
+    run_vba_callback: Optional[Callable] = None,
     log_path: Optional[str] = None,
 ) -> bool:
     """
@@ -48,6 +49,7 @@ def start_tray(
 
     :param shutdown_callback:   Chamado ao clicar "Encerrar"
     :param force_sync_callback: Chamado ao clicar "Sincronizar agora"
+    :param run_vba_callback:    Chamado ao clicar "Executar Extração VBA"
     :param log_path:            Caminho do arquivo de log (para "Abrir log")
     :return: True se pystray estiver disponível
     """
@@ -67,6 +69,10 @@ def start_tray(
         if force_sync_callback:
             threading.Thread(target=force_sync_callback, daemon=True).start()
 
+    def _run_vba(icon=None, item=None):
+        if run_vba_callback:
+            threading.Thread(target=run_vba_callback, daemon=True).start()
+
     def _open_log(icon=None, item=None):
         if log_path:
             import subprocess, sys
@@ -79,6 +85,8 @@ def start_tray(
         pystray.MenuItem('Planilha Sync — dashpesagem', None, enabled=False),
         pystray.Menu.SEPARATOR,
     ]
+    if run_vba_callback:
+        menu_items.append(pystray.MenuItem('Executar Extração VBA', _run_vba))
     if force_sync_callback:
         menu_items.append(pystray.MenuItem('Sincronizar agora', _force_sync))
     if log_path:
