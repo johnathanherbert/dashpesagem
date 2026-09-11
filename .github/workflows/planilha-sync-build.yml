@@ -126,6 +126,7 @@ jobs:
           path: release-assets
 
       - name: Listar artefatos
+        working-directory: .
         run: ls -lR release-assets/
 
       - name: Criar ou Atualizar GitHub Release
