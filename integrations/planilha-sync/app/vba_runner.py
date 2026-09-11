@@ -230,6 +230,7 @@ WScript.Quit 0
 class VbaScheduler:
     """
     Agendador em thread que executa o script VBA periodicamente e dispara a sincronização.
+    Suporta pausa/retomada a quente (sem reiniciar o processo).
     """
 
     def __init__(
@@ -244,25 +245,55 @@ class VbaScheduler:
         self._lock = threading.Lock()
         self._stop_event = threading.Event()
         self._thread: Optional[threading.Thread] = None
-        self._is_running = False
+        # Se enabled=True no config, inicia ativo; se enabled=False, inicia pausado
+        self._paused = not self.config.enabled
+
+    @property
+    def is_paused(self) -> bool:
+        return self._paused
 
     def reload_config(self) -> VbaConfig:
         with self._lock:
             self.config_path, self.config = find_or_create_config_file(self.base_dir)
             return self.config
 
-    def start(self) -> None:
-        if not self.config.enabled:
-            logger.info("Agendador VBA desativado no %s (enabled=false).", DEFAULT_CONFIG_FILENAME)
-            return
+    def pause(self, notify_user: bool = True) -> None:
+        self._paused = True
+        logger.info("Agendador VBA pausado pelo usuário.")
+        if notify_user:
+            tray.notify("Planilha Sync — VBA", "Extração automática de macros foi PAUSADA.")
 
+    def resume(self, notify_user: bool = True) -> None:
+        self._paused = False
+        self.reload_config()
+        logger.info("Agendador VBA ativado (intervalo: a cada %d min).", self.config.interval_minutes)
+        if notify_user:
+            tray.notify("Planilha Sync — VBA", f"Extração automática ATIVADA (a cada {self.config.interval_minutes} min).")
+
+        # Se a thread ainda não estiver rodando, inicia
+        if not self._thread or not self._thread.is_alive():
+            self.start()
+
+    def toggle_pause(self, notify_user: bool = True) -> bool:
+        """
+        Alterna entre pausado e ativo. Retorna True se agora está pausado, False se ativo.
+        """
+        if self._paused:
+            self.resume(notify_user=notify_user)
+            return False
+        else:
+            self.pause(notify_user=notify_user)
+            return True
+
+    def start(self) -> None:
         if self._thread and self._thread.is_alive():
             return
 
         self._stop_event.clear()
         self._thread = threading.Thread(target=self._run_loop, daemon=True, name="vba-scheduler")
         self._thread.start()
-        logger.info("Agendador VBA iniciado: intervalo de %d minuto(s).", self.config.interval_minutes)
+        status_txt = "PAUSADO" if self._paused else f"ATIVO (a cada {self.config.interval_minutes} min)"
+        logger.info("Agendador VBA iniciado em background [Status: %s].", status_txt)
 
     def stop(self) -> None:
         self._stop_event.set()
@@ -272,7 +303,7 @@ class VbaScheduler:
 
     def run_once(self, notify_user: bool = True) -> bool:
         """
-        Executa uma extração manual imediatamente.
+        Executa uma extração manual imediatamente (funciona mesmo se o loop automático estiver pausado).
         """
         self.reload_config()
         if not self.config.vba_script_path:
@@ -290,7 +321,7 @@ class VbaScheduler:
         if ok:
             logger.info("Extração VBA concluída com sucesso: %s", msg)
             if notify_user:
-                tray.notify("Extração VBA", "Script executado com sucesso! Verificando dados...")
+                tray.notify("Extração VBA", "Script executado com sucesso! Sincronizando dados...")
 
             # Se houver output_data_path configurado, dispara sync diretamente
             if self.config.output_data_path and self.on_sync_trigger:
@@ -307,17 +338,20 @@ class VbaScheduler:
         return ok
 
     def _run_loop(self) -> None:
-        # Se configurado para rodar na inicialização
-        if self.config.run_on_startup:
+        # Se configurado para rodar na inicialização e não estiver pausado
+        if self.config.run_on_startup and not self._paused:
             logger.info("Executando extração VBA inicial (run_on_startup=true)...")
             self.run_once(notify_user=False)
 
         while not self._stop_event.is_set():
-            interval_sec = max(60, self.config.interval_minutes * 60)
+            interval_sec = max(30, self.config.interval_minutes * 60)
             
             # Aguarda pelo intervalo com checagem de cancelamento
             if self._stop_event.wait(timeout=interval_sec):
                 break
 
-            logger.info("Executando extração VBA agendada...")
-            self.run_once(notify_user=False)
+            if not self._paused:
+                logger.info("Executando extração VBA agendada...")
+                self.run_once(notify_user=False)
+            else:
+                logger.debug("Ciclo de extração ignorado pois o agendador está pausado.")

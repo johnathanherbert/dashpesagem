@@ -297,6 +297,9 @@ def main() -> None:
         logger.info("Extração VBA manual solicitada via bandeja")
         vba_scheduler.run_once(notify_user=True)
 
+    def _toggle_vba_pause():
+        vba_scheduler.toggle_pause(notify_user=True)
+
     def _check_updates():
         logger.info("Verificação manual de atualizações solicitada via bandeja")
         auto_updater.check_now(manual=True)
@@ -311,6 +314,8 @@ def main() -> None:
             shutdown_callback=_shutdown,
             force_sync_callback=_force_sync,
             run_vba_callback=_force_vba_extraction,
+            toggle_vba_pause_callback=_toggle_vba_pause,
+            is_vba_paused_callback=lambda: vba_scheduler.is_paused,
             check_update_callback=_check_updates,
             log_path=str(LOG_FILE),
         )

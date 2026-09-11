@@ -42,17 +42,21 @@ def start_tray(
     shutdown_callback: Callable,
     force_sync_callback: Optional[Callable] = None,
     run_vba_callback: Optional[Callable] = None,
+    toggle_vba_pause_callback: Optional[Callable] = None,
+    is_vba_paused_callback: Optional[Callable[[], bool]] = None,
     check_update_callback: Optional[Callable] = None,
     log_path: Optional[str] = None,
 ) -> bool:
     """
     Inicia o ícone na bandeja do sistema em thread daemon.
 
-    :param shutdown_callback:     Chamado ao clicar "Encerrar"
-    :param force_sync_callback:   Chamado ao clicar "Sincronizar agora"
-    :param run_vba_callback:      Chamado ao clicar "Executar Extração VBA"
-    :param check_update_callback: Chamado ao clicar "Verificar atualizações"
-    :param log_path:              Caminho do arquivo de log (para "Abrir log")
+    :param shutdown_callback:         Chamado ao clicar "Encerrar"
+    :param force_sync_callback:       Chamado ao clicar "Sincronizar agora"
+    :param run_vba_callback:          Chamado ao clicar "Executar Extração VBA"
+    :param toggle_vba_pause_callback: Chamado ao clicar "Pausar/Ativar Extração Automática"
+    :param is_vba_paused_callback:    Retorna True se o agendador VBA estiver pausado
+    :param check_update_callback:     Chamado ao clicar "Verificar atualizações"
+    :param log_path:                  Caminho do arquivo de log (para "Abrir log")
     :return: True se pystray estiver disponível
     """
     global _global_icon
@@ -75,6 +79,20 @@ def start_tray(
         if run_vba_callback:
             threading.Thread(target=run_vba_callback, daemon=True).start()
 
+    def _toggle_vba(icon=None, item=None):
+        if toggle_vba_pause_callback:
+            threading.Thread(target=toggle_vba_pause_callback, daemon=True).start()
+        if icon is not None:
+            try:
+                icon.update_menu()
+            except Exception:
+                pass
+
+    def _vba_toggle_title(item):
+        if is_vba_paused_callback and is_vba_paused_callback():
+            return "▶ Ativar Extração Automática"
+        return "⏸ Pausar Extração Automática"
+
     def _check_update(icon=None, item=None):
         if check_update_callback:
             threading.Thread(target=check_update_callback, daemon=True).start()
@@ -93,6 +111,8 @@ def start_tray(
     ]
     if run_vba_callback:
         menu_items.append(pystray.MenuItem('Executar Extração VBA', _run_vba))
+    if toggle_vba_pause_callback:
+        menu_items.append(pystray.MenuItem(_vba_toggle_title, _toggle_vba))
     if force_sync_callback:
         menu_items.append(pystray.MenuItem('Sincronizar agora', _force_sync))
     if check_update_callback:
