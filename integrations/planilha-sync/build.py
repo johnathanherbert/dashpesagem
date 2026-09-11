@@ -54,6 +54,9 @@ SPEC_CONFIG = {
         'app.sync',
         'app.watcher',
         'app.tray',
+        'app.vba_runner',
+        'app.updater',
+        'app.version',
     ],
     'exclude_modules': [
         'flask',

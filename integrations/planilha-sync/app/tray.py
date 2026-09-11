@@ -42,15 +42,17 @@ def start_tray(
     shutdown_callback: Callable,
     force_sync_callback: Optional[Callable] = None,
     run_vba_callback: Optional[Callable] = None,
+    check_update_callback: Optional[Callable] = None,
     log_path: Optional[str] = None,
 ) -> bool:
     """
     Inicia o ícone na bandeja do sistema em thread daemon.
 
-    :param shutdown_callback:   Chamado ao clicar "Encerrar"
-    :param force_sync_callback: Chamado ao clicar "Sincronizar agora"
-    :param run_vba_callback:    Chamado ao clicar "Executar Extração VBA"
-    :param log_path:            Caminho do arquivo de log (para "Abrir log")
+    :param shutdown_callback:     Chamado ao clicar "Encerrar"
+    :param force_sync_callback:   Chamado ao clicar "Sincronizar agora"
+    :param run_vba_callback:      Chamado ao clicar "Executar Extração VBA"
+    :param check_update_callback: Chamado ao clicar "Verificar atualizações"
+    :param log_path:              Caminho do arquivo de log (para "Abrir log")
     :return: True se pystray estiver disponível
     """
     global _global_icon
@@ -73,6 +75,10 @@ def start_tray(
         if run_vba_callback:
             threading.Thread(target=run_vba_callback, daemon=True).start()
 
+    def _check_update(icon=None, item=None):
+        if check_update_callback:
+            threading.Thread(target=check_update_callback, daemon=True).start()
+
     def _open_log(icon=None, item=None):
         if log_path:
             import subprocess, sys
@@ -89,6 +95,8 @@ def start_tray(
         menu_items.append(pystray.MenuItem('Executar Extração VBA', _run_vba))
     if force_sync_callback:
         menu_items.append(pystray.MenuItem('Sincronizar agora', _force_sync))
+    if check_update_callback:
+        menu_items.append(pystray.MenuItem('Verificar atualizações', _check_update))
     if log_path:
         menu_items.append(pystray.MenuItem('Abrir log', _open_log))
     menu_items.append(pystray.Menu.SEPARATOR)

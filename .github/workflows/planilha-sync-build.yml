@@ -64,6 +64,21 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
+      - name: Injetar versão e commit no app/version.py
+        shell: bash
+        run: |
+          python -c "
+          import re
+          p = 'app/version.py'
+          with open(p, 'r', encoding='utf-8') as f:
+              c = f.read()
+          c = re.sub(r'VERSION\s*=\s*[\'\"][^\'\"]*[\'\"]', 'VERSION = \"${{ steps.version.outputs.value }}\"', c)
+          c = re.sub(r'BUILD_COMMIT\s*=\s*[\'\"][^\'\"]*[\'\"]', 'BUILD_COMMIT = \"${{ github.sha }}\"', c)
+          with open(p, 'w', encoding='utf-8') as f:
+              f.write(c)
+          "
+          cat app/version.py
+
       - name: Build — One-File .exe + One-Dir portátil
         run: |
           python build.py --all
@@ -92,12 +107,12 @@ jobs:
           retention-days: 30
 
   # ─────────────────────────────────────────────────────────────
-  # JOB 2 — GitHub Release (somente em tags planilha-sync/v*.*.*)
+  # JOB 2 — Publicação Automática de Release (a cada commit / push)
   # ─────────────────────────────────────────────────────────────
   release:
     name: Publicar GitHub Release
     needs: build-windows
-    if: startsWith(github.ref, 'refs/tags/planilha-sync/')
+    if: github.event_name == 'push' || startsWith(github.ref, 'refs/tags/planilha-sync/') || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     permissions:
       contents: write   # necessário para criar releases
@@ -111,29 +126,22 @@ jobs:
       - name: Listar artefatos
         run: ls -lR release-assets/
 
-      - name: Criar GitHub Release
+      - name: Criar ou Atualizar GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          name: "Planilha Sync ${{ needs.build-windows.outputs.version }}"
-          tag_name: ${{ github.ref_name }}
+          name: "Planilha Sync — ${{ needs.build-windows.outputs.version }}"
+          tag_name: ${{ startsWith(github.ref, 'refs/tags/planilha-sync/') && github.ref_name || 'latest' }}
           body: |
-            ## Planilha Sync ${{ needs.build-windows.outputs.version }}
+            ## Planilha Sync (${{ needs.build-windows.outputs.version }})
 
-            Serviço standalone que monitora planilhas Excel e sincroniza o banco PostgreSQL do **dashpesagem** automaticamente.
+            - **Commit:** `${{ github.sha }}`
+            - **Atualização:** Build automatizado via GitHub Actions
 
             ### Downloads
             | Arquivo | Descrição |
             |---|---|
-            | `planilha_sync.exe` | Executável único — sem instalação necessária |
-            | `planilha_sync_windows_portable.zip` | Versão portátil — pasta com dependências (inicialização mais rápida) |
-
-            ### Configuração rápida
-            1. Baixe `planilha_sync.exe`
-            2. Crie um arquivo `.env` na mesma pasta (use `.env.example` como referência)
-            3. Ajuste `DATABASE_DIR` para a pasta das planilhas e as credenciais PostgreSQL
-            4. Execute `planilha_sync.exe`
-
-            > Consulte o [README](https://github.com/${{ github.repository }}/blob/master/integrations/planilha-sync/README.md) para instruções completas.
+            | `planilha_sync.exe` | Executável único — auto-atualizável |
+            | `planilha_sync_windows_portable.zip` | Versão portátil com dependências |
           draft: false
           prerelease: false
           files: |

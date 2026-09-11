@@ -54,6 +54,8 @@ from app.config import (
 from app import db, sync
 from app.watcher import DirectoryWatcher
 from app.vba_runner import VbaScheduler
+from app.updater import AutoUpdater
+from app.version import VERSION, BUILD_COMMIT
 
 # ---------------------------------------------------------------------------
 # Logging
@@ -90,15 +92,12 @@ logger = None
 def _seed_database_dir() -> Path:
     db_dir = EXE_DIR / 'database'
     db_dir.mkdir(parents=True, exist_ok=True)
-    readme = db_dir / 'LEIA-ME.txt'
-    if not readme.exists():
-        readme.write_text(
-            f"Coloque aqui o arquivo de estoque (Excel ou TXT do SAP):\n\n"
-            f"  dados.txt ou ajuste.xlsx -> aging_estoque (sincronizacao automatica)\n\n"
-            f"Verificacao a cada {POLL_INTERVAL_SECONDS}s automaticamente.\n"
-            f"Logs em: logs/planilha_sync.log\n",
-            encoding='utf-8',
-        )
+    # Remove qualquer LEIA-ME.txt ou readme.txt antigo para não atrapalhar o leitor de TXT
+    for fname in ['LEIA-ME.txt', 'LEIA-ME.TXT', 'readme.txt', 'README.txt', 'README.TXT', 'leia-me.txt']:
+        try:
+            (db_dir / fname).unlink(missing_ok=True)
+        except Exception:
+            pass
     return db_dir
 
 
@@ -281,6 +280,11 @@ def main() -> None:
     vba_scheduler = VbaScheduler(base_dir=EXE_DIR, on_sync_trigger=_on_vba_output_ready)
     vba_scheduler.start()
 
+    # Iniciar Auto-Updater (busca novas versões compiladas no GitHub)
+    current_exe_path = Path(sys.executable) if getattr(sys, 'frozen', False) else EXE_DIR / 'planilha_sync.exe'
+    auto_updater = AutoUpdater(exe_dir=EXE_DIR, current_exe=current_exe_path, check_interval_hours=4)
+    auto_updater.start()
+
     # System tray
     def _force_sync():
         logger.info("Sync manual via bandeja")
@@ -293,6 +297,10 @@ def main() -> None:
         logger.info("Extração VBA manual solicitada via bandeja")
         vba_scheduler.run_once(notify_user=True)
 
+    def _check_updates():
+        logger.info("Verificação manual de atualizações solicitada via bandeja")
+        auto_updater.check_now(manual=True)
+
     def _shutdown():
         logger.info("Encerrando por solicitacao do usuario")
         _shutdown_event.set()
@@ -303,6 +311,7 @@ def main() -> None:
             shutdown_callback=_shutdown,
             force_sync_callback=_force_sync,
             run_vba_callback=_force_vba_extraction,
+            check_update_callback=_check_updates,
             log_path=str(LOG_FILE),
         )
     except Exception as exc:
@@ -329,6 +338,7 @@ def main() -> None:
     except KeyboardInterrupt:
         logger.info("Interrompido via Ctrl+C")
     finally:
+        auto_updater.stop()
         vba_scheduler.stop()
         watcher.stop()
         logger.info("Planilha Sync encerrado.")

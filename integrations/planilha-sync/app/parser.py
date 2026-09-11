@@ -98,6 +98,12 @@ def _parse_estoque_txt(path: Path) -> Tuple[List[Dict[str, Any]], date]:
     """
     import re
 
+    # Ignora arquivos de documentação, configs ou logs
+    fname_lower = path.name.lower()
+    if fname_lower.startswith(('readme', 'leia-me', 'leia_me', 'log', '_', 'vba_config', 'config')):
+        logger.debug("Ignorando arquivo de texto não-estoque: %s", path.name)
+        return [], date.today()
+
     logger.info("Lendo arquivo de estoque TXT tabulado: %s", path)
 
     lines: List[str] = []
