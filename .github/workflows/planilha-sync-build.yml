@@ -9,12 +9,14 @@ on:
     branches: [master, main]
     paths:
       - 'integrations/planilha-sync/**'
+      - '.github/workflows/planilha-sync-build.yml'
     tags:
       - 'planilha-sync/v*.*.*'
   pull_request:
     branches: [master, main]
     paths:
       - 'integrations/planilha-sync/**'
+      - '.github/workflows/planilha-sync-build.yml'
   workflow_dispatch:
 
 jobs:
