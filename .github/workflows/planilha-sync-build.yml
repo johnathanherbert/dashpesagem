@@ -17,10 +17,6 @@ on:
       - 'integrations/planilha-sync/**'
   workflow_dispatch:
 
-defaults:
-  run:
-    working-directory: integrations/planilha-sync
-
 jobs:
   # ─────────────────────────────────────────────────────────────
   # JOB 1 — Build do executável no Windows
@@ -28,6 +24,9 @@ jobs:
   build-windows:
     name: Build Windows .exe
     runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: integrations/planilha-sync
 
     env:
       PYTHONUTF8: "1"
@@ -118,6 +117,9 @@ jobs:
       contents: write   # necessário para criar releases
 
     steps:
+      - name: Checkout repositório
+        uses: actions/checkout@v4
+
       - name: Baixar artefatos do build
         uses: actions/download-artifact@v4
         with:
@@ -144,6 +146,7 @@ jobs:
             | `planilha_sync_windows_portable.zip` | Versão portátil com dependências |
           draft: false
           prerelease: false
+          make_latest: "true"
           files: |
             release-assets/planilha_sync_standalone_exe/planilha_sync.exe
             release-assets/planilha_sync_windows_portable/planilha_sync_windows_portable.zip
