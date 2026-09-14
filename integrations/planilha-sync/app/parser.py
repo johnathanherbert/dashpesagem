@@ -307,15 +307,29 @@ def parse_estoque(path: Path, header_row: int = 3) -> Tuple[List[Dict[str, Any]]
         if not mat_norm or not mat_norm.isdigit():
             continue
 
+        pos_clean = _clean_str(row.get('Posicao_Deposito', row.get('Posição no depósito', row.get('Posição', row.get('Posiç', '')))))
+        dep_val = _normalize_deposito(row.get('Deposito', row.get('Depósito', 'PES')))
+        tp_val = _normalize_deposito(row.get('Tipo_Deposito', row.get('Tipo de depósito', '999')))
+
+        if not pos_clean:
+            if tp_val == 'PES' or dep_val == 'PES':
+                pos_clean = 'PESAGEM'
+            elif tp_val == 'DEP' or dep_val == 'DEP':
+                pos_clean = 'DEVOLUCAO'
+            elif tp_val in ('TR-ZONE', '922'):
+                pos_clean = 'TR-ZONE'
+            elif tp_val == '999':
+                pos_clean = 'AJUSTE'
+
         records.append({
             'material':               mat_norm,
             'texto_breve_material':   _clean_str(row.get('Descricao_Material')),
             'unidade_medida':         _clean_str(row.get('Unidade_Medida')) or 'KG',
             'lote':                   _normalize_lote(row.get('Lote')),
             'centro':                 _normalize_int_str(row.get('Centro', '600')),
-            'deposito':               _normalize_deposito(row.get('Deposito', row.get('Depósito', 'PES'))),
-            'tipo_deposito':          _normalize_deposito(row.get('Tipo_Deposito', row.get('Tipo de depósito', '999'))),
-            'posicao_deposito':       _clean_str(row.get('Posicao_Deposito', row.get('Posição no depósito', ''))),
+            'deposito':               dep_val,
+            'tipo_deposito':          tp_val,
+            'posicao_deposito':       pos_clean,
             'estoque_disponivel':     float(row.get('Estoque_Disponivel', 0.0) or 0.0),
             'data_vencimento':        _format_date(row.get('Data_Vencimento')),
             'ultimo_movimento':       _format_date(row.get('Ultimo_Movimento')),
@@ -326,3 +340,95 @@ def parse_estoque(path: Path, header_row: int = 3) -> Tuple[List[Dict[str, Any]]
 
     logger.info("Planilha de estoque: %d registros processados com sucesso.", len(records))
     return records, hoje
+
+
+# ---------------------------------------------------------------------------
+# Parser de valor unitário
+# ---------------------------------------------------------------------------
+
+def parse_valor_unitario(path: Path) -> List[Dict[str, Any]]:
+    """Lê a planilha de valor unitário e retorna lista para `material_valores`."""
+    logger.info("Lendo planilha de valor unitário: %s", path)
+    df = pd.read_excel(path, header=0, dtype=str)
+
+    # Normalizar nomes de colunas
+    col_map = {}
+    for col in df.columns:
+        c_str = str(col).strip().lower()
+        if 'material' in c_str or 'código' in c_str or 'codigo' in c_str:
+            col_map[col] = 'Material'
+        elif 'valor' in c_str or 'unitário' in c_str or 'unitario' in c_str or 'preco' in c_str or 'preço' in c_str:
+            col_map[col] = 'Valor unitário'
+
+    df.rename(columns=col_map, inplace=True)
+
+    if 'Material' not in df.columns or 'Valor unitário' not in df.columns:
+        logger.warning("Planilha de valor unitário sem colunas esperadas: %s", df.columns.tolist())
+        return []
+
+    records = []
+    for _, row in df.iterrows():
+        raw_mat = _normalize_int_str(row.get('Material'))
+        if not raw_mat or not raw_mat.isdigit():
+            continue
+        mat = raw_mat.zfill(6)
+        val_raw = str(row.get('Valor unitário', '0')).replace('.', '').replace(',', '.')
+        try:
+            val = float(val_raw)
+        except ValueError:
+            val = 0.0
+        if val > 0:
+            records.append({'material': mat, 'valor_unitario': val})
+
+    logger.info("Valor unitário: %d registros processados.", len(records))
+    return records
+
+
+# ---------------------------------------------------------------------------
+# Parser de remessas
+# ---------------------------------------------------------------------------
+
+def parse_remessas(path: Path, header_row: int = 3) -> List[Dict[str, Any]]:
+    """Lê a planilha de remessas e retorna lista para a tabela `remessas`."""
+    logger.info("Lendo planilha de remessas: %s (header_row=%d)", path, header_row)
+    df = pd.read_excel(path, header=header_row, engine='openpyxl', dtype=str)
+
+    records: List[Dict[str, Any]] = []
+    for _, row in df.iterrows():
+        numero = _clean_str(row.get('Remessa', row.get('Nº Remessa', row.get('Numero', ''))))
+        if not numero:
+            continue
+
+        qtd_raw = str(row.get('Quantidade', row.get('Qtd', '0'))).replace('.', '').replace(',', '.')
+        try:
+            qtd = float(qtd_raw)
+        except ValueError:
+            qtd = 0.0
+        if qtd == 0:
+            continue
+
+        peso_raw = str(row.get('Peso Total', row.get('Peso', '0'))).replace('.', '').replace(',', '.')
+        try:
+            peso = float(peso_raw)
+        except ValueError:
+            peso = 0.0
+
+        raw_mat = _normalize_int_str(row.get('Material', ''))
+        mat = raw_mat.zfill(6) if raw_mat else ''
+
+        records.append({
+            'numero_remessa':       numero,
+            'data_picking':         _format_date(row.get('Data Picking', row.get('Data', ''))),
+            'peso_total_remessa':   peso,
+            'item':                 _clean_str(row.get('Item', row.get('Posição', ''))),
+            'data_disponibilidade': _format_date(row.get('Data disponib.', row.get('Data Disponib', ''))),
+            'quantidade':           qtd,
+            'unidade_medida':       _clean_str(row.get('UMB', row.get('UN', 'KG'))) or 'KG',
+            'material':             mat,
+            'centro':               _normalize_int_str(row.get('Centro', '')),
+            'deposito':             _normalize_deposito(row.get('Depósito', row.get('Deposito', ''))),
+            'descricao_material':   _clean_str(row.get('Texto breve material', row.get('Descrição', ''))),
+        })
+
+    logger.info("Remessas: %d registros processados.", len(records))
+    return records
