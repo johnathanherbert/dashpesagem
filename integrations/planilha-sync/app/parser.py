@@ -180,7 +180,17 @@ def _parse_estoque_txt(path: Path) -> Tuple[List[Dict[str, Any]], date]:
         cen = row_dict.get('Cen.', row_dict.get('Centro', '600'))
         dep = row_dict.get('Dep.', row_dict.get('Depósito', row_dict.get('Deposito', 'PES')))
         tp = row_dict.get('Tp.', row_dict.get('Tipo de depósito', row_dict.get('Tipo depósito', '999')))
-        pos = row_dict.get('Posição no depósito', row_dict.get('Posição', row_dict.get('Posiç', row_dict.get('PosiÃ§', row_dict.get('Pos.', row_dict.get('Pos', ''))))))
+        pos = ''
+        for key, val in row_dict.items():
+            k_lower = key.lower().strip()
+            if 'posi' in k_lower or k_lower in ('pos', 'pos.', 'posiç', 'posiã§'):
+                candidate = _clean_str(val)
+                if candidate:
+                    pos = candidate
+                    break
+        if not pos:
+            pos = row_dict.get('Posição no depósito', row_dict.get('Posição', row_dict.get('Posiç', row_dict.get('PosiÃ§', row_dict.get('Pos.', row_dict.get('Pos', ''))))))
+
         estq_raw = row_dict.get('Estq.dispon.', row_dict.get('Estoque disponível', row_dict.get('Estoque disponivel', '0')))
         venc_raw = row_dict.get('Data venc.', row_dict.get('Data do vencimento', row_dict.get('Data vencimento', '')))
         mov_raw = row_dict.get('Últ.movim.', row_dict.get('Ã\x9Alt.movim.', row_dict.get('Ãšlt.movim.', row_dict.get('Último movimento', row_dict.get('Ultimo movimento', '')))))
@@ -198,6 +208,16 @@ def _parse_estoque_txt(path: Path) -> Tuple[List[Dict[str, Any]], date]:
         tipo_dep_norm = tp.strip()
         if tipo_dep_norm == '922':
             tipo_dep_norm = 'TR-ZONE'
+
+        if not pos:
+            if tipo_dep_norm == 'PES' or dep_norm == 'PES':
+                pos = 'PESAGEM'
+            elif tipo_dep_norm == 'DEP' or dep_norm == 'DEP':
+                pos = 'DEVOLUCAO'
+            elif tipo_dep_norm in ('TR-ZONE', '922'):
+                pos = 'TR-ZONE'
+            elif tipo_dep_norm == '999':
+                pos = 'AJUSTE'
 
         estq_disp = parse_float_br(estq_raw)
         venc_str, _ = parse_date_br(venc_raw)
@@ -242,7 +262,19 @@ def parse_estoque(path: Path, header_row: int = 3) -> Tuple[List[Dict[str, Any]]
 
     logger.info("Lendo planilha de estoque: %s (header_row=%d)", path, header_row)
 
-    df = pd.read_excel(path, header=header_row, engine='openpyxl', dtype={0: str})
+    # Tenta ler primeiras linhas sem header para localizar a linha real de cabeçalho dinamicamente
+    header_idx = header_row
+    try:
+        preview_df = pd.read_excel(path, header=None, nrows=10, engine='openpyxl', dtype=str)
+        for r_idx, row_vals in preview_df.iterrows():
+            row_str = ' '.join(str(v).lower() for v in row_vals if pd.notna(v))
+            if 'material' in row_str and ('lote' in row_str or 'texto' in row_str or 'dep' in row_str):
+                header_idx = int(r_idx)
+                break
+    except Exception as e:
+        logger.debug("Falha ao detectar header dinâmico: %s. Usando default %d", e, header_row)
+
+    df = pd.read_excel(path, header=header_idx, engine='openpyxl', dtype={0: str})
 
     # Renomear colunas para nomes internos
     df.rename(columns={
@@ -307,7 +339,17 @@ def parse_estoque(path: Path, header_row: int = 3) -> Tuple[List[Dict[str, Any]]
         if not mat_norm or not mat_norm.isdigit():
             continue
 
-        pos_clean = _clean_str(row.get('Posicao_Deposito', row.get('Posição no depósito', row.get('Posição', row.get('Posiç', '')))))
+        pos_clean = ''
+        for col_name in row.index:
+            c_str = str(col_name).strip().lower()
+            if 'posi' in c_str or c_str in ('pos', 'pos.', 'posiç', 'posiã§'):
+                val_candidate = _clean_str(row.get(col_name))
+                if val_candidate:
+                    pos_clean = val_candidate
+                    break
+        if not pos_clean:
+            pos_clean = _clean_str(row.get('Posicao_Deposito', row.get('Posição no depósito', row.get('Posição', row.get('Posiç', '')))))
+
         dep_val = _normalize_deposito(row.get('Deposito', row.get('Depósito', 'PES')))
         tp_val = _normalize_deposito(row.get('Tipo_Deposito', row.get('Tipo de depósito', '999')))
 
