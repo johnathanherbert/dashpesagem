@@ -54,6 +54,7 @@ from app.config import (
 from app import db, sync
 from app.watcher import DirectoryWatcher
 from app.vba_runner import VbaScheduler
+from app.sap_runner import SapAutomationWorker
 from app.updater import AutoUpdater
 from app.version import VERSION, BUILD_COMMIT
 
@@ -280,6 +281,18 @@ def main() -> None:
     vba_scheduler = VbaScheduler(base_dir=EXE_DIR, on_sync_trigger=_on_vba_output_ready)
     vba_scheduler.start()
 
+    # Iniciar Worker de Automações SAP (recebe solicitações sob demanda do dashboard)
+    def _on_sap_automation_success():
+        logger.info("Automação SAP concluída com sucesso. Disparando sincronização/extração de dados...")
+        # Dispara extração VBA se disponível, ou força varredura de arquivos
+        if vba_scheduler.config.enabled:
+            vba_scheduler.run_once(notify_user=False)
+        else:
+            watcher.force_sync_all()
+
+    sap_worker = SapAutomationWorker(poll_interval=4.0, on_success_trigger=_on_sap_automation_success)
+    sap_worker.start()
+
     # Iniciar Auto-Updater (busca novas versões compiladas no GitHub)
     current_exe_path = Path(sys.executable) if getattr(sys, 'frozen', False) else EXE_DIR / 'planilha_sync.exe'
     auto_updater = AutoUpdater(exe_dir=EXE_DIR, current_exe=current_exe_path, check_interval_hours=4)
@@ -344,6 +357,7 @@ def main() -> None:
         logger.info("Interrompido via Ctrl+C")
     finally:
         auto_updater.stop()
+        sap_worker.stop()
         vba_scheduler.stop()
         watcher.stop()
         logger.info("Planilha Sync encerrado.")

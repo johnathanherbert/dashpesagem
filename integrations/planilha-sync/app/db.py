@@ -170,3 +170,45 @@ def replace_remessas(records: List[Dict[str, Any]]) -> int:
     sent = _post_all('/api/remessas', records)
     logger.info("remessas: %d registros enviados.", sent)
     return sent
+
+
+# ---------------------------------------------------------------------------
+# sap_automations  →  GET /api/sap-automation/pending & POST /api/sap-automation/complete
+# ---------------------------------------------------------------------------
+
+def fetch_pending_sap_automation() -> Optional[Dict[str, Any]]:
+    """Busca o próximo comando de automação SAP pendente."""
+    if _session is None:
+        return None
+
+    url = f"{_base_url}/api/sap-automation/pending"
+    try:
+        resp = _session.get(url, headers=_headers(), timeout=10)
+        if resp.status_code == 200:
+            data = resp.json()
+            if data.get('pending') and data.get('job'):
+                return data['job']
+    except Exception as exc:
+        logger.debug("Erro ao verificar automações SAP pendentes: %s", exc)
+
+    return None
+
+
+def complete_sap_automation(job_id: int, status: str = 'completed', message: str = '') -> bool:
+    """Informa o resultado da execução da automação SAP."""
+    if _session is None:
+        return False
+
+    url = f"{_base_url}/api/sap-automation/complete"
+    payload = {
+        'job_id': job_id,
+        'status': status,
+        'result_message': message,
+    }
+    try:
+        resp = _session.post(url, headers=_headers(), json=payload, timeout=15)
+        return resp.status_code == 200
+    except Exception as exc:
+        logger.error("Erro ao reportar conclusão de automação SAP #%d: %s", job_id, exc)
+        return False
+

@@ -453,3 +453,61 @@ export async function fetchListaTecnica(params?: {
   }
 }
 
+// =====================================================
+// AUTOMAÇÃO SAP (MOVER/AJUSTE / VBSCRIPT)
+// =====================================================
+
+export interface SapAutomationJob {
+  id: number;
+  command: string;
+  status: 'pending' | 'running' | 'completed' | 'failed';
+  requested_by?: string;
+  script_code?: string;
+  result_message?: string;
+  created_at?: string;
+  started_at?: string;
+  completed_at?: string;
+}
+
+export async function triggerSapAutomation(
+  command: string = 'movermigo',
+  requestedBy: string = 'Web Dashboard',
+  scriptCode?: string
+): Promise<{ success: boolean; job?: SapAutomationJob; error?: string }> {
+  try {
+    const res = await fetch('/api/sap-automation', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        command,
+        requested_by: requestedBy,
+        script_code: scriptCode,
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      return { success: false, error: data.error || 'Erro ao disparar automação' };
+    }
+    return { success: true, job: data.job };
+  } catch (error: any) {
+    console.error('Erro ao disparar automação SAP:', error);
+    return { success: false, error: error?.message || 'Erro de conexão' };
+  }
+}
+
+export async function checkSapAutomationStatus(
+  jobId: number
+): Promise<SapAutomationJob | null> {
+  try {
+    const res = await fetch(`/api/sap-automation?id=${jobId}`, {
+      cache: 'no-store',
+    });
+    if (!res.ok) return null;
+    return res.json();
+  } catch (error) {
+    console.error('Erro ao verificar status do job SAP:', error);
+    return null;
+  }
+}
+
+

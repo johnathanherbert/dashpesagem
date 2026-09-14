@@ -59,6 +59,9 @@ import {
   ChevronsRight,
   X,
   Package,
+  ArrowRightLeft,
+  Loader2,
+  Play,
 } from 'lucide-react';
 import { AgingData, RemessaData, ConfiguracaoResiduais, AgingTableRow, NivelResidual } from '@/types/aging';
 import { enriquecerAgingComAnalise } from '@/lib/residuais-analyzer';
@@ -72,6 +75,22 @@ const numberRangeFilter: FilterFn<AgingTableRow> = (row, columnId, filterValue) 
   if (max !== undefined && val > max) return false;
   return true;
 };
+
+// Custom filter for single select
+const exactSelectFilter: FilterFn<AgingTableRow> = (row, columnId, filterValue) => {
+  if (filterValue === undefined || filterValue === '__all__') return true;
+  const val = row.getValue<any>(columnId);
+  const normalized = val != null ? String(val).trim().toUpperCase() : '';
+
+  if (filterValue === '__empty__') {
+    return normalized === '';
+  }
+
+  return normalized === String(filterValue).trim().toUpperCase();
+};
+
+import { LoteInvestigacao, addLoteInvestigacao, removeLoteInvestigacao, triggerSapAutomation, checkSapAutomationStatus } from '@/lib/api';
+import toast from 'react-hot-toast';
 
 // Helper para resolver o status de aging/residual de um item (Normal < 7d, Alerta 7-19d, Crítico >= 20d)
 function getItemStatusLabel(item: AgingTableRow, config?: ConfiguracaoResiduais, isAnalysis = false): string {
@@ -115,9 +134,6 @@ const tipoEstoqueFilter: FilterFn<AgingTableRow> = (row, columnId, filterValue) 
 
   return normalized === String(filterValue).trim().toUpperCase();
 };
-
-import { LoteInvestigacao, addLoteInvestigacao, removeLoteInvestigacao } from '@/lib/api';
-import toast from 'react-hot-toast';
 
 interface ResiduaisViewProps {
   agingData: AgingData[];
@@ -333,6 +349,8 @@ export function ResiduaisView({
   const [devolverQuantidade, setDevolverQuantidade] = useState('1');
   const [devolverItemCount, setDevolverItemCount] = useState('1');
   const [isApplyingInvestigacao, setIsApplyingInvestigacao] = useState(false);
+  const [isMoverAjusteRunning, setIsMoverAjusteRunning] = useState(false);
+  const [moverAjusteConfirmOpen, setMoverAjusteConfirmOpen] = useState(false);
 
   const lotesInvestigacaoSet = useMemo(() => {
     return new Set(lotesInvestigacao.map((item) => item.lote.trim().toUpperCase()));
@@ -822,6 +840,55 @@ export function ResiduaisView({
     });
   };
 
+  // Dispara a execução do script movermigo no SAP via Planilha Sync
+  const handleConfirmMoverAjuste = async () => {
+    setMoverAjusteConfirmOpen(false);
+    setIsMoverAjusteRunning(true);
+    const toastId = toast.loading('Enviando solicitação movermigo para o Planilha Sync...');
+
+    try {
+      const res = await triggerSapAutomation('movermigo', currentUserEmail || 'Dashboard');
+      if (!res.success || !res.job) {
+        toast.error(`Falha ao disparar automação: ${res.error || 'Erro desconhecido'}`, { id: toastId });
+        setIsMoverAjusteRunning(false);
+        return;
+      }
+
+      const jobId = res.job.id;
+      toast.loading('Aguardando execução do script movermigo no SAP GUI...', { id: toastId });
+
+      let attempts = 0;
+      const maxAttempts = 30; // até 60s
+      const interval = setInterval(async () => {
+        attempts++;
+        try {
+          const statusJob = await checkSapAutomationStatus(jobId);
+          if (statusJob?.status === 'completed') {
+            clearInterval(interval);
+            setIsMoverAjusteRunning(false);
+            toast.success('Script movermigo executado com sucesso no SAP!', { id: toastId, icon: '🚀' });
+          } else if (statusJob?.status === 'failed') {
+            clearInterval(interval);
+            setIsMoverAjusteRunning(false);
+            toast.error(`Execução no SAP falhou: ${statusJob.result_message || 'Erro no script'}`, { id: toastId });
+          } else if (attempts >= maxAttempts) {
+            clearInterval(interval);
+            setIsMoverAjusteRunning(false);
+            toast('Tempo limite aguardando o Planilha Sync. Verifique se o app está aberto.', { id: toastId, icon: '⚠️' });
+          }
+        } catch (e) {
+          if (attempts >= maxAttempts) {
+            clearInterval(interval);
+            setIsMoverAjusteRunning(false);
+          }
+        }
+      }, 2000);
+    } catch (err: any) {
+      toast.error(`Erro: ${err?.message || err}`, { id: toastId });
+      setIsMoverAjusteRunning(false);
+    }
+  };
+
   const handleOpenDevolver = () => {
     const selectedRows = table.getFilteredSelectedRowModel().rows;
     if (selectedRows.length !== 1) return;
@@ -1015,6 +1082,27 @@ export function ResiduaisView({
         >
           <Copy className="h-4 w-4 mr-2" />
           {copiedLote ? 'Copiado Lote!' : 'Lote'}
+        </Button>
+
+        <Button
+          variant="default"
+          size="sm"
+          onClick={() => setMoverAjusteConfirmOpen(true)}
+          disabled={isMoverAjusteRunning}
+          className="bg-[#1B3550] border border-[#2A4D6E] hover:bg-[#234465] text-[#AEE4FF] hover:text-white shadow-md transition-all duration-300 font-bold gap-1.5"
+          title="Executar script movermigo no SAP via Planilha Sync para transferir itens tipo S para 999/AJUSTE"
+        >
+          {isMoverAjusteRunning ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin text-[#AEE4FF]" />
+              <span>Executando SAP...</span>
+            </>
+          ) : (
+            <>
+              <ArrowRightLeft className="h-4 w-4 text-[#AEE4FF]" />
+              <span>Mover/Ajuste</span>
+            </>
+          )}
         </Button>
 
         {/* Botão discreto para Investigação dos selecionados */}
@@ -1312,6 +1400,57 @@ export function ResiduaisView({
             </Button>
             <Button onClick={handleConfirmDevolver} disabled={!devolverQuantidade.trim() || !devolverItemCount.trim()}>
               Confirmar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog de Confirmação para Mover/Ajuste (SAP movermigo) */}
+      <Dialog open={moverAjusteConfirmOpen} onOpenChange={setMoverAjusteConfirmOpen}>
+        <DialogContent className="sm:max-w-md bg-[#13283E] border-[#2A4D6E] text-white">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-[#AEE4FF] text-base font-bold">
+              <ArrowRightLeft className="h-5 w-5 text-[#AEE4FF]" />
+              <span>Executar Mover/Ajuste no SAP (movermigo)</span>
+            </DialogTitle>
+            <DialogDescription className="text-xs text-slate-300 pt-1">
+              Esta ação solicitará ao <strong>Planilha Sync</strong> a execução da automação <code>movermigo</code> na sua sessão aberta do SAP GUI.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="p-3.5 rounded-xl bg-[#1B3550]/80 border border-[#2A4D6E] space-y-2 text-xs">
+            <p className="font-semibold text-[#AEE4FF] flex items-center gap-1.5">
+              <span>Etapas automáticas no SAP (/nlt10):</span>
+            </p>
+            <ul className="list-disc list-inside space-y-1 text-slate-300 text-[11px] font-mono">
+              <li>Transação: <code>/nlt10</code> (Depósito <strong>PES</strong>, Posição <strong>PESAGEM</strong>)</li>
+              <li>Filtro: Tipo de estoque <strong>S</strong> (Bloqueado/Ajuste)</li>
+              <li>Destino: Tipo de depósito <strong>999</strong>, Posição <strong>AJUSTE</strong></li>
+              <li>Confirmação automática da transferência (SQUIT = true)</li>
+            </ul>
+            <p className="text-[10px] text-amber-300 pt-1">
+              ⚠️ Certifique-se de que o SAP GUI está aberto e o Planilha Sync em execução na sua máquina.
+            </p>
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0 pt-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setMoverAjusteConfirmOpen(false)}
+              className="bg-[#1B3550] border-[#2A4D6E] text-slate-300 hover:text-white"
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              onClick={handleConfirmMoverAjuste}
+              className="bg-[#AEE4FF] hover:bg-[#86d4fa] text-[#13283E] font-bold gap-1.5"
+            >
+              <Play className="h-3.5 w-3.5 fill-current" />
+              <span>Executar no SAP</span>
             </Button>
           </DialogFooter>
         </DialogContent>
