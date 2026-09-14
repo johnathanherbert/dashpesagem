@@ -21,6 +21,7 @@ import {
   Layers,
   ChevronRight,
   QrCode,
+  Wrench,
 } from 'lucide-react';
 import Link from 'next/link';
 import { Separator } from '@/components/ui/separator';
@@ -70,6 +71,13 @@ export function Sidebar({ open, onOpenChange, activeTab = 'financial', onTabChan
       label: 'Controle de Remessas',
       description: 'Remessas abertas & picking',
       icon: Package,
+    },
+    {
+      id: 'tools',
+      label: 'Central Tools',
+      description: 'Valorizar MP & Lista Técnica',
+      icon: Wrench,
+      badge: 'Novo',
     },
   ];
 

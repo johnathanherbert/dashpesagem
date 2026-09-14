@@ -22,6 +22,7 @@ import {
   LayoutDashboard,
   AlertTriangle,
   Upload,
+  Wrench,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
@@ -104,6 +105,7 @@ export function Topbar({
     { id: 'onepage', label: 'Onepage', icon: LayoutDashboard },
     { id: 'residuais', label: 'Residuais', icon: AlertTriangle },
     { id: 'remessas', label: 'Remessas', icon: Package },
+    { id: 'tools', label: 'Tools', icon: Wrench },
   ];
 
   const userInitial =

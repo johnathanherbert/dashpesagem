@@ -12,6 +12,7 @@ import { ValorUpload } from '@/components/valor-upload';
 import { RemessaUpload } from '@/components/remessa-upload';
 import { ResiduaisView } from '@/components/residuais-view';
 import { RemessasView } from '@/components/remessas-view';
+import { ToolsView } from '@/components/tools-view';
 import { ConfiguracaoResiduaisComponent } from '@/components/configuracao-residuais';
 import { Sidebar } from '@/components/layout/sidebar';
 import { Topbar } from '@/components/layout/topbar';
@@ -154,6 +155,7 @@ export default function Home() {
       onepage: 'onepage',
       residuais: 'residuais',
       remessas: 'remessas',
+      tools: 'tools',
       settings: 'settings',
     };
     const newTab = tabMap[tab] || 'financial';
@@ -535,6 +537,13 @@ export default function Home() {
                   lastUpdate={lastUpdate}
                 />
               </TabsContent>
+
+              <TabsContent value="tools" className="space-y-3">
+                <ToolsView
+                  agingData={data}
+                  valores={valores}
+                />
+              </TabsContent>
             </Tabs>
           </>
         )}
@@ -543,4 +552,5 @@ export default function Home() {
     </ProtectedRoute>
   );
 }
+
 

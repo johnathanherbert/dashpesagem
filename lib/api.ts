@@ -427,3 +427,29 @@ export async function removeLoteInvestigacao(lote: string): Promise<boolean> {
     return false;
   }
 }
+
+// =====================================================
+// LISTA TÉCNICA (BOM)
+// =====================================================
+
+export async function fetchListaTecnica(params?: {
+  materia_prima?: string;
+  semi_acabado?: string;
+  search?: string;
+}): Promise<import('@/types/aging').ListaTecnicaItem[]> {
+  try {
+    const query = new URLSearchParams();
+    if (params?.materia_prima) query.set('materia_prima', params.materia_prima);
+    if (params?.semi_acabado) query.set('semi_acabado', params.semi_acabado);
+    if (params?.search) query.set('search', params.search);
+
+    const qs = query.toString();
+    const res = await fetch(`/api/lista-tecnica${qs ? `?${qs}` : ''}`);
+    if (!res.ok) return [];
+    return res.json();
+  } catch (error) {
+    console.error('Erro ao buscar lista técnica:', error);
+    return [];
+  }
+}
+

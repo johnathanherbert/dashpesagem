@@ -147,3 +147,18 @@ export interface LoteInvestigacao {
   created_by?: string;
   created_at?: string;
 }
+
+export interface ListaTecnicaItem {
+  id?: number;
+  concatenar?: string;
+  status?: string;
+  semi_acabado: string;
+  descricao_semi_acabado: string;
+  qtd_semi_acabado: number;
+  centro_semi_acabado: string;
+  materia_prima: string;
+  descricao_materia_prima: string;
+  qtd_materia_prima: number;
+  un_materia_prima: string;
+  created_at?: string;
+}
