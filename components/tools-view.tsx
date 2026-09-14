@@ -65,21 +65,38 @@ export function ToolsView({ agingData, valores }: ToolsViewProps) {
   const [ltResults, setLtResults] = useState<ListaTecnicaItem[]>([]);
   const [ltMode, setLtMode] = useState<'mp' | 'semi'>('mp');
 
-  // Mapeamento de material para descrições e UMB a partir do agingData
+  // Mapeamento de material para descrições, UMB e estoque estrito no depósito PES
   const materialInfoMap = useMemo(() => {
-    const map: Record<string, { descricao: string; unidade: string; estoqueTotal: number; lotes: number }> = {};
+    const map: Record<
+      string,
+      {
+        descricao: string;
+        unidade: string;
+        estoquePES: number;
+        lotesPES: number;
+        estoqueTotalGeral: number;
+      }
+    > = {};
+
     agingData.forEach((item) => {
       const mat = item.material.padStart(6, '0');
       if (!map[mat]) {
         map[mat] = {
           descricao: item.texto_breve_material || 'Matéria-Prima',
           unidade: item.unidade_medida || 'KG',
-          estoqueTotal: 0,
-          lotes: 0,
+          estoquePES: 0,
+          lotesPES: 0,
+          estoqueTotalGeral: 0,
         };
       }
-      map[mat].estoqueTotal += Number(item.estoque_disponivel || 0);
-      map[mat].lotes += 1;
+      const qty = Number(item.estoque_disponivel || 0);
+      map[mat].estoqueTotalGeral += qty;
+
+      const dep = String(item.deposito || '').trim().toUpperCase();
+      if (dep === 'PES') {
+        map[mat].estoquePES += qty;
+        map[mat].lotesPES += 1;
+      }
     });
     return map;
   }, [agingData]);
@@ -101,12 +118,13 @@ export function ToolsView({ agingData, valores }: ToolsViewProps) {
       ...Object.keys(materialInfoMap),
     ]);
 
-    const matches: { material: string; descricao: string; valor: number }[] = [];
+    const matches: { material: string; descricao: string; valor: number; estoquePES: number }[] = [];
     for (const mat of allMaterials) {
       const desc = materialInfoMap[mat]?.descricao || '';
+      const estPes = materialInfoMap[mat]?.estoquePES || 0;
       const val = valores[mat] || valores[mat.replace(/^0+/, '')] || 0;
       if (mat.includes(query) || desc.toLowerCase().includes(query)) {
-        matches.push({ material: mat, descricao: desc, valor: val });
+        matches.push({ material: mat, descricao: desc, valor: val, estoquePES: estPes });
         if (matches.length >= 6) break;
       }
     }
@@ -134,12 +152,16 @@ export function ToolsView({ agingData, valores }: ToolsViewProps) {
   // Info do material selecionado
   const currentMaterialInfo = useMemo(() => {
     if (!normalizedMaterial) return null;
-    return materialInfoMap[normalizedMaterial] || {
-      descricao: 'Matéria-Prima',
-      unidade: 'KG',
-      estoqueTotal: 0,
-      lotes: 0,
-    };
+    return (
+      materialInfoMap[normalizedMaterial] ||
+      materialInfoMap[normalizedMaterial.replace(/^0+/, '')] || {
+        descricao: 'Matéria-Prima',
+        unidade: 'KG',
+        estoquePES: 0,
+        lotesPES: 0,
+        estoqueTotalGeral: 0,
+      }
+    );
   }, [normalizedMaterial, materialInfoMap]);
 
   // Quantidade numérica
@@ -157,10 +179,13 @@ export function ToolsView({ agingData, valores }: ToolsViewProps) {
 
   // Formatação monetária
   const formatCurrency = (val: number) => {
-    return 'R$ ' + Number(val || 0).toLocaleString('pt-BR', {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    });
+    return (
+      'R$ ' +
+      Number(val || 0).toLocaleString('pt-BR', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      })
+    );
   };
 
   const formatNumber = (val: number) => {
@@ -173,6 +198,10 @@ export function ToolsView({ agingData, valores }: ToolsViewProps) {
   const handleSelectMaterial = (mat: string) => {
     setMaterialInput(mat);
     setCustomPriceInput('');
+    const info = materialInfoMap[mat.padStart(6, '0')] || materialInfoMap[mat.replace(/^0+/, '')];
+    if (info && info.estoquePES > 0) {
+      setQuantidadeInput(String(info.estoquePES));
+    }
   };
 
   const handleAddSimulation = () => {
@@ -224,10 +253,15 @@ export function ToolsView({ agingData, valores }: ToolsViewProps) {
     const lines = [
       '--- RESUMO DE VALORIZAÇÃO DE MATÉRIAS-PRIMAS ---',
       ...simulatedItems.map(
-        (i) => `${i.material} - ${i.descricao}: ${formatNumber(i.quantidade)} ${i.unidade} x ${formatCurrency(i.valorUnitario)} = ${formatCurrency(i.valorTotal)}`
+        (i) =>
+          `${i.material} - ${i.descricao}: ${formatNumber(i.quantidade)} ${i.unidade} x ${formatCurrency(
+            i.valorUnitario
+          )} = ${formatCurrency(i.valorTotal)}`
       ),
       '-------------------------------------------------',
-      `TOTAL: ${formatNumber(totalSimulatedQty)} itens/kg | VALOR TOTAL: ${formatCurrency(totalSimulatedValue)}`,
+      `TOTAL: ${formatNumber(totalSimulatedQty)} itens/kg | VALOR TOTAL: ${formatCurrency(
+        totalSimulatedValue
+      )}`,
     ];
     navigator.clipboard.writeText(lines.join('\n'));
     setCopied(true);
@@ -273,10 +307,28 @@ export function ToolsView({ agingData, valores }: ToolsViewProps) {
     }
   };
 
-  const handleGoToValorizar = (mat: string, qtd?: number) => {
-    setMaterialInput(mat);
-    if (qtd) setQuantidadeInput(String(qtd));
+  // Ao clicar em Valorizar a partir da lista técnica: carrega o estoque total do depósito PES
+  const handleGoToValorizar = (mat: string) => {
+    const cleanMat = mat.trim().padStart(6, '0');
+    setMaterialInput(cleanMat);
+    setCustomPriceInput('');
+
+    const info =
+      materialInfoMap[cleanMat] ||
+      materialInfoMap[cleanMat.replace(/^0+/, '')];
+    const estoquePes = info?.estoquePES || 0;
+
+    setQuantidadeInput(estoquePes > 0 ? String(estoquePes) : '0');
     setSelectedTool('valorizar-mp');
+
+    if (estoquePes > 0) {
+      toast.success(
+        `Carregado estoque do depósito PES: ${formatNumber(estoquePes)} ${info?.unidade || 'KG'}`,
+        { icon: '💰' }
+      );
+    } else {
+      toast(`Material ${cleanMat} sem saldo atual no depósito PES.`, { icon: 'ℹ️' });
+    }
   };
 
   const handleGoToWhereUsed = (mat: string) => {
@@ -300,7 +352,7 @@ export function ToolsView({ agingData, valores }: ToolsViewProps) {
                 Central de Ferramentas & Utilidades
               </h2>
               <p className="text-xs text-ems-steel mt-0.5">
-                Utilitários de apoio operacional, valorização de matérias-primas, lista técnica (BOM) e simulações
+                Utilitários de apoio operacional, valorização de estoque PES, lista técnica (BOM) e simulações
               </p>
             </div>
           </div>
@@ -336,9 +388,9 @@ export function ToolsView({ agingData, valores }: ToolsViewProps) {
               Ativo
             </span>
           </div>
-          <h3 className="text-sm font-bold text-white">Valorizar MP</h3>
+          <h3 className="text-sm font-bold text-white">Valorizar MP (Estoque PES)</h3>
           <p className="text-[11px] text-ems-steel mt-0.5">
-            Cálculo de valor unitário e total por quantidade de matéria-prima
+            Cálculo de valor unitário e totalização de estoque no depósito PES
           </p>
         </button>
 
@@ -361,7 +413,7 @@ export function ToolsView({ agingData, valores }: ToolsViewProps) {
           </div>
           <h3 className="text-sm font-bold text-white">Onde é Usado? (BOM)</h3>
           <p className="text-[11px] text-ems-steel mt-0.5">
-            Descubra em quais produtos/fórmulas a matéria-prima é consumida
+            Fórmulas, ordens e valorização direta do estoque PES por matéria-prima
           </p>
         </button>
 
@@ -461,6 +513,11 @@ export function ToolsView({ agingData, valores }: ToolsViewProps) {
                               <span className="text-slate-300 text-[11px] truncate block">
                                 {sug.descricao || 'Sem descrição'}
                               </span>
+                              {sug.estoquePES > 0 && (
+                                <span className="text-emerald-400 text-[10px] font-mono block">
+                                  Estoque PES: {formatNumber(sug.estoquePES)} KG
+                                </span>
+                              )}
                             </div>
                             <span className="text-emerald-400 font-mono text-[11px] shrink-0">
                               {formatCurrency(sug.valor)}
@@ -499,10 +556,15 @@ export function ToolsView({ agingData, valores }: ToolsViewProps) {
                           <span className="text-white font-bold">{currentMaterialInfo?.unidade || 'KG'}</span>
                         </div>
                         <div>
-                          <span className="text-[10px] text-ems-steel block">Em Estoque:</span>
+                          <span className="text-[10px] text-ems-steel block">Estoque Depósito PES:</span>
                           <span className="text-[#AEE4FF] font-bold">
-                            {formatNumber(currentMaterialInfo?.estoqueTotal || 0)} {currentMaterialInfo?.unidade || 'KG'}
+                            {formatNumber(currentMaterialInfo?.estoquePES || 0)} {currentMaterialInfo?.unidade || 'KG'}
                           </span>
+                          {currentMaterialInfo && currentMaterialInfo.lotesPES > 0 && (
+                            <span className="text-[10px] text-slate-400 block font-sans">
+                              ({currentMaterialInfo.lotesPES} {currentMaterialInfo.lotesPES === 1 ? 'lote' : 'lotes'})
+                            </span>
+                          )}
                         </div>
                       </div>
 
@@ -522,14 +584,14 @@ export function ToolsView({ agingData, valores }: ToolsViewProps) {
                   {/* Campo 2: Quantidade */}
                   <div className="space-y-1.5">
                     <label className="text-xs font-semibold text-slate-200 flex items-center justify-between">
-                      <span>Quantidade ({currentMaterialInfo?.unidade || 'KG'})</span>
-                      {currentMaterialInfo && currentMaterialInfo.estoqueTotal > 0 && (
+                      <span>Quantidade a Valorizar ({currentMaterialInfo?.unidade || 'KG'})</span>
+                      {currentMaterialInfo && currentMaterialInfo.estoquePES > 0 && (
                         <button
                           type="button"
-                          onClick={() => setQuantidadeInput(String(currentMaterialInfo.estoqueTotal))}
-                          className="text-[10px] text-[#AEE4FF] hover:underline"
+                          onClick={() => setQuantidadeInput(String(currentMaterialInfo.estoquePES))}
+                          className="text-[10px] text-emerald-400 font-bold hover:underline"
                         >
-                          Usar Estoque Atual ({formatNumber(currentMaterialInfo.estoqueTotal)})
+                          Usar Estoque PES ({formatNumber(currentMaterialInfo.estoquePES)})
                         </button>
                       )}
                     </label>
@@ -542,7 +604,16 @@ export function ToolsView({ agingData, valores }: ToolsViewProps) {
                     />
 
                     {/* Botões rápidos de quantidade */}
-                    <div className="flex items-center gap-1.5 pt-1">
+                    <div className="flex items-center gap-1.5 pt-1 flex-wrap">
+                      {currentMaterialInfo && currentMaterialInfo.estoquePES > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => setQuantidadeInput(String(currentMaterialInfo.estoquePES))}
+                          className="px-2 py-0.5 rounded bg-emerald-500/20 border border-emerald-500/40 text-[10px] font-mono font-bold text-emerald-300 hover:bg-emerald-500/30 transition-colors"
+                        >
+                          Tudo em PES ({formatNumber(currentMaterialInfo.estoquePES)})
+                        </button>
+                      )}
                       {[1, 5, 10, 50, 100, 500].map((qty) => (
                         <button
                           key={qty}
@@ -598,7 +669,7 @@ export function ToolsView({ agingData, valores }: ToolsViewProps) {
                 <div className="flex items-center justify-between gap-2 mb-3">
                   <span className="text-[11px] font-bold uppercase tracking-wider text-[#AEE4FF] flex items-center gap-1.5">
                     <DollarSign className="h-4 w-4 text-[#AEE4FF]" />
-                    Resultado da Valorização
+                    Resultado da Valorização (Estoque PES)
                   </span>
                   {normalizedMaterial && (
                     <Badge className="bg-[#13283E] text-[#AEE4FF] border border-[#2A4D6E] font-mono text-xs">
@@ -628,7 +699,7 @@ export function ToolsView({ agingData, valores }: ToolsViewProps) {
                   </div>
 
                   <div className="p-2.5 rounded-xl bg-[#13283E]/80 border border-[#2A4D6E]/40 font-mono">
-                    <span className="text-[10px] text-ems-steel block uppercase font-sans">Qtd. Informada:</span>
+                    <span className="text-[10px] text-ems-steel block uppercase font-sans">Qtd. Selecionada:</span>
                     <span className="text-base font-bold text-[#AEE4FF]">
                       {formatNumber(parsedQuantity)}
                     </span>
@@ -638,12 +709,12 @@ export function ToolsView({ agingData, valores }: ToolsViewProps) {
                   </div>
 
                   <div className="p-2.5 rounded-xl bg-[#13283E]/80 border border-[#2A4D6E]/40 font-mono">
-                    <span className="text-[10px] text-ems-steel block uppercase font-sans">Estoque Total MP:</span>
-                    <span className="text-base font-bold text-slate-300">
-                      {formatCurrency((currentMaterialInfo?.estoqueTotal || 0) * effectiveUnitValue)}
+                    <span className="text-[10px] text-ems-steel block uppercase font-sans">Total Estoque PES:</span>
+                    <span className="text-base font-bold text-emerald-400">
+                      {formatCurrency((currentMaterialInfo?.estoquePES || 0) * effectiveUnitValue)}
                     </span>
                     <span className="text-[10px] text-slate-400 block mt-0.5">
-                      ({formatNumber(currentMaterialInfo?.estoqueTotal || 0)} {currentMaterialInfo?.unidade || 'KG'})
+                      ({formatNumber(currentMaterialInfo?.estoquePES || 0)} {currentMaterialInfo?.unidade || 'KG'})
                     </span>
                   </div>
                 </div>
@@ -785,10 +856,10 @@ export function ToolsView({ agingData, valores }: ToolsViewProps) {
                   </div>
                   <div>
                     <CardTitle className="text-base font-bold text-white">
-                      Consulta de Lista Técnica & Onde é Usado (BOM)
+                      Consulta de Lista Técnica & Valorização de Estoque PES (BOM)
                     </CardTitle>
                     <CardDescription className="text-xs text-ems-steel">
-                      Consulte em quais produtos/semi-acabados uma matéria-prima é usada, ou veja todas as MPs de uma fórmula
+                      Consulte em quais produtos/semi-acabados uma matéria-prima é usada e valorize todo o saldo atual em estoque PES
                     </CardDescription>
                   </div>
                 </div>
@@ -887,7 +958,7 @@ export function ToolsView({ agingData, valores }: ToolsViewProps) {
                       Encontrados <strong className="text-[#AEE4FF]">{ltResults.length}</strong> vínculos de lista técnica:
                     </span>
                     <Badge className="bg-[#1B3550] text-[#AEE4FF] border border-[#2A4D6E] text-[10px]">
-                      Centro 600
+                      Centro 600 • Apenas Depósito PES
                     </Badge>
                   </div>
 
@@ -901,44 +972,65 @@ export function ToolsView({ agingData, valores }: ToolsViewProps) {
                           <th className="py-2.5 px-3 font-bold">Semi-Acabado (Produto)</th>
                           <th className="py-2.5 px-3 font-bold">Descrição Semi-Acabado</th>
                           <th className="py-2.5 px-3 font-bold text-right">Tamanho Lote</th>
+                          <th className="py-2.5 px-3 font-bold text-right">Estoque Dep. PES</th>
+                          <th className="py-2.5 px-3 font-bold text-right">Total R$ (PES)</th>
                           <th className="py-2.5 px-3 text-center font-bold">Ação</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-[#2A4D6E]/40 font-mono">
-                        {ltResults.map((row) => (
-                          <tr key={row.id || `${row.materia_prima}-${row.semi_acabado}`} className="hover:bg-[#1B3550]/40 transition-colors">
-                            <td className="py-2.5 px-3 font-bold text-[#AEE4FF]">
-                              {row.materia_prima}
-                            </td>
-                            <td className="py-2.5 px-3 font-sans text-slate-200">
-                              {row.descricao_materia_prima}
-                            </td>
-                            <td className="py-2.5 px-3 text-right text-emerald-400 font-bold">
-                              {formatNumber(row.qtd_materia_prima)} {row.un_materia_prima}
-                            </td>
-                            <td className="py-2.5 px-3 font-bold text-amber-300">
-                              {row.semi_acabado}
-                            </td>
-                            <td className="py-2.5 px-3 font-sans text-slate-200">
-                              {row.descricao_semi_acabado}
-                            </td>
-                            <td className="py-2.5 px-3 text-right text-slate-300">
-                              {formatNumber(row.qtd_semi_acabado)} UN
-                            </td>
-                            <td className="py-2.5 px-3 text-center">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => handleGoToValorizar(row.materia_prima, row.qtd_materia_prima)}
-                                className="h-6 text-[10px] px-2 bg-[#1B3550] border-[#2A4D6E] text-[#AEE4FF] hover:bg-[#AEE4FF] hover:text-[#13283E] gap-1"
-                                title="Valorizar esta quantidade"
-                              >
-                                <Calculator className="h-3 w-3" />
-                                <span>Valorizar</span>
-                              </Button>
-                            </td>
-                          </tr>
-                        ))}
+                        {ltResults.map((row) => {
+                          const matNorm = row.materia_prima.padStart(6, '0');
+                          const info = materialInfoMap[matNorm] || materialInfoMap[matNorm.replace(/^0+/, '')];
+                          const estoquePes = info?.estoquePES || 0;
+                          const unitPrice = valores[matNorm] || valores[matNorm.replace(/^0+/, '')] || 0;
+                          const totalPesValue = estoquePes * unitPrice;
+
+                          return (
+                            <tr key={row.id || `${row.materia_prima}-${row.semi_acabado}`} className="hover:bg-[#1B3550]/40 transition-colors">
+                              <td className="py-2.5 px-3 font-bold text-[#AEE4FF]">
+                                {row.materia_prima}
+                              </td>
+                              <td className="py-2.5 px-3 font-sans text-slate-200">
+                                {row.descricao_materia_prima}
+                              </td>
+                              <td className="py-2.5 px-3 text-right text-slate-300 font-bold">
+                                {formatNumber(row.qtd_materia_prima)} {row.un_materia_prima}
+                              </td>
+                              <td className="py-2.5 px-3 font-bold text-amber-300">
+                                {row.semi_acabado}
+                              </td>
+                              <td className="py-2.5 px-3 font-sans text-slate-200">
+                                {row.descricao_semi_acabado}
+                              </td>
+                              <td className="py-2.5 px-3 text-right text-slate-300">
+                                {formatNumber(row.qtd_semi_acabado)} UN
+                              </td>
+                              <td className="py-2.5 px-3 text-right">
+                                {estoquePes > 0 ? (
+                                  <span className="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-bold border border-emerald-500/30">
+                                    {formatNumber(estoquePes)} {info?.unidade || 'KG'}
+                                  </span>
+                                ) : (
+                                  <span className="text-slate-500">0 {info?.unidade || 'KG'}</span>
+                                )}
+                              </td>
+                              <td className="py-2.5 px-3 text-right text-emerald-400 font-bold">
+                                {totalPesValue > 0 ? formatCurrency(totalPesValue) : estoquePes > 0 ? 'Sem preço' : '-'}
+                              </td>
+                              <td className="py-2.5 px-3 text-center">
+                                <Button
+                                  size="sm"
+                                  onClick={() => handleGoToValorizar(row.materia_prima)}
+                                  className="h-6 text-[10px] px-2.5 bg-[#AEE4FF] hover:bg-[#86d4fa] text-[#13283E] font-bold gap-1 shadow-xs"
+                                  title={`Valorizar ${formatNumber(estoquePes)} ${info?.unidade || 'KG'} em estoque no depósito PES`}
+                                >
+                                  <Calculator className="h-3 w-3" />
+                                  <span>Valorizar PES</span>
+                                </Button>
+                              </td>
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>
