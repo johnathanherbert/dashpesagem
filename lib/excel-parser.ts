@@ -2,6 +2,24 @@ import * as XLSX from 'xlsx';
 import { AgingData } from '@/types/aging';
 import { differenceInDays, parseISO, isValid } from 'date-fns';
 
+// Helper para obter valor de linha com múltiplos aliases
+function getRowVal(row: any, ...aliases: string[]): any {
+  for (const alias of aliases) {
+    if (row[alias] !== undefined && row[alias] !== null && row[alias] !== '') {
+      return row[alias];
+    }
+  }
+  const rowKeys = Object.keys(row);
+  for (const alias of aliases) {
+    const aliasLower = alias.toLowerCase().trim();
+    const matchedKey = rowKeys.find((k) => k.toLowerCase().trim() === aliasLower);
+    if (matchedKey && row[matchedKey] !== undefined && row[matchedKey] !== null && row[matchedKey] !== '') {
+      return row[matchedKey];
+    }
+  }
+  return '';
+}
+
 export function parseTextFile(file: File): Promise<AgingData[]> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -17,7 +35,7 @@ export function parseTextFile(file: File): Promise<AgingData[]> {
         const lines = text.split(/\r?\n/);
         let headerIdx = -1;
         for (let i = 0; i < lines.length; i++) {
-          if (lines[i].includes('Material') && lines[i].includes('Lote')) {
+          if (lines[i].includes('Material') && (lines[i].includes('Lote') || lines[i].includes('Texto breve'))) {
             headerIdx = i;
             break;
           }
@@ -61,29 +79,29 @@ export function parseTextFile(file: File): Promise<AgingData[]> {
             if (h) row[h] = cols[idx] || '';
           });
 
-          const mat = row['Material'] || '';
+          const mat = String(getRowVal(row, 'Material', 'material', 'Código', 'Codigo') || '').trim();
           if (!mat || !/^\d+$/.test(mat)) continue;
 
-          const lote = row['Lote'] || '';
-          const desc = row['Texto breve material'] || '';
-          const umb = row['UMB'] || 'KG';
-          const cen = row['Cen.'] || '600';
-          let dep = row['Dep.'] || 'PES';
-          let tp = row['Tp.'] || '999';
-          const pos = row['Posição'] || row['Posiç'] || row['PosiÃ§'] || '';
-          const estqRaw = row['Estq.dispon.'] || row['Estoque disponível'] || '0';
-          const vencRaw = row['Data venc.'] || row['Data do vencimento'] || '';
-          const movRaw = row['Últ.movim.'] || row['Ã\x9alt.movim.'] || '';
-          const tpEstq = row['T'] || row['Tipo de estoque'] || '';
-          const entrdRaw = row['Últ.entrd.'] || row['Ã\x9alt.entrd.'] || '';
+          const lote = String(getRowVal(row, 'Lote', 'lote', 'Batch') || '').replace(/\.0$/, '').trim();
+          const desc = String(getRowVal(row, 'Texto breve material', 'Texto breve', 'Descrição', 'Descricao', 'Denominação') || '').trim();
+          const umb = String(getRowVal(row, 'UMB', 'Unidade', 'UM') || 'KG').trim();
+          const cen = String(getRowVal(row, 'Cen.', 'Centro', 'Cen') || '600').replace(/\.0$/, '').trim();
+          let dep = String(getRowVal(row, 'Dep.', 'Depósito', 'Deposito', 'Dep') || 'PES').trim();
+          let tp = String(getRowVal(row, 'Tp.', 'Tipo de depósito', 'Tipo depósito', 'Tipo deposito', 'Tp') || '999').trim();
+          const pos = String(getRowVal(row, 'Posição no depósito', 'Posição', 'Posicao', 'Posiç', 'PosiÃ§', 'Pos.', 'Pos', 'Pos. depósito', 'Pos.depósito', 'Posicao no deposito') || '').trim();
+          const estqRaw = getRowVal(row, 'Estq.dispon.', 'Estoque disponível', 'Estoque disponivel', 'Estq. dispon.', 'Estoque');
+          const vencRaw = getRowVal(row, 'Data venc.', 'Data do vencimento', 'Data vencimento', 'Vencimento');
+          const movRaw = getRowVal(row, 'Últ.movim.', 'Ã\x9Alt.movim.', 'Ãšlt.movim.', 'Último movimento', 'Ultimo movimento', 'Ult.movim.');
+          const tpEstq = String(getRowVal(row, 'T', 'Tipo de estoque', 'Tipo estoque') || '').trim();
+          const entrdRaw = getRowVal(row, 'Últ.entrd.', 'Ã\x9Alt.entrd.', 'Ãšlt.entrd.', 'Última entrada dep.', 'Ultima entrada dep.', 'Ult.entrd.');
 
           if (dep === '922') dep = 'TR-ZONE';
           if (tp === '922') tp = 'TR-ZONE';
 
-          const estq = parseFloatBr(estqRaw);
-          const { formatted: vencStr } = parseDateBr(vencRaw);
-          const { formatted: movStr, date: movDate } = parseDateBr(movRaw);
-          const { formatted: entrdStr } = parseDateBr(entrdRaw);
+          const estq = parseFloatBr(String(estqRaw || '0'));
+          const { formatted: vencStr } = parseDateBr(String(vencRaw || ''));
+          const { formatted: movStr, date: movDate } = parseDateBr(String(movRaw || ''));
+          const { formatted: entrdStr } = parseDateBr(String(entrdRaw || ''));
 
           let diasAging = 0;
           if (movDate) {
@@ -167,74 +185,87 @@ export function parseExcelFile(file: File): Promise<AgingData[]> {
           return;
         }
 
-        // Converte para JSON começando da linha 4 (pula as 3 primeiras linhas de cabeçalho)
-        // Linha 1: "Estoques WM com texto breve de material"
-        // Linha 2: "Nº depósito | WNM"
-        // Linha 3: (vazia)
-        // Linha 4: Cabeçalhos reais (Material, Texto breve material, etc)
-        const jsonData = XLSX.utils.sheet_to_json(worksheet, { range: 3 });
+        // Tenta encontrar a linha de cabeçalho dinamicamente
+        let rangeHeader = 3;
+        for (let r = 0; r <= 6; r++) {
+          const testJson = XLSX.utils.sheet_to_json(worksheet, { range: r, header: 1 }) as any[][];
+          if (testJson && testJson.length > 0) {
+            const firstRowStr = testJson[0].map((c) => String(c || '').toLowerCase()).join(' ');
+            if (firstRowStr.includes('material') && (firstRowStr.includes('lote') || firstRowStr.includes('texto') || firstRowStr.includes('dep'))) {
+              rangeHeader = r;
+              break;
+            }
+          }
+        }
+
+        const jsonData = XLSX.utils.sheet_to_json(worksheet, { range: rangeHeader });
         
         if (!jsonData || jsonData.length === 0) {
-          reject(new Error('Planilha sem dados. Verifique se há dados a partir da linha 2'));
+          reject(new Error('Planilha sem dados válidos.'));
           return;
         }
         
-        // Remove as últimas 4 linhas (linhas 688-691 que são rodapé vazio)
-        const validData = jsonData.slice(0, -4);
-        
         // Processa e mapeia os dados da estrutura real da planilha
-        const agingData: AgingData[] = validData.map((row: any) => {
-          // Mapeia as colunas da planilha real (nomes em português)
-          const material = String(row['Material'] || '').trim().replace(/\.0$/, '');
-          const textoBreve = String(row['Texto breve material'] || '').trim();
-          const unidadeMedida = String(row['UMB'] || 'KG').trim();
-          const lote = String(row['Lote'] || '').trim().replace(/\.0$/, '');
-          const centro = String(row['Centro'] || '').trim().replace(/\.0$/, '');
-          const deposito = String(row['Depósito'] || '').trim().replace(/\.0$/, '');
-          const tipoDeposito = String(row['Tipo de depósito'] || '').trim().replace(/\.0$/, '');
-          const posicaoDeposito = String(row['Posição no depósito'] || '').trim();
-          
-          // Estoque disponível (peso)
-          const estoqueDisponivel = parseFloat(row['Estoque disponível'] || 0);
+        const agingData: AgingData[] = jsonData
+          .map((row: any) => {
+            const rawMat = String(getRowVal(row, 'Material', 'material', 'Código', 'Codigo', 'Mat.') || '').trim().replace(/\.0$/, '');
+            if (!rawMat || !/^\d+$/.test(rawMat)) return null;
 
-          // Datas (vêm como números seriais do Excel)
-          const dataVencimento = row['Data do vencimento'] || '';
-          const ultimoMovimento = row['Último movimento'] || '';
-          const ultimaEntrada = row['Última entrada dep.'] || '';
-          const tipoEstoque = String(row['Tipo de estoque'] || '');
+            const material = rawMat.padStart(6, '0');
+            const textoBreve = String(getRowVal(row, 'Texto breve material', 'Texto breve', 'Descrição', 'Descricao', 'Denominação') || '').trim();
+            const unidadeMedida = String(getRowVal(row, 'UMB', 'Unidade', 'UM', 'Unidade de medida') || 'KG').trim();
+            const lote = String(getRowVal(row, 'Lote', 'lote', 'Batch') || '').trim().replace(/\.0$/, '');
+            const centro = String(getRowVal(row, 'Centro', 'Cen.', 'Cen', 'centro') || '600').trim().replace(/\.0$/, '');
+            let deposito = String(getRowVal(row, 'Depósito', 'Deposito', 'Dep.', 'dep', 'deposito') || 'PES').trim().replace(/\.0$/, '');
+            let tipoDeposito = String(getRowVal(row, 'Tipo de depósito', 'Tipo depósito', 'Tipo deposito', 'Tp.', 'tp', 'tipo_deposito', 'Tipo de deposito') || '999').trim().replace(/\.0$/, '');
+            const posicaoDeposito = String(getRowVal(row, 'Posição no depósito', 'Posição', 'Posicao', 'Posiç', 'PosiÃ§', 'Pos.', 'Pos', 'Pos. depósito', 'Pos.depósito', 'Posicao no deposito') || '').trim();
+            
+            if (deposito === '922') deposito = 'TR-ZONE';
+            if (tipoDeposito === '922') tipoDeposito = 'TR-ZONE';
 
-          // Calcula dias de aging baseado no último movimento
-          let diasAging = 0;
-          if (ultimoMovimento) {
-            try {
-              const dataMovimento = parseExcelDate(ultimoMovimento);
-              if (dataMovimento && isValid(dataMovimento)) {
-                diasAging = differenceInDays(new Date(), dataMovimento);
-              }
-            } catch (error) {
-              if (typeof window !== 'undefined') {
-                console.warn('Erro ao calcular aging:', error);
+            // Estoque disponível (peso)
+            const rawEstq = getRowVal(row, 'Estoque disponível', 'Estoque disponivel', 'Estq.dispon.', 'Estq. dispon.', 'Estq dispon', 'Estoque', 'Qtd', 'Quantidade');
+            const estoqueDisponivel = typeof rawEstq === 'number' ? rawEstq : parseFloat(String(rawEstq || '0').replace(/\./g, '').replace(',', '.')) || 0;
+
+            // Datas (vêm como números seriais do Excel ou strings)
+            const dataVencimento = getRowVal(row, 'Data do vencimento', 'Data vencimento', 'Data venc.', 'Data venc', 'Vencimento', 'Dt. Venc.');
+            const ultimoMovimento = getRowVal(row, 'Último movimento', 'Ultimo movimento', 'Últ.movim.', 'Ãšlt.movim.', 'Ult.movim.', 'Ult. movim.', 'Dt. Mov.', 'Último mov.');
+            const ultimaEntrada = getRowVal(row, 'Última entrada dep.', 'Ultima entrada dep.', 'Últ.entrd.', 'Ãšlt.entrd.', 'Ult.entrd.', 'Dt. Entrada', 'Última entrada');
+            const tipoEstoque = String(getRowVal(row, 'Tipo de estoque', 'Tipo estoque', 'T', 'tp_estoque') || '');
+
+            // Calcula dias de aging baseado no último movimento
+            let diasAging = 0;
+            if (ultimoMovimento) {
+              try {
+                const dataMovimento = parseExcelDate(ultimoMovimento);
+                if (dataMovimento && isValid(dataMovimento)) {
+                  diasAging = differenceInDays(new Date(), dataMovimento);
+                }
+              } catch (error) {
+                if (typeof window !== 'undefined') {
+                  console.warn('Erro ao calcular aging:', error);
+                }
               }
             }
-          }
 
-          return {
-            material,
-            texto_breve_material: textoBreve,
-            unidade_medida: unidadeMedida,
-            lote,
-            centro,
-            deposito,
-            tipo_deposito: tipoDeposito,
-            posicao_deposito: posicaoDeposito,
-            estoque_disponivel: estoqueDisponivel,
-            data_vencimento: formatExcelDate(dataVencimento),
-            ultimo_movimento: formatExcelDate(ultimoMovimento),
-            tipo_estoque: tipoEstoque,
-            ultima_entrada_deposito: formatExcelDate(ultimaEntrada),
-            dias_aging: diasAging,
-          };
-        });
+            return {
+              material,
+              texto_breve_material: textoBreve,
+              unidade_medida: unidadeMedida,
+              lote,
+              centro,
+              deposito,
+              tipo_deposito: tipoDeposito,
+              posicao_deposito: posicaoDeposito,
+              estoque_disponivel: estoqueDisponivel,
+              data_vencimento: formatExcelDate(dataVencimento),
+              ultimo_movimento: formatExcelDate(ultimoMovimento),
+              tipo_estoque: tipoEstoque,
+              ultima_entrada_deposito: formatExcelDate(ultimaEntrada),
+              dias_aging: diasAging,
+            };
+          })
+          .filter(Boolean) as AgingData[];
 
         // Validar que temos dados válidos
         if (agingData.length === 0) {

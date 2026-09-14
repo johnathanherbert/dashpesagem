@@ -69,9 +69,12 @@ export function OnepageView({
       const pos = (item.posicao_deposito || '').toUpperCase().trim();
       const tipo = (item.tipo_deposito || '').toUpperCase().trim();
       const dep = (item.deposito || '').toUpperCase().trim();
-      const isPes = tipo === 'PES' || dep === 'PES';
-      const isPosPesagem = pos === 'PESAGEM' || pos === 'PES' || (isPes && !pos);
-      return isPes && isPosPesagem && pos !== 'AJUSTE' && pos !== 'AJU-SAIDA' && pos !== 'AJU-SAÍDA';
+      const isAjuSaida = pos === 'AJU-SAIDA' || pos === 'AJU-SAÍDA' || pos.includes('AJU-SAIDA') || pos.includes('AJU SAIDA');
+      const isAjuste = (pos === 'AJUSTE' || pos.includes('AJUSTE')) && !isAjuSaida;
+      if (isAjuste || isAjuSaida) return false;
+      const isPes = tipo === 'PES' || dep === 'PES' || tipo.includes('PES') || dep.includes('PES');
+      const isPosPesagem = pos === 'PESAGEM' || pos === 'PES' || pos.includes('PES') || (!pos && isPes);
+      return (isPes && isPosPesagem) || (pos === 'PESAGEM');
     });
   }, [agingData]);
 
@@ -81,9 +84,11 @@ export function OnepageView({
       const pos = (item.posicao_deposito || '').toUpperCase().trim();
       const tipo = (item.tipo_deposito || '').toUpperCase().trim();
       const dep = (item.deposito || '').toUpperCase().trim();
+      const isAjuSaida = pos === 'AJU-SAIDA' || pos === 'AJU-SAÍDA' || pos.includes('AJU-SAIDA') || pos.includes('AJU SAIDA');
+      if (isAjuSaida) return false;
       const is999 = tipo === '999' || dep === '999' || tipo.includes('999');
-      const isAjuste = pos === 'AJUSTE' || pos.includes('AJUSTE');
-      return is999 && isAjuste && pos !== 'AJU-SAIDA' && pos !== 'AJU-SAÍDA';
+      const isAjuste = pos === 'AJUSTE' || pos.includes('AJUSTE') || pos === 'AJU';
+      return (is999 && isAjuste) || (pos === 'AJUSTE');
     });
   }, [agingData]);
 
@@ -94,8 +99,8 @@ export function OnepageView({
       const tipo = (item.tipo_deposito || '').toUpperCase().trim();
       const dep = (item.deposito || '').toUpperCase().trim();
       const is999 = tipo === '999' || dep === '999' || tipo.includes('999');
-      const isAjuSaida = pos === 'AJU-SAIDA' || pos === 'AJU-SAÍDA' || pos.includes('AJU-SAIDA') || pos.includes('AJU SAIDA');
-      return is999 && isAjuSaida;
+      const isAjuSaida = pos === 'AJU-SAIDA' || pos === 'AJU-SAÍDA' || pos.includes('AJU-SAIDA') || pos.includes('AJU SAIDA') || pos.includes('AJU-SAID') || pos.includes('AJUSAIDA');
+      return (is999 || isAjuSaida) && isAjuSaida;
     });
   }, [agingData]);
 

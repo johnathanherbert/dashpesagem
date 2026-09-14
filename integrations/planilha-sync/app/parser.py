@@ -169,23 +169,23 @@ def _parse_estoque_txt(path: Path) -> Tuple[List[Dict[str, Any]], date]:
             if h:
                 row_dict[h] = c
 
-        mat = row_dict.get('Material', '')
+        mat = row_dict.get('Material', row_dict.get('Código', row_dict.get('Codigo', '')))
         # Ignora linhas de totalização do SAP ou sem código numérico
         if not mat or not re.match(r'^\d+$', mat):
             continue
 
         lote = row_dict.get('Lote', '')
-        desc = row_dict.get('Texto breve material', '')
-        umb = row_dict.get('UMB', 'KG')
-        cen = row_dict.get('Cen.', '600')
-        dep = row_dict.get('Dep.', 'PES')
-        tp = row_dict.get('Tp.', '999')
-        pos = row_dict.get('Posição', row_dict.get('Posiç', row_dict.get('PosiÃ§', '')))
-        estq_raw = row_dict.get('Estq.dispon.', row_dict.get('Estoque disponível', '0'))
-        venc_raw = row_dict.get('Data venc.', row_dict.get('Data do vencimento', ''))
-        mov_raw = row_dict.get('Últ.movim.', row_dict.get('Ã\x9alt.movim.', ''))
-        tp_estq = row_dict.get('T', row_dict.get('Tipo de estoque', ''))
-        entrd_raw = row_dict.get('Últ.entrd.', row_dict.get('Ã\x9alt.entrd.', ''))
+        desc = row_dict.get('Texto breve material', row_dict.get('Texto breve', row_dict.get('Descrição', '')))
+        umb = row_dict.get('UMB', row_dict.get('Unidade', 'KG'))
+        cen = row_dict.get('Cen.', row_dict.get('Centro', '600'))
+        dep = row_dict.get('Dep.', row_dict.get('Depósito', row_dict.get('Deposito', 'PES')))
+        tp = row_dict.get('Tp.', row_dict.get('Tipo de depósito', row_dict.get('Tipo depósito', '999')))
+        pos = row_dict.get('Posição no depósito', row_dict.get('Posição', row_dict.get('Posiç', row_dict.get('PosiÃ§', row_dict.get('Pos.', row_dict.get('Pos', ''))))))
+        estq_raw = row_dict.get('Estq.dispon.', row_dict.get('Estoque disponível', row_dict.get('Estoque disponivel', '0')))
+        venc_raw = row_dict.get('Data venc.', row_dict.get('Data do vencimento', row_dict.get('Data vencimento', '')))
+        mov_raw = row_dict.get('Últ.movim.', row_dict.get('Ã\x9Alt.movim.', row_dict.get('Ãšlt.movim.', row_dict.get('Último movimento', row_dict.get('Ultimo movimento', '')))))
+        tp_estq = row_dict.get('T', row_dict.get('Tipo de estoque', row_dict.get('Tipo estoque', '')))
+        entrd_raw = row_dict.get('Últ.entrd.', row_dict.get('Ã\x9Alt.entrd.', row_dict.get('Ãšlt.entrd.', row_dict.get('Última entrada dep.', ''))))
 
         mat_norm = mat.strip().zfill(6)
         lote_norm = re.sub(r'\.0$', '', lote).strip()
@@ -247,19 +247,46 @@ def parse_estoque(path: Path, header_row: int = 3) -> Tuple[List[Dict[str, Any]]
     # Renomear colunas para nomes internos
     df.rename(columns={
         'Texto breve material': 'Descricao_Material',
+        'Texto breve':          'Descricao_Material',
+        'Descrição':            'Descricao_Material',
         'Estoque disponível':   'Estoque_Disponivel',
+        'Estoque disponivel':   'Estoque_Disponivel',
+        'Estq.dispon.':         'Estoque_Disponivel',
         'Data do vencimento':   'Data_Vencimento',
+        'Data vencimento':      'Data_Vencimento',
+        'Data venc.':           'Data_Vencimento',
         'Último movimento':     'Ultimo_Movimento',
+        'Ultimo movimento':     'Ultimo_Movimento',
+        'Últ.movim.':           'Ultimo_Movimento',
         'Tipo de estoque':      'Tipo_Estoque',
+        'Tipo estoque':         'Tipo_Estoque',
+        'T':                    'Tipo_Estoque',
         'Última entrada dep.':  'Data_Entrada',
+        'Ultima entrada dep.':  'Data_Entrada',
+        'Últ.entrd.':           'Data_Entrada',
         'UMB':                  'Unidade_Medida',
+        'Unidade':              'Unidade_Medida',
+        'Posição no depósito':  'Posicao_Deposito',
+        'Posição':              'Posicao_Deposito',
+        'Posicao':              'Posicao_Deposito',
+        'Posiç':                'Posicao_Deposito',
+        'Pos.':                 'Posicao_Deposito',
+        'Pos':                  'Posicao_Deposito',
+        'Tipo de depósito':     'Tipo_Deposito',
+        'Tipo depósito':        'Tipo_Deposito',
+        'Tp.':                  'Tipo_Deposito',
+        'Depósito':             'Deposito',
+        'Dep.':                 'Deposito',
+        'Centro':               'Centro',
+        'Cen.':                 'Centro',
     }, inplace=True)
 
     # Limpeza obrigatória
-    df['Estoque_Disponivel'] = pd.to_numeric(df['Estoque_Disponivel'], errors='coerce').fillna(0.0)
+    df['Estoque_Disponivel'] = pd.to_numeric(df.get('Estoque_Disponivel', 0.0), errors='coerce').fillna(0.0)
 
-    df['Ultimo_Movimento'] = pd.to_datetime(df['Ultimo_Movimento'], errors='coerce')
-    df.dropna(subset=['Ultimo_Movimento'], inplace=True)
+    if 'Ultimo_Movimento' in df.columns:
+        df['Ultimo_Movimento'] = pd.to_datetime(df['Ultimo_Movimento'], errors='coerce')
+        df.dropna(subset=['Ultimo_Movimento'], inplace=True)
 
     if 'Data_Entrada' in df.columns:
         df['Data_Entrada'] = pd.to_datetime(df['Data_Entrada'], errors='coerce')
@@ -268,22 +295,27 @@ def parse_estoque(path: Path, header_row: int = 3) -> Tuple[List[Dict[str, Any]]
 
     hoje = date.today()
     hoje_dt = pd.to_datetime(hoje)
-    df['Dias_Aging'] = (hoje_dt - df['Ultimo_Movimento']).dt.days
+    if 'Ultimo_Movimento' in df.columns:
+        df['Dias_Aging'] = (hoje_dt - df['Ultimo_Movimento']).dt.days
+    else:
+        df['Dias_Aging'] = 0
 
     records: List[Dict[str, Any]] = []
     for _, row in df.iterrows():
         raw_mat = _normalize_int_str(row.get('Material'))
         mat_norm = raw_mat.zfill(6) if raw_mat else ''
+        if not mat_norm or not mat_norm.isdigit():
+            continue
 
         records.append({
             'material':               mat_norm,
             'texto_breve_material':   _clean_str(row.get('Descricao_Material')),
             'unidade_medida':         _clean_str(row.get('Unidade_Medida')) or 'KG',
             'lote':                   _normalize_lote(row.get('Lote')),
-            'centro':                 _normalize_int_str(row.get('Centro')),
-            'deposito':               _normalize_deposito(row.get('Depósito')),
-            'tipo_deposito':          _normalize_deposito(row.get('Tipo de depósito')),
-            'posicao_deposito':       _clean_str(row.get('Posição no depósito')),
+            'centro':                 _normalize_int_str(row.get('Centro', '600')),
+            'deposito':               _normalize_deposito(row.get('Deposito', row.get('Depósito', 'PES'))),
+            'tipo_deposito':          _normalize_deposito(row.get('Tipo_Deposito', row.get('Tipo de depósito', '999'))),
+            'posicao_deposito':       _clean_str(row.get('Posicao_Deposito', row.get('Posição no depósito', ''))),
             'estoque_disponivel':     float(row.get('Estoque_Disponivel', 0.0) or 0.0),
             'data_vencimento':        _format_date(row.get('Data_Vencimento')),
             'ultimo_movimento':       _format_date(row.get('Ultimo_Movimento')),

@@ -45,6 +45,28 @@ export async function POST(request: NextRequest) {
     for (let i = 0; i < data.length; i += batchSize) {
       const batch = data.slice(i, i + batchSize);
       for (const row of batch) {
+        let pos = String(
+          row.posicao_deposito ||
+          (row as any).posicao ||
+          (row as any).pos ||
+          (row as any).Posicao ||
+          (row as any)['Posição no depósito'] ||
+          (row as any)['Posição'] ||
+          (row as any)['Posiç'] ||
+          (row as any)['PosiÃ§'] ||
+          ''
+        ).trim();
+
+        const tipoDep = String(row.tipo_deposito || '').trim();
+        const dep = String(row.deposito || '').trim();
+
+        if (!pos) {
+          if (tipoDep === 'PES' || dep === 'PES') pos = 'PESAGEM';
+          else if (tipoDep === 'DEP' || dep === 'DEP') pos = 'DEVOLUCAO';
+          else if (tipoDep === 'TR-ZONE' || tipoDep === '922') pos = 'TR-ZONE';
+          else if (tipoDep === '999') pos = 'AJUSTE';
+        }
+
         await client.query(
           `INSERT INTO aging_estoque (
             material, texto_breve_material, unidade_medida, lote, centro,
@@ -60,7 +82,7 @@ export async function POST(request: NextRequest) {
             row.centro,
             row.deposito,
             row.tipo_deposito,
-            row.posicao_deposito,
+            pos,
             row.estoque_disponivel,
             row.data_vencimento ?? null,
             row.ultimo_movimento,
@@ -88,9 +110,12 @@ export async function POST(request: NextRequest) {
       if (dias >= 20) itensCriticos++;
       else if (dias >= 7) itensAlerta++;
 
-      const pos = String(item.posicao_deposito || '').toUpperCase();
-      if (pos === 'AJUSTE') itensAjuste++;
-      else if (pos === 'AJU-SAIDA' || pos === 'AJU-SAÍDA') itensAjuSaida++;
+      const pos = String(item.posicao_deposito || '').toUpperCase().trim();
+      const isAjuSaida = pos === 'AJU-SAIDA' || pos === 'AJU-SAÍDA' || pos.includes('AJU-SAIDA') || pos.includes('AJU SAIDA');
+      const isAjuste = (pos === 'AJUSTE' || pos.includes('AJUSTE')) && !isAjuSaida;
+
+      if (isAjuste) itensAjuste++;
+      else if (isAjuSaida) itensAjuSaida++;
     }
     const mediaAging = totalItens > 0 ? somaAging / totalItens : 0;
 

@@ -16,6 +16,7 @@ import {
   ArrowUpRight,
   Minus,
   X,
+  Scale,
 } from 'lucide-react';
 
 function TrendBadge({
@@ -139,6 +140,8 @@ export function AgingFinancial({
   }, [filteredDataByMode, valores]);
 
   const depositoStats = useMemo(() => {
+    let valorPesagem = 0;
+    let itensPesagem = 0;
     let valorAjuste = 0;
     let itensAjuste = 0;
     let valorAjuSaida = 0;
@@ -149,21 +152,40 @@ export function AgingFinancial({
     source.forEach(item => {
       const valor = valores[item.material];
       if (!valor) return;
-      if (item.tipo_deposito !== '999') return;
 
-      const posicao = item.posicao_deposito?.toUpperCase() ?? '';
+      const posicao = (item.posicao_deposito || '').toUpperCase().trim();
+      const tipo = (item.tipo_deposito || '').toUpperCase().trim();
+      const dep = (item.deposito || '').toUpperCase().trim();
       const valorTotal = (item.estoque_disponivel || 0) * valor;
 
-      if (posicao === 'AJUSTE') {
+      const isAjuSaida =
+        posicao === 'AJU-SAIDA' ||
+        posicao === 'AJU-SAÍDA' ||
+        posicao.includes('AJU-SAIDA') ||
+        posicao.includes('AJU SAIDA');
+
+      const isAjuste =
+        (posicao === 'AJUSTE' || posicao.includes('AJUSTE')) &&
+        !isAjuSaida;
+
+      const isPesagem =
+        (tipo === 'PES' || dep === 'PES' || posicao === 'PESAGEM' || posicao === 'PES' || (!posicao && tipo === 'PES')) &&
+        !isAjuste &&
+        !isAjuSaida;
+
+      if (isPesagem) {
+        valorPesagem += valorTotal;
+        itensPesagem++;
+      } else if (isAjuste) {
         valorAjuste += valorTotal;
         itensAjuste++;
-      } else if (posicao === 'AJU-SAIDA') {
+      } else if (isAjuSaida) {
         valorAjuSaida += valorTotal;
         itensAjuSaida++;
       }
     });
 
-    return { valorAjuste, itensAjuste, valorAjuSaida, itensAjuSaida };
+    return { valorPesagem, itensPesagem, valorAjuste, itensAjuste, valorAjuSaida, itensAjuSaida };
   }, [allData, data, valores]);
 
   const tiposDeposito = useMemo(() => {
@@ -476,7 +498,7 @@ export function AgingFinancial({
   return (
     <div className="space-y-3">
       {/* Cards de Estatisticas Financeiras */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
         <Card className="bg-ems-card border border-ems-border text-white shadow-lg">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-0 pt-2.5 px-3">
             <CardTitle className="text-xs font-bold uppercase tracking-wider text-ems-ice">Valor Total</CardTitle>
@@ -491,6 +513,23 @@ export function AgingFinancial({
                 {financialStats.itensComValor} de {financialStats.totalItens} valorados
               </p>
               <TrendBadge current={financialStats.totalValorizado} previous={previousSnapshot?.total_valorizado} lowerIsBetter={false} />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-ems-card border border-ems-border text-white shadow-lg">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-0 pt-2.5 px-3">
+            <CardTitle className="text-xs font-bold uppercase tracking-wider text-ems-ice">Valorização PESAGEM</CardTitle>
+            <div className="p-1.5 bg-ems-navy rounded-lg border border-ems-border text-ems-ice">
+              <Scale className="h-3.5 w-3.5" />
+            </div>
+          </CardHeader>
+          <CardContent className="pb-2.5 px-3">
+            <div className="text-lg font-black text-ems-ice font-mono leading-tight">{formatCurrency(depositoStats.valorPesagem)}</div>
+            <div className="flex items-center justify-between mt-1">
+              <p className="text-[10px] text-ems-steel">
+                {depositoStats.itensPesagem} iten{depositoStats.itensPesagem !== 1 ? 's' : ''} valorado{depositoStats.itensPesagem !== 1 ? 's' : ''}
+              </p>
             </div>
           </CardContent>
         </Card>
