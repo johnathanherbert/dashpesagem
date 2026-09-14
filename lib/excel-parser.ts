@@ -88,7 +88,23 @@ export function parseTextFile(file: File): Promise<AgingData[]> {
           const cen = String(getRowVal(row, 'Cen.', 'Centro', 'Cen') || '600').replace(/\.0$/, '').trim();
           let dep = String(getRowVal(row, 'Dep.', 'Depósito', 'Deposito', 'Dep') || 'PES').trim();
           let tp = String(getRowVal(row, 'Tp.', 'Tipo de depósito', 'Tipo depósito', 'Tipo deposito', 'Tp') || '999').trim();
-          const pos = String(getRowVal(row, 'Posição no depósito', 'Posição', 'Posicao', 'Posiç', 'PosiÃ§', 'Pos.', 'Pos', 'Pos. depósito', 'Pos.depósito', 'Posicao no deposito') || '').trim();
+          let pos = String(getRowVal(row, 'PosDepósit', 'PosDepÃ³sit', 'PosDep', 'Pos.depósito', 'Posição no depósito', 'Posição', 'Posicao', 'Posiç', 'PosiÃ§', 'Pos.', 'Pos', 'Pos. depósito', 'Posicao no deposito') || '').trim();
+          
+          if (!pos) {
+            const rowKeys = Object.keys(row);
+            const posKey = rowKeys.find(k => k.toLowerCase().trim().startsWith('pos') || k.toLowerCase().trim().includes('posdep'));
+            if (posKey && row[posKey]) {
+              pos = String(row[posKey]).trim();
+            }
+          }
+
+          if (!pos) {
+            if (tp === 'PES') pos = 'PESAGEM';
+            else if (tp === 'DEP' || dep === 'DEP') pos = 'DEVOLUCAO';
+            else if (tp === 'TR-ZONE' || tp === '922') pos = 'TR-ZONE';
+            else if (tp === '999') pos = 'AJUSTE';
+          }
+
           const estqRaw = getRowVal(row, 'Estq.dispon.', 'Estoque disponível', 'Estoque disponivel', 'Estq. dispon.', 'Estoque');
           const vencRaw = getRowVal(row, 'Data venc.', 'Data do vencimento', 'Data vencimento', 'Vencimento');
           const movRaw = getRowVal(row, 'Últ.movim.', 'Ã\x9Alt.movim.', 'Ãšlt.movim.', 'Último movimento', 'Ultimo movimento', 'Ult.movim.');
@@ -218,10 +234,25 @@ export function parseExcelFile(file: File): Promise<AgingData[]> {
             const centro = String(getRowVal(row, 'Centro', 'Cen.', 'Cen', 'centro') || '600').trim().replace(/\.0$/, '');
             let deposito = String(getRowVal(row, 'Depósito', 'Deposito', 'Dep.', 'dep', 'deposito') || 'PES').trim().replace(/\.0$/, '');
             let tipoDeposito = String(getRowVal(row, 'Tipo de depósito', 'Tipo depósito', 'Tipo deposito', 'Tp.', 'tp', 'tipo_deposito', 'Tipo de deposito') || '999').trim().replace(/\.0$/, '');
-            const posicaoDeposito = String(getRowVal(row, 'Posição no depósito', 'Posição', 'Posicao', 'Posiç', 'PosiÃ§', 'Pos.', 'Pos', 'Pos. depósito', 'Pos.depósito', 'Posicao no deposito') || '').trim();
+            let posicaoDeposito = String(getRowVal(row, 'PosDepósit', 'PosDepÃ³sit', 'PosDep', 'Pos.depósito', 'Posição no depósito', 'Posição', 'Posicao', 'Posiç', 'PosiÃ§', 'Pos.', 'Pos', 'Pos. depósito', 'Posicao no deposito') || '').trim();
             
+            if (!posicaoDeposito) {
+              const rowKeys = Object.keys(row);
+              const posKey = rowKeys.find(k => k.toLowerCase().trim().startsWith('pos') || k.toLowerCase().trim().includes('posdep'));
+              if (posKey && row[posKey]) {
+                posicaoDeposito = String(row[posKey]).trim();
+              }
+            }
+
             if (deposito === '922') deposito = 'TR-ZONE';
             if (tipoDeposito === '922') tipoDeposito = 'TR-ZONE';
+
+            if (!posicaoDeposito) {
+              if (tipoDeposito === 'PES') posicaoDeposito = 'PESAGEM';
+              else if (tipoDeposito === 'DEP' || deposito === 'DEP') posicaoDeposito = 'DEVOLUCAO';
+              else if (tipoDeposito === 'TR-ZONE' || tipoDeposito === '922') posicaoDeposito = 'TR-ZONE';
+              else if (tipoDeposito === '999') posicaoDeposito = 'AJUSTE';
+            }
 
             // Estoque disponível (peso)
             const rawEstq = getRowVal(row, 'Estoque disponível', 'Estoque disponivel', 'Estq.dispon.', 'Estq. dispon.', 'Estq dispon', 'Estoque', 'Qtd', 'Quantidade');

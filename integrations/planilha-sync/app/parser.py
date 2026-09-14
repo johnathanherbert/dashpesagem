@@ -183,19 +183,13 @@ def _parse_estoque_txt(path: Path) -> Tuple[List[Dict[str, Any]], date]:
         pos = ''
         for key, val in row_dict.items():
             k_lower = key.lower().strip()
-            if 'posi' in k_lower or k_lower in ('pos', 'pos.', 'posiç', 'posiã§'):
+            if k_lower.startswith('pos') or 'posi' in k_lower or 'posdep' in k_lower or k_lower in ('pos', 'pos.', 'posiç', 'posiã§'):
                 candidate = _clean_str(val)
                 if candidate:
                     pos = candidate
                     break
         if not pos:
-            pos = row_dict.get('Posição no depósito', row_dict.get('Posição', row_dict.get('Posiç', row_dict.get('PosiÃ§', row_dict.get('Pos.', row_dict.get('Pos', ''))))))
-
-        estq_raw = row_dict.get('Estq.dispon.', row_dict.get('Estoque disponível', row_dict.get('Estoque disponivel', '0')))
-        venc_raw = row_dict.get('Data venc.', row_dict.get('Data do vencimento', row_dict.get('Data vencimento', '')))
-        mov_raw = row_dict.get('Últ.movim.', row_dict.get('Ã\x9Alt.movim.', row_dict.get('Ãšlt.movim.', row_dict.get('Último movimento', row_dict.get('Ultimo movimento', '')))))
-        tp_estq = row_dict.get('T', row_dict.get('Tipo de estoque', row_dict.get('Tipo estoque', '')))
-        entrd_raw = row_dict.get('Últ.entrd.', row_dict.get('Ã\x9Alt.entrd.', row_dict.get('Ãšlt.entrd.', row_dict.get('Última entrada dep.', ''))))
+            pos = row_dict.get('PosDepósit', row_dict.get('PosDepÃ³sit', row_dict.get('PosDep', row_dict.get('Posição no depósito', row_dict.get('Posição', row_dict.get('Posiç', row_dict.get('PosiÃ§', row_dict.get('Pos.', row_dict.get('Pos', '')))))))))
 
         mat_norm = mat.strip().zfill(6)
         lote_norm = re.sub(r'\.0$', '', lote).strip()
@@ -210,14 +204,25 @@ def _parse_estoque_txt(path: Path) -> Tuple[List[Dict[str, Any]], date]:
             tipo_dep_norm = 'TR-ZONE'
 
         if not pos:
-            if tipo_dep_norm == 'PES' or dep_norm == 'PES':
+            if tipo_dep_norm == 'PES':
                 pos = 'PESAGEM'
-            elif tipo_dep_norm == 'DEP' or dep_norm == 'DEP':
+            elif tipo_dep_norm == 'DEP':
                 pos = 'DEVOLUCAO'
             elif tipo_dep_norm in ('TR-ZONE', '922'):
                 pos = 'TR-ZONE'
             elif tipo_dep_norm == '999':
                 pos = 'AJUSTE'
+
+        estq_raw = row_dict.get('Estq.dispon.', row_dict.get('Estoque disponível', row_dict.get('Estoque disponivel', row_dict.get('Estq. dispon.', ''))))
+        if not estq_raw:
+            for k, v in row_dict.items():
+                if 'estq' in k.lower() or 'estoque' in k.lower():
+                    estq_raw = v
+                    break
+        venc_raw = row_dict.get('Data venc.', row_dict.get('Data do vencimento', row_dict.get('Data vencimento', '')))
+        mov_raw = row_dict.get('Últ.movim.', row_dict.get('Ã\x9Alt.movim.', row_dict.get('Ãšlt.movim.', row_dict.get('Último movimento', row_dict.get('Ultimo movimento', '')))))
+        tp_estq = row_dict.get('T', row_dict.get('Tipo de estoque', ''))
+        entrd_raw = row_dict.get('Últ.entrd.', row_dict.get('Ã\x9Alt.entrd.', row_dict.get('Ãšlt.entrd.', row_dict.get('Última entrada dep.', ''))))
 
         estq_disp = parse_float_br(estq_raw)
         venc_str, _ = parse_date_br(venc_raw)
@@ -302,6 +307,9 @@ def parse_estoque(path: Path, header_row: int = 3) -> Tuple[List[Dict[str, Any]]
         'Posição':              'Posicao_Deposito',
         'Posicao':              'Posicao_Deposito',
         'Posiç':                'Posicao_Deposito',
+        'PosDepósit':           'Posicao_Deposito',
+        'PosDepÃ³sit':          'Posicao_Deposito',
+        'PosDep':               'Posicao_Deposito',
         'Pos.':                 'Posicao_Deposito',
         'Pos':                  'Posicao_Deposito',
         'Tipo de depósito':     'Tipo_Deposito',
@@ -342,19 +350,19 @@ def parse_estoque(path: Path, header_row: int = 3) -> Tuple[List[Dict[str, Any]]
         pos_clean = ''
         for col_name in row.index:
             c_str = str(col_name).strip().lower()
-            if 'posi' in c_str or c_str in ('pos', 'pos.', 'posiç', 'posiã§'):
+            if c_str.startswith('pos') or 'posdep' in c_str or 'posi' in c_str or c_str in ('pos', 'pos.', 'posiç', 'posiã§'):
                 val_candidate = _clean_str(row.get(col_name))
                 if val_candidate:
                     pos_clean = val_candidate
                     break
         if not pos_clean:
-            pos_clean = _clean_str(row.get('Posicao_Deposito', row.get('Posição no depósito', row.get('Posição', row.get('Posiç', '')))))
+            pos_clean = _clean_str(row.get('Posicao_Deposito', row.get('PosDepósit', row.get('PosDepÃ³sit', row.get('PosDep', row.get('Posição no depósito', row.get('Posição', row.get('Posiç', ''))))))))
 
         dep_val = _normalize_deposito(row.get('Deposito', row.get('Depósito', 'PES')))
         tp_val = _normalize_deposito(row.get('Tipo_Deposito', row.get('Tipo de depósito', '999')))
 
         if not pos_clean:
-            if tp_val == 'PES' or dep_val == 'PES':
+            if tp_val == 'PES':
                 pos_clean = 'PESAGEM'
             elif tp_val == 'DEP' or dep_val == 'DEP':
                 pos_clean = 'DEVOLUCAO'

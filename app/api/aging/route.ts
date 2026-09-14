@@ -50,6 +50,10 @@ export async function POST(request: NextRequest) {
           (row as any).posicao ||
           (row as any).pos ||
           (row as any).Posicao ||
+          (row as any)['PosDepósit'] ||
+          (row as any)['PosDepÃ³sit'] ||
+          (row as any)['PosDep'] ||
+          (row as any)['Pos.depósito'] ||
           (row as any)['Posição no depósito'] ||
           (row as any)['Posição'] ||
           (row as any)['Posiç'] ||
@@ -61,7 +65,7 @@ export async function POST(request: NextRequest) {
         const dep = String(row.deposito || '').trim();
 
         if (!pos) {
-          if (tipoDep === 'PES' || dep === 'PES') pos = 'PESAGEM';
+          if (tipoDep === 'PES') pos = 'PESAGEM';
           else if (tipoDep === 'DEP' || dep === 'DEP') pos = 'DEVOLUCAO';
           else if (tipoDep === 'TR-ZONE' || tipoDep === '922') pos = 'TR-ZONE';
           else if (tipoDep === '999') pos = 'AJUSTE';
