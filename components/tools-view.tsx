@@ -49,6 +49,58 @@ interface SimulatedItem {
   valorTotal: number;
 }
 
+/**
+ * Converte qualquer string numérica (formato brasileiro '1.250,50' ou '150,5'
+ * ou formato americano/puro '1250.50' ou '150.5') em number float seguro.
+ */
+function parseFlexibleNumber(input: string | number | null | undefined): number {
+  if (input === null || input === undefined) return 0;
+  if (typeof input === 'number') return isNaN(input) ? 0 : input;
+
+  let s = String(input).trim();
+  if (!s) return 0;
+
+  // Remove caracteres de moeda ou espaços
+  s = s.replace(/[R$\s]/g, '');
+
+  const hasComma = s.includes(',');
+  const hasDot = s.includes('.');
+
+  if (hasComma && hasDot) {
+    const lastComma = s.lastIndexOf(',');
+    const lastDot = s.lastIndexOf('.');
+    if (lastComma > lastDot) {
+      // Formato PT-BR: 1.250,50 -> remove todos os pontos, troca vírgula por ponto
+      s = s.replace(/\./g, '').replace(',', '.');
+    } else {
+      // Formato EN: 1,250.50 -> remove todas as vírgulas
+      s = s.replace(/,/g, '');
+    }
+  } else if (hasComma) {
+    // Apenas vírgula: 150,5 ou 1250,50 -> troca vírgula por ponto
+    s = s.replace(',', '.');
+  } else if (hasDot) {
+    // Apenas ponto: se tiver mais de um ponto (ex: 1.000.000): é separador de milhar
+    const dotCount = (s.match(/\./g) || []).length;
+    if (dotCount > 1) {
+      s = s.replace(/\./g, '');
+    }
+    // Se tiver apenas um ponto, mantém como decimal (ex: 150.5 ou 12.345)
+  }
+
+  const result = parseFloat(s);
+  return isNaN(result) ? 0 : result;
+}
+
+/**
+ * Formata um número para inserção amigável no input (padrão brasileiro com vírgula)
+ */
+function formatForInput(val: number): string {
+  if (!val || isNaN(val)) return '0';
+  if (Number.isInteger(val)) return String(val);
+  return String(val).replace('.', ',');
+}
+
 export function ToolsView({ agingData, valores }: ToolsViewProps) {
   const [selectedTool, setSelectedTool] = useState<'valorizar-mp' | 'lista-tecnica'>('valorizar-mp');
 
@@ -143,8 +195,9 @@ export function ToolsView({ agingData, valores }: ToolsViewProps) {
 
   // Valor unitário efetivo (permite override manual se não cadastrado)
   const effectiveUnitValue = useMemo(() => {
-    if (customPriceInput && !isNaN(parseFloat(customPriceInput.replace(',', '.')))) {
-      return parseFloat(customPriceInput.replace(',', '.'));
+    if (customPriceInput && customPriceInput.trim()) {
+      const parsed = parseFlexibleNumber(customPriceInput);
+      if (parsed > 0) return parsed;
     }
     return registeredUnitValue;
   }, [customPriceInput, registeredUnitValue]);
@@ -164,12 +217,10 @@ export function ToolsView({ agingData, valores }: ToolsViewProps) {
     );
   }, [normalizedMaterial, materialInfoMap]);
 
-  // Quantidade numérica
+  // Quantidade numérica com parsing flexível (, e .)
   const parsedQuantity = useMemo(() => {
-    if (!quantidadeInput) return 0;
-    const clean = quantidadeInput.replace(/\./g, '').replace(',', '.');
-    const val = parseFloat(clean);
-    return isNaN(val) ? 0 : val;
+    if (!quantidadeInput || !quantidadeInput.trim()) return 0;
+    return parseFlexibleNumber(quantidadeInput);
   }, [quantidadeInput]);
 
   // Valor total calculado
@@ -200,7 +251,7 @@ export function ToolsView({ agingData, valores }: ToolsViewProps) {
     setCustomPriceInput('');
     const info = materialInfoMap[mat.padStart(6, '0')] || materialInfoMap[mat.replace(/^0+/, '')];
     if (info && info.estoquePES > 0) {
-      setQuantidadeInput(String(info.estoquePES));
+      setQuantidadeInput(formatForInput(info.estoquePES));
     }
   };
 
@@ -318,7 +369,7 @@ export function ToolsView({ agingData, valores }: ToolsViewProps) {
       materialInfoMap[cleanMat.replace(/^0+/, '')];
     const estoquePes = info?.estoquePES || 0;
 
-    setQuantidadeInput(estoquePes > 0 ? String(estoquePes) : '0');
+    setQuantidadeInput(estoquePes > 0 ? formatForInput(estoquePes) : '0');
     setSelectedTool('valorizar-mp');
 
     if (estoquePes > 0) {
@@ -583,21 +634,18 @@ export function ToolsView({ agingData, valores }: ToolsViewProps) {
 
                   {/* Campo 2: Quantidade */}
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-slate-200 flex items-center justify-between">
+                    <div className="flex items-center justify-between text-xs font-semibold text-slate-200">
                       <span>Quantidade a Valorizar ({currentMaterialInfo?.unidade || 'KG'})</span>
-                      {currentMaterialInfo && currentMaterialInfo.estoquePES > 0 && (
-                        <button
-                          type="button"
-                          onClick={() => setQuantidadeInput(String(currentMaterialInfo.estoquePES))}
-                          className="text-[10px] text-emerald-400 font-bold hover:underline"
-                        >
-                          Usar Estoque PES ({formatNumber(currentMaterialInfo.estoquePES)})
-                        </button>
+                      {parsedQuantity > 0 && (
+                        <span className="text-[11px] text-emerald-400 font-mono font-bold">
+                          = {formatNumber(parsedQuantity)} {currentMaterialInfo?.unidade || 'KG'}
+                        </span>
                       )}
-                    </label>
+                    </div>
+
                     <Input
                       type="text"
-                      placeholder="Ex: 50,00 ou 1250"
+                      placeholder="Ex: 50,00 ou 150.5 ou 1.250,50"
                       value={quantidadeInput}
                       onChange={(e) => setQuantidadeInput(e.target.value)}
                       className="bg-[#1B3550] border-[#2A4D6E] text-white font-mono text-sm placeholder:text-slate-500 focus:border-[#AEE4FF] focus:ring-1 focus:ring-[#AEE4FF]"
@@ -608,7 +656,7 @@ export function ToolsView({ agingData, valores }: ToolsViewProps) {
                       {currentMaterialInfo && currentMaterialInfo.estoquePES > 0 && (
                         <button
                           type="button"
-                          onClick={() => setQuantidadeInput(String(currentMaterialInfo.estoquePES))}
+                          onClick={() => setQuantidadeInput(formatForInput(currentMaterialInfo.estoquePES))}
                           className="px-2 py-0.5 rounded bg-emerald-500/20 border border-emerald-500/40 text-[10px] font-mono font-bold text-emerald-300 hover:bg-emerald-500/30 transition-colors"
                         >
                           Tudo em PES ({formatNumber(currentMaterialInfo.estoquePES)})
@@ -639,7 +687,7 @@ export function ToolsView({ agingData, valores }: ToolsViewProps) {
                       </p>
                       <Input
                         type="text"
-                        placeholder="Ex: 24,50"
+                        placeholder="Ex: 24,50 ou 24.50"
                         value={customPriceInput}
                         onChange={(e) => setCustomPriceInput(e.target.value)}
                         className="bg-[#13283E] border-amber-500/30 text-white font-mono text-xs focus:border-amber-400"
