@@ -4,7 +4,18 @@ import { useState, useEffect, useRef } from 'react';
 import toast from 'react-hot-toast';
 import { AgingData, RemessaData, ConfiguracaoResiduais } from '@/types/aging';
 import { isMaterialEspecial } from '@/lib/materiais-especiais';
-import { fetchAgingData, fetchMaterialValores, fetchRemessas, fetchConfiguracaoResiduais, fetchDashboardHistorico, fetchLotesInvestigacao, LoteInvestigacao, DashboardSnapshot } from '@/lib/api';
+import {
+  fetchAgingData,
+  fetchMaterialValores,
+  fetchRemessas,
+  fetchConfiguracaoResiduais,
+  fetchDashboardHistorico,
+  fetchLotesInvestigacao,
+  triggerSapAutomation,
+  checkSapAutomationStatus,
+  LoteInvestigacao,
+  DashboardSnapshot,
+} from '@/lib/api';
 import { AgingStats } from '@/components/aging-stats';
 import { AgingFinancial } from '@/components/aging-financial';
 import { OnepageView } from '@/components/onepage-view';
@@ -100,6 +111,57 @@ export default function Home() {
       if (showLoadingSpinner) {
         setLoading(false);
       }
+    }
+  };
+
+  const [isAtualizandoDb, setIsAtualizandoDb] = useState(false);
+
+  const handleAtualizarDb = async () => {
+    if (isAtualizandoDb) return;
+    setIsAtualizandoDb(true);
+    const toastId = toast.loading('Enviando solicitação de extração de relatório para o Planilha Sync...');
+
+    try {
+      const res = await triggerSapAutomation('extrair_relatorio', user?.email || userData?.email || 'Dashboard');
+      if (!res.success || !res.job) {
+        toast.error(`Falha ao disparar extração: ${res.error || 'Erro desconhecido'}`, { id: toastId });
+        setIsAtualizandoDb(false);
+        return;
+      }
+
+      const jobId = res.job.id;
+      toast.loading('Planilha Sync executando extração de relatório e sincronização...', { id: toastId });
+
+      let attempts = 0;
+      const maxAttempts = 60; // até 120s
+      const interval = setInterval(async () => {
+        attempts++;
+        try {
+          const statusJob = await checkSapAutomationStatus(jobId);
+          if (statusJob?.status === 'completed') {
+            clearInterval(interval);
+            setIsAtualizandoDb(false);
+            toast.success('Relatório extraído e banco de dados atualizado com sucesso!', { id: toastId, icon: '🚀' });
+            loadData(false);
+          } else if (statusJob?.status === 'failed') {
+            clearInterval(interval);
+            setIsAtualizandoDb(false);
+            toast.error(`Falha na extração: ${statusJob.result_message || 'Erro no script'}`, { id: toastId });
+          } else if (attempts >= maxAttempts) {
+            clearInterval(interval);
+            setIsAtualizandoDb(false);
+            toast('Tempo limite aguardando o Planilha Sync. Verifique se o app está aberto.', { id: toastId, icon: '⚠️' });
+          }
+        } catch (e) {
+          if (attempts >= maxAttempts) {
+            clearInterval(interval);
+            setIsAtualizandoDb(false);
+          }
+        }
+      }, 2000);
+    } catch (err: any) {
+      toast.error(`Erro: ${err?.message || err}`, { id: toastId });
+      setIsAtualizandoDb(false);
     }
   };
 
@@ -253,6 +315,8 @@ export default function Home() {
           activeTab={activeTab}
           onTabChange={handleTabChange}
           onOpenUpload={() => setUploadModalOpen(true)}
+          onAtualizarDb={handleAtualizarDb}
+          isAtualizandoDb={isAtualizandoDb}
           lastUpdate={lastUpdate}
         />
 
@@ -519,6 +583,8 @@ export default function Home() {
                   lotesInvestigacao={lotesInvestigacao}
                   onInvestigacaoChange={loadInvestigacaoOnly}
                   currentUserEmail={user?.email || userData?.email}
+                  onAtualizarDb={handleAtualizarDb}
+                  isAtualizandoDb={isAtualizandoDb}
                 />
               </TabsContent>
 

@@ -14,6 +14,7 @@ import threading
 import tempfile
 import time
 from pathlib import Path
+from typing import Tuple, Optional
 
 # ---------------------------------------------------------------------------
 # PyInstaller: BASE_DIR (arquivos bundled) vs EXE_DIR (pasta do .exe)
@@ -284,13 +285,40 @@ def main() -> None:
     # Iniciar Worker de Automações SAP (recebe solicitações sob demanda do dashboard)
     def _on_sap_automation_success():
         logger.info("Automação SAP concluída com sucesso. Disparando sincronização/extração de dados...")
-        # Dispara extração VBA se disponível, ou força varredura de arquivos
         if vba_scheduler.config.enabled:
             vba_scheduler.run_once(notify_user=False)
         else:
             watcher.force_sync_all()
 
-    sap_worker = SapAutomationWorker(poll_interval=4.0, on_success_trigger=_on_sap_automation_success)
+    def _handle_sap_command(cmd: str, script_code: Optional[str]) -> Tuple[bool, str]:
+        cmd_norm = cmd.lower().strip()
+        if cmd_norm in ('extrair_relatorio', 'atualizar_db', 'sync_db', 'extrair'):
+            logger.info("Extração de relatório / atualização do DB solicitada pelo dashboard...")
+            if script_code:
+                from app.sap_runner import run_sap_vbs_script
+                ok, msg = run_sap_vbs_script(script_code)
+                if not ok:
+                    return False, msg
+            elif vba_scheduler.config.enabled:
+                ok, msg = vba_scheduler.run_once(notify_user=True)
+                if not ok:
+                    return False, msg
+            else:
+                synced = watcher.force_sync_all()
+                return True, f"Sincronização concluída ({synced} arquivo(s))"
+
+            synced = watcher.force_sync_all()
+            return True, f"Relatório extraído e {synced} arquivo(s) sincronizados com sucesso"
+
+        from app.sap_runner import run_sap_vbs_script, DEFAULT_MOVERMIGO_SCRIPT
+        vbs_code = script_code or DEFAULT_MOVERMIGO_SCRIPT
+        return run_sap_vbs_script(vbs_code)
+
+    sap_worker = SapAutomationWorker(
+        poll_interval=4.0,
+        on_success_trigger=_on_sap_automation_success,
+        command_handler=_handle_sap_command,
+    )
     sap_worker.start()
 
     # Iniciar Auto-Updater (busca novas versões compiladas no GitHub)

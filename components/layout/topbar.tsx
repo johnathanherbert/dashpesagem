@@ -23,6 +23,9 @@ import {
   AlertTriangle,
   Upload,
   Wrench,
+  RefreshCw,
+  Database,
+  Loader2,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
@@ -32,6 +35,8 @@ interface TopbarProps {
   activeTab?: string;
   onTabChange?: (tab: string) => void;
   onOpenUpload?: () => void;
+  onAtualizarDb?: () => void;
+  isAtualizandoDb?: boolean;
   lastUpdate?: string | Date | null;
 }
 
@@ -40,6 +45,8 @@ export function Topbar({
   activeTab = 'financial',
   onTabChange,
   onOpenUpload,
+  onAtualizarDb,
+  isAtualizandoDb = false,
   lastUpdate,
 }: TopbarProps) {
   const { user, userData, signOut } = useFirebase();
@@ -184,6 +191,29 @@ export function Topbar({
             <Clock className="w-3.5 h-3.5 text-[#AEE4FF]" />
             <span>{time}</span>
           </div>
+        )}
+
+        {/* Botão Atualizar DB (dispara extração no Planilha Sync) */}
+        {onAtualizarDb && (
+          <Button
+            size="sm"
+            onClick={onAtualizarDb}
+            disabled={isAtualizandoDb}
+            className="h-8 text-xs font-bold gap-1.5 bg-[#1B3550] border border-[#2A4D6E] hover:bg-[#234465] text-[#AEE4FF] hover:text-white shadow-xs transition-all"
+            title="Solicitar extração de relatório e atualização do banco de dados ao Planilha Sync"
+          >
+            {isAtualizandoDb ? (
+              <>
+                <Loader2 className="h-3.5 w-3.5 animate-spin text-[#AEE4FF]" />
+                <span className="hidden sm:inline">Atualizando...</span>
+              </>
+            ) : (
+              <>
+                <RefreshCw className="h-3.5 w-3.5 text-[#AEE4FF]" />
+                <span className="hidden sm:inline">Atualizar DB</span>
+              </>
+            )}
+          </Button>
         )}
 
         {/* Botão de Upload */}

@@ -110,16 +110,18 @@ def run_sap_vbs_script(vbs_content: str, timeout_seconds: int = 120) -> Tuple[bo
 class SapAutomationWorker:
     """
     Worker em background que consulta periodicamente a API do dashboard por
-    comandos de automação SAP pendentes (ex: movermigo / mover ajuste).
+    comandos de automação SAP pendentes (ex: movermigo / mover ajuste / extrair relatório).
     """
 
     def __init__(
         self,
         poll_interval: float = 4.0,
         on_success_trigger: Optional[Callable[[], None]] = None,
+        command_handler: Optional[Callable[[str, Optional[str]], Tuple[bool, str]]] = None,
     ):
         self.poll_interval = poll_interval
         self.on_success_trigger = on_success_trigger
+        self.command_handler = command_handler
         self._stop_event = threading.Event()
         self._thread: Optional[threading.Thread] = None
 
@@ -152,11 +154,12 @@ class SapAutomationWorker:
                         f"Executando comando '{command}' solicitado por {requested_by}..."
                     )
 
-                    # Seleciona o script adequado
-                    vbs_code = job.get('script_code') or DEFAULT_MOVERMIGO_SCRIPT
-
-                    # Executa no SAP GUI
-                    ok, msg = run_sap_vbs_script(vbs_code)
+                    # Executa via command_handler personalizado ou executa VBScript padrão
+                    if self.command_handler:
+                        ok, msg = self.command_handler(command, job.get('script_code'))
+                    else:
+                        vbs_code = job.get('script_code') or DEFAULT_MOVERMIGO_SCRIPT
+                        ok, msg = run_sap_vbs_script(vbs_code)
 
                     status = 'completed' if ok else 'failed'
                     db.complete_sap_automation(job_id, status=status, message=msg)

@@ -63,6 +63,7 @@ import {
   Loader2,
   Play,
   Lock,
+  RefreshCw,
 } from 'lucide-react';
 import { AgingData, RemessaData, ConfiguracaoResiduais, AgingTableRow, NivelResidual } from '@/types/aging';
 import { enriquecerAgingComAnalise } from '@/lib/residuais-analyzer';
@@ -211,6 +212,8 @@ interface ResiduaisViewProps {
   currentUserEmail?: string;
   selectedCriticality?: string | null;
   onCriticalityChange?: (crit: string | null) => void;
+  onAtualizarDb?: () => void;
+  isAtualizandoDb?: boolean;
 }
 
 // Column filter widget
@@ -391,6 +394,8 @@ export function ResiduaisView({
   currentUserEmail,
   selectedCriticality,
   onCriticalityChange,
+  onAtualizarDb,
+  isAtualizandoDb,
 }: ResiduaisViewProps) {
   const [analysisMode, setAnalysisMode] = useState(false);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
@@ -1330,6 +1335,29 @@ export function ResiduaisView({
           <Copy className="h-4 w-4 mr-2" />
           {copiedDevolver ? 'Copiado Devolver!' : 'Devolver'}
         </Button>
+
+        {onAtualizarDb && (
+          <Button
+            variant="default"
+            size="sm"
+            onClick={onAtualizarDb}
+            disabled={isAtualizandoDb}
+            className="bg-[#1B3550] border border-[#2A4D6E] hover:bg-[#234465] text-[#AEE4FF] hover:text-white shadow-md transition-all duration-300 font-bold gap-1.5"
+            title="Solicitar extração de relatório e atualização do banco de dados ao Planilha Sync"
+          >
+            {isAtualizandoDb ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin text-[#AEE4FF]" />
+                <span>Atualizando DB...</span>
+              </>
+            ) : (
+              <>
+                <RefreshCw className="h-4 w-4 text-[#AEE4FF]" />
+                <span>Atualizar DB</span>
+              </>
+            )}
+          </Button>
+        )}
 
         <Badge variant="outline" className="shrink-0 bg-[#1B3550] text-[#AEE4FF] border-[#2A4D6E] text-xs font-mono font-bold px-2.5 py-1 rounded-lg">
           {filteredCount} de {displayData.length} registros
