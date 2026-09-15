@@ -68,21 +68,17 @@ import { AgingData, RemessaData, ConfiguracaoResiduais, AgingTableRow, NivelResi
 import { enriquecerAgingComAnalise } from '@/lib/residuais-analyzer';
 import { cn, copyToClipboard } from '@/lib/utils';
 
-// Helper para gerar o VBScript dinâmico de bloqueio MIGO (Y84) para o SAP GUI
-export function generateBloquearMigoVbs(params: {
+// Helper para gerar o VBScript dinâmico de bloqueio MIGO (Y84) para o SAP GUI (1 ou múltiplos itens)
+export interface BloquearItemParam {
   material: string;
   lote: string;
   quantidade: string;
   unidade: string;
-}): string {
-  const { material, lote, quantidade, unidade } = params;
-  const matTrimmed = material.trim();
-  const loteTrimmed = lote.trim();
-  const qtdTrimmed = quantidade.trim();
-  const unitTrimmed = (unidade.trim() || 'KG').toUpperCase();
-  const caretPos = Math.max(1, loteTrimmed.length);
+  descricao?: string;
+}
 
-  return `If Not IsObject(application) Then
+export function generateBloquearMigoVbs(items: BloquearItemParam[]): string {
+  const vbsHeader = `If Not IsObject(application) Then
    Set SapGuiAuto  = GetObject("SAPGUI")
    Set application = SapGuiAuto.GetScriptingEngine
 End If
@@ -97,7 +93,16 @@ If IsObject(WScript) Then
    WScript.ConnectObject application, "on"
 End If
 session.findById("wnd[0]").maximize
-session.findById("wnd[0]/tbar[0]/okcd").text = "/nmigo"
+`;
+
+  const itemsBlocks = items.map((item) => {
+    const matTrimmed = item.material.trim();
+    const loteTrimmed = item.lote.trim();
+    const qtdTrimmed = item.quantidade.trim();
+    const unitTrimmed = (item.unidade.trim() || 'KG').toUpperCase();
+    const caretPos = Math.max(1, loteTrimmed.length);
+
+    return `session.findById("wnd[0]/tbar[0]/okcd").text = "/nmigo"
 session.findById("wnd[0]").sendVKey 0
 session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_FIRSTLINE:SAPLMIGO:0011/ctxtGODEFAULT_TV-BWART").text = "y84"
 session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_FIRSTLINE:SAPLMIGO:0011/ctxtGODEFAULT_TV-BWART").setFocus
@@ -120,8 +125,10 @@ session.findById("wnd[0]/tbar[1]/btn[7]").press
 session.findById("wnd[0]/tbar[1]/btn[23]").press
 session.findById("wnd[0]/tbar[0]/okcd").text = "/nlt06"
 session.findById("wnd[0]").sendVKey 0
-session.findById("wnd[0]").sendVKey 0
-`;
+session.findById("wnd[0]").sendVKey 0`;
+  }).join('\n');
+
+  return vbsHeader + itemsBlocks;
 }
 
 // Custom filter for numeric range [min, max]
@@ -409,11 +416,7 @@ export function ResiduaisView({
   const [isMoverAjusteRunning, setIsMoverAjusteRunning] = useState(false);
   const [moverAjusteConfirmOpen, setMoverAjusteConfirmOpen] = useState(false);
   const [bloquearMigoOpen, setBloquearMigoOpen] = useState(false);
-  const [bloquearMaterial, setBloquearMaterial] = useState('');
-  const [bloquearDescricao, setBloquearDescricao] = useState('');
-  const [bloquearLote, setBloquearLote] = useState('');
-  const [bloquearQuantidade, setBloquearQuantidade] = useState('');
-  const [bloquearUnidade, setBloquearUnidade] = useState('KG');
+  const [bloquearSelectedItems, setBloquearSelectedItems] = useState<BloquearItemParam[]>([]);
   const [isBloquearMigoRunning, setIsBloquearMigoRunning] = useState(false);
 
   const lotesInvestigacaoSet = useMemo(() => {
@@ -955,44 +958,58 @@ export function ResiduaisView({
 
   const handleOpenBloquearMigo = () => {
     const selectedRows = table.getFilteredSelectedRowModel().rows;
-    if (selectedRows.length !== 1) return;
+    if (selectedRows.length === 0) return;
 
-    const selected = selectedRows[0].original;
-    const quantidadeTabela = selected.estoque_disponivel.toLocaleString('pt-BR', {
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 3,
-      useGrouping: false,
+    const items: BloquearItemParam[] = selectedRows.map((row) => {
+      const selected = row.original;
+      const quantidadeTabela = selected.estoque_disponivel.toLocaleString('pt-BR', {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 3,
+        useGrouping: false,
+      });
+      return {
+        material: selected.material,
+        descricao: selected.texto_breve_material || '',
+        lote: selected.lote,
+        quantidade: quantidadeTabela,
+        unidade: selected.unidade_medida?.toUpperCase() || 'KG',
+      };
     });
 
-    setBloquearMaterial(selected.material);
-    setBloquearDescricao(selected.texto_breve_material || '');
-    setBloquearLote(selected.lote);
-    setBloquearQuantidade(quantidadeTabela);
-    setBloquearUnidade(selected.unidade_medida?.toUpperCase() || 'KG');
+    setBloquearSelectedItems(items);
     setBloquearMigoOpen(true);
   };
 
-  const handleConfirmBloquearMigo = async () => {
-    const material = bloquearMaterial.trim();
-    const lote = bloquearLote.trim();
-    const quantidade = bloquearQuantidade.trim();
-    const unidade = (bloquearUnidade.trim() || 'KG').toUpperCase();
+  const handleUpdateSingleBloquearItem = (field: keyof BloquearItemParam, value: string) => {
+    setBloquearSelectedItems((prev) => {
+      if (prev.length === 0) return prev;
+      const updated = [...prev];
+      updated[0] = { ...updated[0], [field]: value };
+      return updated;
+    });
+  };
 
-    if (!material || !lote || !quantidade) {
-      toast.error('Preencha todos os campos obrigatórios (Material, Lote e Quantidade)');
+  const handleConfirmBloquearMigo = async () => {
+    if (bloquearSelectedItems.length === 0) return;
+
+    const hasInvalid = bloquearSelectedItems.some(
+      (it) => !it.material.trim() || !it.lote.trim() || !it.quantidade.trim()
+    );
+    if (hasInvalid) {
+      toast.error('Preencha os campos obrigatórios (Material, Lote e Quantidade) de todos os itens');
       return;
     }
 
     setBloquearMigoOpen(false);
     setIsBloquearMigoRunning(true);
-    const toastId = toast.loading(`Enviando bloqueio de ${material} (Lote ${lote}) para o Planilha Sync...`);
+    const count = bloquearSelectedItems.length;
+    const toastId = toast.loading(
+      count === 1
+        ? `Enviando bloqueio de ${bloquearSelectedItems[0].material} (Lote ${bloquearSelectedItems[0].lote}) para o Planilha Sync...`
+        : `Enviando bloqueio sequencial de ${count} itens para o Planilha Sync...`
+    );
 
-    const vbsCode = generateBloquearMigoVbs({
-      material,
-      lote,
-      quantidade,
-      unidade,
-    });
+    const vbsCode = generateBloquearMigoVbs(bloquearSelectedItems);
 
     try {
       const res = await triggerSapAutomation('bloquear_migo', currentUserEmail || 'Dashboard', vbsCode);
@@ -1003,10 +1020,10 @@ export function ResiduaisView({
       }
 
       const jobId = res.job.id;
-      toast.loading(`Aguardando execução do bloqueio no SAP GUI (MIGO/LT06)...`, { id: toastId });
+      toast.loading(`Aguardando execução no SAP GUI (${count} item(ns))...`, { id: toastId });
 
       let attempts = 0;
-      const maxAttempts = 30; // até 60s
+      const maxAttempts = 60; // até 120s
       const interval = setInterval(async () => {
         attempts++;
         try {
@@ -1014,7 +1031,13 @@ export function ResiduaisView({
           if (statusJob?.status === 'completed') {
             clearInterval(interval);
             setIsBloquearMigoRunning(false);
-            toast.success(`Bloqueio MIGO executado com sucesso no SAP para o lote ${lote}!`, { id: toastId, icon: '🔒' });
+            setRowSelection({});
+            toast.success(
+              count === 1
+                ? `Bloqueio MIGO executado com sucesso no SAP para o lote ${bloquearSelectedItems[0].lote}!`
+                : `Bloqueio MIGO de ${count} itens executado com sucesso no SAP!`,
+              { id: toastId, icon: '🔒' }
+            );
           } else if (statusJob?.status === 'failed') {
             clearInterval(interval);
             setIsBloquearMigoRunning(false);
@@ -1257,9 +1280,9 @@ export function ResiduaisView({
           variant="default"
           size="sm"
           onClick={handleOpenBloquearMigo}
-          disabled={selectedCount !== 1 || isBloquearMigoRunning}
+          disabled={selectedCount === 0 || isBloquearMigoRunning}
           className="bg-[#1B3550] border border-[#2A4D6E] hover:bg-[#234465] text-[#AEE4FF] hover:text-white shadow-md transition-all duration-300 font-bold gap-1.5"
-          title={selectedCount !== 1 ? 'Selecione exatamente 1 item para Bloquear/MIGO' : 'Executar script de bloqueio MIGO (Y84) no SAP via Planilha Sync'}
+          title={selectedCount === 0 ? 'Selecione ao menos 1 item para Bloquear/MIGO' : `Executar bloqueio MIGO (Y84) de ${selectedCount} item(ns) no SAP via Planilha Sync`}
         >
           {isBloquearMigoRunning ? (
             <>
@@ -1269,7 +1292,7 @@ export function ResiduaisView({
           ) : (
             <>
               <Lock className="h-4 w-4 text-[#AEE4FF]" />
-              <span>Bloquear/MIGO</span>
+              <span>Bloquear/MIGO{selectedCount > 1 ? ` (${selectedCount})` : ''}</span>
             </>
           )}
         </Button>
@@ -1627,62 +1650,100 @@ export function ResiduaisView({
 
       {/* Dialog para Bloquear/MIGO no SAP (Movimento Y84) */}
       <Dialog open={bloquearMigoOpen} onOpenChange={setBloquearMigoOpen}>
-        <DialogContent className="sm:max-w-md bg-[#13283E] border-[#2A4D6E] text-white">
+        <DialogContent className={cn("bg-[#13283E] border-[#2A4D6E] text-white", bloquearSelectedItems.length > 1 ? "sm:max-w-2xl" : "sm:max-w-md")}>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-[#AEE4FF] text-base font-bold">
               <Lock className="h-5 w-5 text-[#AEE4FF]" />
-              <span>Bloquear / MIGO no SAP (Y84)</span>
+              <span>
+                Bloquear / MIGO no SAP (Y84)
+                {bloquearSelectedItems.length > 1 && ` — ${bloquearSelectedItems.length} Itens`}
+              </span>
             </DialogTitle>
             <DialogDescription className="text-xs text-slate-300 pt-1">
-              Confirme os dados da matéria-prima selecionada para envio e execução do script de bloqueio na sua sessão SAP via <strong>Planilha Sync</strong>.
+              {bloquearSelectedItems.length > 1
+                ? `Revise os ${bloquearSelectedItems.length} itens selecionados que serão bloqueados sequencialmente via Planilha Sync.`
+                : 'Confirme os dados da matéria-prima selecionada para envio e execução do script de bloqueio na sua sessão SAP via Planilha Sync.'}
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-3 py-2">
-            <div className="p-2.5 rounded-lg bg-[#1B3550]/80 border border-[#2A4D6E] space-y-1 text-xs">
-              <div className="flex justify-between">
-                <span className="text-slate-400">Material:</span>
-                <span className="font-mono font-bold text-[#AEE4FF]">{bloquearMaterial}</span>
-              </div>
-              {bloquearDescricao && (
-                <div className="flex justify-between text-[11px]">
-                  <span className="text-slate-400">Descrição:</span>
-                  <span className="text-slate-200 truncate max-w-[240px]" title={bloquearDescricao}>{bloquearDescricao}</span>
+            {bloquearSelectedItems.length === 1 ? (
+              <>
+                <div className="p-2.5 rounded-lg bg-[#1B3550]/80 border border-[#2A4D6E] space-y-1 text-xs">
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">Material:</span>
+                    <span className="font-mono font-bold text-[#AEE4FF]">{bloquearSelectedItems[0]?.material}</span>
+                  </div>
+                  {bloquearSelectedItems[0]?.descricao && (
+                    <div className="flex justify-between text-[11px]">
+                      <span className="text-slate-400">Descrição:</span>
+                      <span className="text-slate-200 truncate max-w-[240px]" title={bloquearSelectedItems[0]?.descricao}>
+                        {bloquearSelectedItems[0]?.descricao}
+                      </span>
+                    </div>
+                  )}
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">Lote:</span>
+                    <span className="font-mono font-bold text-amber-300">{bloquearSelectedItems[0]?.lote}</span>
+                  </div>
                 </div>
-              )}
-              <div className="flex justify-between">
-                <span className="text-slate-400">Lote:</span>
-                <span className="font-mono font-bold text-amber-300">{bloquearLote}</span>
-              </div>
-            </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs text-slate-300 font-medium mb-1 block">
-                  Quantidade:
-                </label>
-                <Input
-                  value={bloquearQuantidade}
-                  onChange={(e) => setBloquearQuantidade(e.target.value)}
-                  placeholder="Ex: 0,081"
-                  className="bg-[#1B3550] border-[#2A4D6E] text-white text-sm"
-                />
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs text-slate-300 font-medium mb-1 block">
+                      Quantidade:
+                    </label>
+                    <Input
+                      value={bloquearSelectedItems[0]?.quantidade ?? ''}
+                      onChange={(e) => handleUpdateSingleBloquearItem('quantidade', e.target.value)}
+                      placeholder="Ex: 0,081"
+                      className="bg-[#1B3550] border-[#2A4D6E] text-white text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-slate-300 font-medium mb-1 block">
+                      Unidade (UMB):
+                    </label>
+                    <Input
+                      value={bloquearSelectedItems[0]?.unidade ?? ''}
+                      onChange={(e) => handleUpdateSingleBloquearItem('unidade', e.target.value.toUpperCase())}
+                      placeholder="KG, L, G, UN..."
+                      className="bg-[#1B3550] border-[#2A4D6E] text-white text-sm uppercase"
+                    />
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="max-h-60 overflow-y-auto rounded-lg border border-[#2A4D6E] bg-[#0E1D2D]">
+                <table className="w-full text-xs text-left">
+                  <thead className="text-[11px] text-slate-400 uppercase bg-[#1B3550]/80 sticky top-0 border-b border-[#2A4D6E]">
+                    <tr>
+                      <th className="px-3 py-2">Material</th>
+                      <th className="px-3 py-2">Descrição</th>
+                      <th className="px-3 py-2">Lote</th>
+                      <th className="px-3 py-2 text-right">Qtd</th>
+                      <th className="px-3 py-2 text-center">UMB</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#2A4D6E]/40 font-mono">
+                    {bloquearSelectedItems.map((item, idx) => (
+                      <tr key={idx} className="hover:bg-[#1B3550]/40">
+                        <td className="px-3 py-1.5 font-bold text-[#AEE4FF]">{item.material}</td>
+                        <td className="px-3 py-1.5 font-sans text-slate-300 text-[11px] max-w-[150px] truncate" title={item.descricao}>
+                          {item.descricao || '-'}
+                        </td>
+                        <td className="px-3 py-1.5 text-amber-300 font-bold">{item.lote}</td>
+                        <td className="px-3 py-1.5 text-right text-white">{item.quantidade}</td>
+                        <td className="px-3 py-1.5 text-center text-slate-300">{item.unidade}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-              <div>
-                <label className="text-xs text-slate-300 font-medium mb-1 block">
-                  Unidade (UMB):
-                </label>
-                <Input
-                  value={bloquearUnidade}
-                  onChange={(e) => setBloquearUnidade(e.target.value.toUpperCase())}
-                  placeholder="KG, L, G, UN..."
-                  className="bg-[#1B3550] border-[#2A4D6E] text-white text-sm uppercase"
-                />
-              </div>
-            </div>
+            )}
 
             <div className="p-3 rounded-lg bg-[#0E1D2D] border border-[#2A4D6E]/60 text-[11px] space-y-1 text-slate-300 font-mono">
-              <p className="text-[#AEE4FF] font-sans font-semibold">Parâmetros automáticos:</p>
+              <p className="text-[#AEE4FF] font-sans font-semibold">Parâmetros automáticos por item:</p>
               <div>• Transação: <span className="text-white">/nmigo</span> (Movimento: <span className="text-amber-300">Y84</span>)</div>
               <div>• Centro: <span className="text-white">600</span> | Depósito: <span className="text-white">PES &rarr; PES</span></div>
               <div>• Motivo: <span className="text-amber-300">9000</span> | Pós-gravação: <span className="text-white">/nlt06</span></div>
@@ -1707,11 +1768,18 @@ export function ResiduaisView({
               type="button"
               size="sm"
               onClick={handleConfirmBloquearMigo}
-              disabled={!bloquearMaterial || !bloquearLote || !bloquearQuantidade}
+              disabled={
+                bloquearSelectedItems.length === 0 ||
+                bloquearSelectedItems.some((it) => !it.material || !it.lote || !it.quantidade)
+              }
               className="bg-[#AEE4FF] hover:bg-[#86d4fa] text-[#13283E] font-bold gap-1.5"
             >
               <Play className="h-3.5 w-3.5 fill-current" />
-              <span>Executar Bloqueio no SAP</span>
+              <span>
+                {bloquearSelectedItems.length > 1
+                  ? `Executar Bloqueio (${bloquearSelectedItems.length} Itens) no SAP`
+                  : 'Executar Bloqueio no SAP'}
+              </span>
             </Button>
           </DialogFooter>
         </DialogContent>
