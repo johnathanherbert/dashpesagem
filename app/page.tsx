@@ -17,6 +17,7 @@ import { ConfiguracaoResiduaisComponent } from '@/components/configuracao-residu
 import { Sidebar } from '@/components/layout/sidebar';
 import { Topbar } from '@/components/layout/topbar';
 import { ExcelUpload } from '@/components/excel-upload';
+import { ParallaxBackground } from '@/components/parallax-background';
 import { Tabs, TabsContent } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, TrendingUp, X } from 'lucide-react';
@@ -244,7 +245,8 @@ export default function Home() {
 
   return (
     <ProtectedRoute>
-      <div className="min-h-screen bg-background flex flex-col">
+      <div className="min-h-screen flex flex-col relative">
+        <ParallaxBackground intensity={0.6} className="bg-background" />
         {/* Topbar moderna */}
         <Topbar
           onToggleSidebar={() => setSidebarOpen(true)}

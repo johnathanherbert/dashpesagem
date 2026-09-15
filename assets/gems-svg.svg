@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice">
+  <!-- Fundo Escuro -->
+  <rect width="100%" height="100%" fill="#16293A" />
+  
+  <!-- Detalhe Orgânico Superior Esquerdo (Azul Claro) -->
+  <path d="M0,0 L500,0 C450,150 300,120 220,250 C140,380 150,550 0,600 Z" fill="#B5DEF4" />
+  
+  <!-- Detalhe Orgânico Inferior Direito (Azul Médio) -->
+  <path d="M1920,1080 L1150,1080 C1250,950 1450,1000 1600,850 C1750,700 1800,850 1920,600 Z" fill="#5F85A0" />
+</svg>
