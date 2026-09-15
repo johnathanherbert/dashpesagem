@@ -116,7 +116,7 @@ class SapAutomationWorker:
     def __init__(
         self,
         poll_interval: float = 4.0,
-        on_success_trigger: Optional[Callable[[], None]] = None,
+        on_success_trigger: Optional[Callable[..., None]] = None,
         command_handler: Optional[Callable[[str, Optional[str]], Tuple[bool, str]]] = None,
     ):
         self.poll_interval = poll_interval
@@ -173,7 +173,12 @@ class SapAutomationWorker:
                         # Dispara sincronização / extração para atualizar dashboard
                         if self.on_success_trigger:
                             try:
-                                self.on_success_trigger()
+                                import inspect
+                                sig = inspect.signature(self.on_success_trigger)
+                                if len(sig.parameters) > 0:
+                                    self.on_success_trigger(command)
+                                else:
+                                    self.on_success_trigger()
                             except Exception as e:
                                 logger.error("Erro ao disparar callback pós-automação: %s", e)
                     else:

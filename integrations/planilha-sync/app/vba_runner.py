@@ -243,6 +243,9 @@ class VbaScheduler:
         self.config_path, self.config = find_or_create_config_file(base_dir)
 
         self._lock = threading.Lock()
+        self._exec_lock = threading.Lock()
+        self._is_executing = False
+        self._last_execution_time = 0.0
         self._stop_event = threading.Event()
         self._thread: Optional[threading.Thread] = None
         # Se enabled=True no config, inicia ativo; se enabled=False, inicia pausado
@@ -251,6 +254,10 @@ class VbaScheduler:
     @property
     def is_paused(self) -> bool:
         return self._paused
+
+    @property
+    def is_executing(self) -> bool:
+        return self._is_executing
 
     def reload_config(self) -> VbaConfig:
         with self._lock:
@@ -301,41 +308,62 @@ class VbaScheduler:
             self._thread.join(timeout=5)
         logger.info("Agendador VBA parado.")
 
-    def run_once(self, notify_user: bool = True) -> bool:
+    def run_once(self, notify_user: bool = True, debounce_seconds: float = 5.0) -> bool:
         """
         Executa uma extração manual imediatamente (funciona mesmo se o loop automático estiver pausado).
+        Garante que apenas uma execução ocorra por vez e evita execuções repetidas em curto intervalo (debounce).
         """
-        self.reload_config()
-        if not self.config.vba_script_path:
-            msg = "Caminho do script VBA não configurado em vba_config.json."
-            logger.warning(msg)
+        if not self._exec_lock.acquire(blocking=False):
+            logger.warning("Extração VBA ignorada: uma extração já está em andamento no momento.")
             if notify_user:
-                tray.notify("Extração VBA", msg)
+                tray.notify("Extração VBA", "Uma extração já está em andamento. Aguarde...")
             return False
 
-        if notify_user:
-            tray.notify("Extração VBA", "Iniciando execução do script...")
+        try:
+            now = time.time()
+            if self._last_execution_time > 0 and (now - self._last_execution_time) < debounce_seconds:
+                logger.info(
+                    "Extração VBA ignorada por debounce (executada há %.1fs, intervalo mínimo de %.1fs).",
+                    now - self._last_execution_time, debounce_seconds
+                )
+                return True
 
-        ok, msg = execute_vba_script(self.config, self.base_dir)
+            self._is_executing = True
+            self.reload_config()
+            if not self.config.vba_script_path:
+                msg = "Caminho do script VBA não configurado em vba_config.json."
+                logger.warning(msg)
+                if notify_user:
+                    tray.notify("Extração VBA", msg)
+                return False
 
-        if ok:
-            logger.info("Extração VBA concluída com sucesso: %s", msg)
             if notify_user:
-                tray.notify("Extração VBA", "Script executado com sucesso! Sincronizando dados...")
+                tray.notify("Extração VBA", "Iniciando execução do script...")
 
-            # Se houver output_data_path configurado, dispara sync diretamente
-            if self.config.output_data_path and self.on_sync_trigger:
-                out_path = Path(self.config.output_data_path)
-                if not out_path.is_absolute():
-                    out_path = (self.base_dir / out_path).resolve()
-                if out_path.exists():
-                    self.on_sync_trigger(out_path)
-        else:
-            logger.error("Falha na extração VBA: %s", msg)
-            if notify_user:
-                tray.notify("Extração VBA — Falha", f"Erro: {msg}")
+            ok, msg = execute_vba_script(self.config, self.base_dir)
+            self._last_execution_time = time.time()
 
-        return ok
+            if ok:
+                logger.info("Extração VBA concluída com sucesso: %s", msg)
+                if notify_user:
+                    tray.notify("Extração VBA", "Script executado com sucesso! Sincronizando dados...")
+
+                # Se houver output_data_path configurado, dispara sync diretamente
+                if self.config.output_data_path and self.on_sync_trigger:
+                    out_path = Path(self.config.output_data_path)
+                    if not out_path.is_absolute():
+                        out_path = (self.base_dir / out_path).resolve()
+                    if out_path.exists():
+                        self.on_sync_trigger(out_path)
+            else:
+                logger.error("Falha na extração VBA: %s", msg)
+                if notify_user:
+                    tray.notify("Extração VBA — Falha", f"Erro: {msg}")
+
+            return ok
+        finally:
+            self._is_executing = False
+            self._exec_lock.release()
 
     def _run_loop(self) -> None:
         # Se configurado para rodar na inicialização e não estiver pausado

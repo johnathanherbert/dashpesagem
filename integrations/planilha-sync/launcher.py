@@ -283,8 +283,14 @@ def main() -> None:
     vba_scheduler.start()
 
     # Iniciar Worker de Automações SAP (recebe solicitações sob demanda do dashboard)
-    def _on_sap_automation_success():
-        logger.info("Automação SAP concluída com sucesso. Disparando sincronização/extração de dados...")
+    def _on_sap_automation_success(cmd: str = ''):
+        cmd_norm = str(cmd).lower().strip()
+        # Se for comando de extração/atualização, a extração já foi realizada no _handle_sap_command
+        if cmd_norm in ('extrair_relatorio', 'atualizar_db', 'sync_db', 'extrair'):
+            logger.info("Comando '%s' finalizado. Nenhuma re-extração adicional necessária.", cmd)
+            return
+
+        logger.info("Automação SAP '%s' concluída com sucesso. Disparando sincronização/extração de dados...", cmd)
         if vba_scheduler.config.vba_script_path:
             vba_scheduler.run_once(notify_user=False)
         else:
@@ -300,7 +306,7 @@ def main() -> None:
                 if not ok:
                     return False, msg
             else:
-                # Executa exatamente a mesma rotina de extração da bandeja (run_once)
+                # Executa a mesma rotina de extração da bandeja (run_once)
                 ok = vba_scheduler.run_once(notify_user=True)
                 if not ok and not vba_scheduler.config.vba_script_path:
                     # Se não houver script VBA configurado em vba_config.json, sincroniza arquivos da pasta
@@ -309,8 +315,11 @@ def main() -> None:
                 elif not ok:
                     return False, "Falha na execução do script VBA configurado."
 
-            synced = watcher.force_sync_all()
-            return True, f"Relatório extraído e {synced} arquivo(s) sincronizados com sucesso"
+            # Se não houver output_data_path explícito configurado no vba_scheduler, força varredura
+            if not vba_scheduler.config.output_data_path:
+                watcher.force_sync_all()
+
+            return True, "Relatório extraído e sincronizado com sucesso"
 
         from app.sap_runner import run_sap_vbs_script, DEFAULT_MOVERMIGO_SCRIPT
         vbs_code = script_code or DEFAULT_MOVERMIGO_SCRIPT
