@@ -69,7 +69,7 @@ import { AgingData, RemessaData, ConfiguracaoResiduais, AgingTableRow, NivelResi
 import { enriquecerAgingComAnalise } from '@/lib/residuais-analyzer';
 import { cn, copyToClipboard } from '@/lib/utils';
 
-// Helper para gerar o VBScript dinâmico de bloqueio MIGO (Y84) para o SAP GUI (1 ou múltiplos itens)
+// Helper para gerar o VBScript dinâmico de bloqueio MIGO (Y84) para o SAP GUI em documento único
 export interface BloquearItemParam {
   material: string;
   lote: string;
@@ -79,6 +79,8 @@ export interface BloquearItemParam {
 }
 
 export function generateBloquearMigoVbs(items: BloquearItemParam[]): string {
+  if (items.length === 0) return '';
+
   const vbsHeader = `If Not IsObject(application) Then
    Set SapGuiAuto  = GetObject("SAPGUI")
    Set application = SapGuiAuto.GetScriptingEngine
@@ -94,42 +96,86 @@ If IsObject(WScript) Then
    WScript.ConnectObject application, "on"
 End If
 session.findById("wnd[0]").maximize
+session.findById("wnd[0]/tbar[0]/okcd").text = "/nmigo"
+session.findById("wnd[0]").sendVKey 0
 `;
 
-  const itemsBlocks = items.map((item) => {
-    const matTrimmed = item.material.trim();
-    const loteTrimmed = item.lote.trim();
-    const qtdTrimmed = item.quantidade.trim();
-    const unitTrimmed = (item.unidade.trim() || 'KG').toUpperCase();
-    const caretPos = Math.max(1, loteTrimmed.length);
+  // Preenche Código do Material (MAKTX)
+  const maktxLines = items.map((item, idx) => {
+    const mat = item.material.trim();
+    return `session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-MAKTX[1,${idx}]").text = "${mat}"`;
+  }).join('\n');
 
-    return `session.findById("wnd[0]/tbar[0]/okcd").text = "/nmigo"
+  // Preenche Quantidade (ERFMG)
+  const erfmgLines = items.map((item, idx) => {
+    const qtd = item.quantidade.trim();
+    return `session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/txtGOITEM-ERFMG[3,${idx}]").text = "${qtd}"`;
+  }).join('\n');
+
+  // Preenche Unidade de Medida (ERFME)
+  const erfmeLines = items.map((item, idx) => {
+    const unit = (item.unidade.trim() || 'KG').toUpperCase();
+    return `session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-ERFME[5,${idx}]").text = "${unit}"`;
+  }).join('\n');
+
+  // Preenche Depósito Origem (LGOBE) = "PES"
+  const lgobeLines = items.map((_, idx) => {
+    return `session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-LGOBE[12,${idx}]").text = "PES"`;
+  }).join('\n');
+
+  // Preenche Centro (NAME1) = "600"
+  const name1Lines = items.map((_, idx) => {
+    return `session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-NAME1[9,${idx}]").text = "600"`;
+  }).join('\n');
+
+  // Preenche Depósito Destino (UMLGOBE) = "PES"
+  const umlgobeLines = items.map((_, idx) => {
+    return `session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-UMLGOBE[14,${idx}]").text = "PES"`;
+  }).join('\n');
+
+  // Preenche Motivo (GRUND) = "9000"
+  const grundLines = items.map((_, idx) => {
+    return `session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-GRUND[15,${idx}]").text = "9000"`;
+  }).join('\n');
+
+  // Validação da Grade via Enter no primeiro item
+  const validateGrid = `session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-MAKTX[1,0]").setFocus
+session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-MAKTX[1,0]").caretPosition = 0
 session.findById("wnd[0]").sendVKey 0
-session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_FIRSTLINE:SAPLMIGO:0011/ctxtGODEFAULT_TV-BWART").text = "y84"
-session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_FIRSTLINE:SAPLMIGO:0011/ctxtGODEFAULT_TV-BWART").setFocus
-session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_FIRSTLINE:SAPLMIGO:0011/ctxtGODEFAULT_TV-BWART").caretPosition = 3
-session.findById("wnd[0]").sendVKey 0
-session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-MAKTX[1,0]").text = "${matTrimmed}"
-session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/txtGOITEM-ERFMG[3,0]").text = "${qtdTrimmed}"
-session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-ERFME[5,0]").text = "${unitTrimmed}"
-session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-LGOBE[12,0]").text = "pes"
-session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-NAME1[9,0]").text = "600"
-session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-UMLGOBE[14,0]").text = "pes"
-session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-GRUND[15,0]").text = "9000"
-session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-GRUND[15,0]").setFocus
-session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-GRUND[15,0]").caretPosition = 4
-session.findById("wnd[0]").sendVKey 0
-session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-CHARG[2,0]").text = "${loteTrimmed}"
-session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-CHARG[2,0]").setFocus
-session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-CHARG[2,0]").caretPosition = ${caretPos}
+`;
+
+  // Preenche Lotes (CHARG)
+  const chargLines = items.map((item, idx) => {
+    const lote = item.lote.trim();
+    return `session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-CHARG[2,${idx}]").text = "${lote}"`;
+  }).join('\n');
+
+  // Gravação, Transfer Order (/nlt06, btn[44]) e retorno (/n)
+  const vbsFooter = `session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-CHARG[2,0]").setFocus
+session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-CHARG[2,0]").caretPosition = 0
 session.findById("wnd[0]/tbar[1]/btn[7]").press
 session.findById("wnd[0]/tbar[1]/btn[23]").press
 session.findById("wnd[0]/tbar[0]/okcd").text = "/nlt06"
 session.findById("wnd[0]").sendVKey 0
-session.findById("wnd[0]").sendVKey 0`;
-  }).join('\n');
+session.findById("wnd[0]").sendVKey 0
+session.findById("wnd[0]/tbar[1]/btn[44]").press
+session.findById("wnd[0]/tbar[0]/okcd").text = "/n"
+session.findById("wnd[0]").sendVKey 0
+`;
 
-  return vbsHeader + itemsBlocks;
+  return [
+    vbsHeader,
+    maktxLines,
+    erfmgLines,
+    erfmeLines,
+    lgobeLines,
+    name1Lines,
+    umlgobeLines,
+    grundLines,
+    validateGrid,
+    chargLines,
+    vbsFooter,
+  ].filter(Boolean).join('\n');
 }
 
 // Custom filter for numeric range [min, max]
