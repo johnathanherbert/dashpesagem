@@ -62,10 +62,67 @@ import {
   ArrowRightLeft,
   Loader2,
   Play,
+  Lock,
 } from 'lucide-react';
 import { AgingData, RemessaData, ConfiguracaoResiduais, AgingTableRow, NivelResidual } from '@/types/aging';
 import { enriquecerAgingComAnalise } from '@/lib/residuais-analyzer';
 import { cn, copyToClipboard } from '@/lib/utils';
+
+// Helper para gerar o VBScript dinâmico de bloqueio MIGO (Y84) para o SAP GUI
+export function generateBloquearMigoVbs(params: {
+  material: string;
+  lote: string;
+  quantidade: string;
+  unidade: string;
+}): string {
+  const { material, lote, quantidade, unidade } = params;
+  const matTrimmed = material.trim();
+  const loteTrimmed = lote.trim();
+  const qtdTrimmed = quantidade.trim();
+  const unitTrimmed = (unidade.trim() || 'KG').toUpperCase();
+  const caretPos = Math.max(1, loteTrimmed.length);
+
+  return `If Not IsObject(application) Then
+   Set SapGuiAuto  = GetObject("SAPGUI")
+   Set application = SapGuiAuto.GetScriptingEngine
+End If
+If Not IsObject(connection) Then
+   Set connection = application.Children(0)
+End If
+If Not IsObject(session) Then
+   Set session    = connection.Children(0)
+End If
+If IsObject(WScript) Then
+   WScript.ConnectObject session,     "on"
+   WScript.ConnectObject application, "on"
+End If
+session.findById("wnd[0]").maximize
+session.findById("wnd[0]/tbar[0]/okcd").text = "/nmigo"
+session.findById("wnd[0]").sendVKey 0
+session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_FIRSTLINE:SAPLMIGO:0011/ctxtGODEFAULT_TV-BWART").text = "y84"
+session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_FIRSTLINE:SAPLMIGO:0011/ctxtGODEFAULT_TV-BWART").setFocus
+session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_FIRSTLINE:SAPLMIGO:0011/ctxtGODEFAULT_TV-BWART").caretPosition = 3
+session.findById("wnd[0]").sendVKey 0
+session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-MAKTX[1,0]").text = "${matTrimmed}"
+session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/txtGOITEM-ERFMG[3,0]").text = "${qtdTrimmed}"
+session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-ERFME[5,0]").text = "${unitTrimmed}"
+session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-LGOBE[12,0]").text = "pes"
+session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-NAME1[9,0]").text = "600"
+session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-UMLGOBE[14,0]").text = "pes"
+session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-GRUND[15,0]").text = "9000"
+session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-GRUND[15,0]").setFocus
+session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-GRUND[15,0]").caretPosition = 4
+session.findById("wnd[0]").sendVKey 0
+session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-CHARG[2,0]").text = "${loteTrimmed}"
+session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-CHARG[2,0]").setFocus
+session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-CHARG[2,0]").caretPosition = ${caretPos}
+session.findById("wnd[0]/tbar[1]/btn[7]").press
+session.findById("wnd[0]/tbar[1]/btn[23]").press
+session.findById("wnd[0]/tbar[0]/okcd").text = "/nlt06"
+session.findById("wnd[0]").sendVKey 0
+session.findById("wnd[0]").sendVKey 0
+`;
+}
 
 // Custom filter for numeric range [min, max]
 const numberRangeFilter: FilterFn<AgingTableRow> = (row, columnId, filterValue) => {
@@ -351,6 +408,13 @@ export function ResiduaisView({
   const [isApplyingInvestigacao, setIsApplyingInvestigacao] = useState(false);
   const [isMoverAjusteRunning, setIsMoverAjusteRunning] = useState(false);
   const [moverAjusteConfirmOpen, setMoverAjusteConfirmOpen] = useState(false);
+  const [bloquearMigoOpen, setBloquearMigoOpen] = useState(false);
+  const [bloquearMaterial, setBloquearMaterial] = useState('');
+  const [bloquearDescricao, setBloquearDescricao] = useState('');
+  const [bloquearLote, setBloquearLote] = useState('');
+  const [bloquearQuantidade, setBloquearQuantidade] = useState('');
+  const [bloquearUnidade, setBloquearUnidade] = useState('KG');
+  const [isBloquearMigoRunning, setIsBloquearMigoRunning] = useState(false);
 
   const lotesInvestigacaoSet = useMemo(() => {
     return new Set(lotesInvestigacao.map((item) => item.lote.trim().toUpperCase()));
@@ -889,6 +953,90 @@ export function ResiduaisView({
     }
   };
 
+  const handleOpenBloquearMigo = () => {
+    const selectedRows = table.getFilteredSelectedRowModel().rows;
+    if (selectedRows.length !== 1) return;
+
+    const selected = selectedRows[0].original;
+    const quantidadeTabela = selected.estoque_disponivel.toLocaleString('pt-BR', {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 3,
+      useGrouping: false,
+    });
+
+    setBloquearMaterial(selected.material);
+    setBloquearDescricao(selected.texto_breve_material || '');
+    setBloquearLote(selected.lote);
+    setBloquearQuantidade(quantidadeTabela);
+    setBloquearUnidade(selected.unidade_medida?.toUpperCase() || 'KG');
+    setBloquearMigoOpen(true);
+  };
+
+  const handleConfirmBloquearMigo = async () => {
+    const material = bloquearMaterial.trim();
+    const lote = bloquearLote.trim();
+    const quantidade = bloquearQuantidade.trim();
+    const unidade = (bloquearUnidade.trim() || 'KG').toUpperCase();
+
+    if (!material || !lote || !quantidade) {
+      toast.error('Preencha todos os campos obrigatórios (Material, Lote e Quantidade)');
+      return;
+    }
+
+    setBloquearMigoOpen(false);
+    setIsBloquearMigoRunning(true);
+    const toastId = toast.loading(`Enviando bloqueio de ${material} (Lote ${lote}) para o Planilha Sync...`);
+
+    const vbsCode = generateBloquearMigoVbs({
+      material,
+      lote,
+      quantidade,
+      unidade,
+    });
+
+    try {
+      const res = await triggerSapAutomation('bloquear_migo', currentUserEmail || 'Dashboard', vbsCode);
+      if (!res.success || !res.job) {
+        toast.error(`Falha ao disparar automação: ${res.error || 'Erro desconhecido'}`, { id: toastId });
+        setIsBloquearMigoRunning(false);
+        return;
+      }
+
+      const jobId = res.job.id;
+      toast.loading(`Aguardando execução do bloqueio no SAP GUI (MIGO/LT06)...`, { id: toastId });
+
+      let attempts = 0;
+      const maxAttempts = 30; // até 60s
+      const interval = setInterval(async () => {
+        attempts++;
+        try {
+          const statusJob = await checkSapAutomationStatus(jobId);
+          if (statusJob?.status === 'completed') {
+            clearInterval(interval);
+            setIsBloquearMigoRunning(false);
+            toast.success(`Bloqueio MIGO executado com sucesso no SAP para o lote ${lote}!`, { id: toastId, icon: '🔒' });
+          } else if (statusJob?.status === 'failed') {
+            clearInterval(interval);
+            setIsBloquearMigoRunning(false);
+            toast.error(`Execução no SAP falhou: ${statusJob.result_message || 'Erro no script'}`, { id: toastId });
+          } else if (attempts >= maxAttempts) {
+            clearInterval(interval);
+            setIsBloquearMigoRunning(false);
+            toast('Tempo limite aguardando o Planilha Sync. Verifique se o app está aberto.', { id: toastId, icon: '⚠️' });
+          }
+        } catch (e) {
+          if (attempts >= maxAttempts) {
+            clearInterval(interval);
+            setIsBloquearMigoRunning(false);
+          }
+        }
+      }, 2000);
+    } catch (err: any) {
+      toast.error(`Erro: ${err?.message || err}`, { id: toastId });
+      setIsBloquearMigoRunning(false);
+    }
+  };
+
   const handleOpenDevolver = () => {
     const selectedRows = table.getFilteredSelectedRowModel().rows;
     if (selectedRows.length !== 1) return;
@@ -1101,6 +1249,27 @@ export function ResiduaisView({
             <>
               <ArrowRightLeft className="h-4 w-4 text-[#AEE4FF]" />
               <span>Mover/Ajuste</span>
+            </>
+          )}
+        </Button>
+
+        <Button
+          variant="default"
+          size="sm"
+          onClick={handleOpenBloquearMigo}
+          disabled={selectedCount !== 1 || isBloquearMigoRunning}
+          className="bg-[#1B3550] border border-[#2A4D6E] hover:bg-[#234465] text-[#AEE4FF] hover:text-white shadow-md transition-all duration-300 font-bold gap-1.5"
+          title={selectedCount !== 1 ? 'Selecione exatamente 1 item para Bloquear/MIGO' : 'Executar script de bloqueio MIGO (Y84) no SAP via Planilha Sync'}
+        >
+          {isBloquearMigoRunning ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin text-[#AEE4FF]" />
+              <span>Bloqueando SAP...</span>
+            </>
+          ) : (
+            <>
+              <Lock className="h-4 w-4 text-[#AEE4FF]" />
+              <span>Bloquear/MIGO</span>
             </>
           )}
         </Button>
@@ -1451,6 +1620,98 @@ export function ResiduaisView({
             >
               <Play className="h-3.5 w-3.5 fill-current" />
               <span>Executar no SAP</span>
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog para Bloquear/MIGO no SAP (Movimento Y84) */}
+      <Dialog open={bloquearMigoOpen} onOpenChange={setBloquearMigoOpen}>
+        <DialogContent className="sm:max-w-md bg-[#13283E] border-[#2A4D6E] text-white">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-[#AEE4FF] text-base font-bold">
+              <Lock className="h-5 w-5 text-[#AEE4FF]" />
+              <span>Bloquear / MIGO no SAP (Y84)</span>
+            </DialogTitle>
+            <DialogDescription className="text-xs text-slate-300 pt-1">
+              Confirme os dados da matéria-prima selecionada para envio e execução do script de bloqueio na sua sessão SAP via <strong>Planilha Sync</strong>.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 py-2">
+            <div className="p-2.5 rounded-lg bg-[#1B3550]/80 border border-[#2A4D6E] space-y-1 text-xs">
+              <div className="flex justify-between">
+                <span className="text-slate-400">Material:</span>
+                <span className="font-mono font-bold text-[#AEE4FF]">{bloquearMaterial}</span>
+              </div>
+              {bloquearDescricao && (
+                <div className="flex justify-between text-[11px]">
+                  <span className="text-slate-400">Descrição:</span>
+                  <span className="text-slate-200 truncate max-w-[240px]" title={bloquearDescricao}>{bloquearDescricao}</span>
+                </div>
+              )}
+              <div className="flex justify-between">
+                <span className="text-slate-400">Lote:</span>
+                <span className="font-mono font-bold text-amber-300">{bloquearLote}</span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs text-slate-300 font-medium mb-1 block">
+                  Quantidade:
+                </label>
+                <Input
+                  value={bloquearQuantidade}
+                  onChange={(e) => setBloquearQuantidade(e.target.value)}
+                  placeholder="Ex: 0,081"
+                  className="bg-[#1B3550] border-[#2A4D6E] text-white text-sm"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-slate-300 font-medium mb-1 block">
+                  Unidade (UMB):
+                </label>
+                <Input
+                  value={bloquearUnidade}
+                  onChange={(e) => setBloquearUnidade(e.target.value.toUpperCase())}
+                  placeholder="KG, L, G, UN..."
+                  className="bg-[#1B3550] border-[#2A4D6E] text-white text-sm uppercase"
+                />
+              </div>
+            </div>
+
+            <div className="p-3 rounded-lg bg-[#0E1D2D] border border-[#2A4D6E]/60 text-[11px] space-y-1 text-slate-300 font-mono">
+              <p className="text-[#AEE4FF] font-sans font-semibold">Parâmetros automáticos:</p>
+              <div>• Transação: <span className="text-white">/nmigo</span> (Movimento: <span className="text-amber-300">Y84</span>)</div>
+              <div>• Centro: <span className="text-white">600</span> | Depósito: <span className="text-white">PES &rarr; PES</span></div>
+              <div>• Motivo: <span className="text-amber-300">9000</span> | Pós-gravação: <span className="text-white">/nlt06</span></div>
+            </div>
+
+            <p className="text-[10px] text-amber-300">
+              ⚠️ Certifique-se de que o SAP GUI está aberto e o Planilha Sync em execução.
+            </p>
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0 pt-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setBloquearMigoOpen(false)}
+              className="bg-[#1B3550] border-[#2A4D6E] text-slate-300 hover:text-white"
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              onClick={handleConfirmBloquearMigo}
+              disabled={!bloquearMaterial || !bloquearLote || !bloquearQuantidade}
+              className="bg-[#AEE4FF] hover:bg-[#86d4fa] text-[#13283E] font-bold gap-1.5"
+            >
+              <Play className="h-3.5 w-3.5 fill-current" />
+              <span>Executar Bloqueio no SAP</span>
             </Button>
           </DialogFooter>
         </DialogContent>
