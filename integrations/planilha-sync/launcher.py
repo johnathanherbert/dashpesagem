@@ -285,7 +285,7 @@ def main() -> None:
     # Iniciar Worker de Automações SAP (recebe solicitações sob demanda do dashboard)
     def _on_sap_automation_success():
         logger.info("Automação SAP concluída com sucesso. Disparando sincronização/extração de dados...")
-        if vba_scheduler.config.enabled:
+        if vba_scheduler.config.vba_script_path:
             vba_scheduler.run_once(notify_user=False)
         else:
             watcher.force_sync_all()
@@ -299,13 +299,15 @@ def main() -> None:
                 ok, msg = run_sap_vbs_script(script_code)
                 if not ok:
                     return False, msg
-            elif vba_scheduler.config.enabled:
-                ok, msg = vba_scheduler.run_once(notify_user=True)
-                if not ok:
-                    return False, msg
             else:
-                synced = watcher.force_sync_all()
-                return True, f"Sincronização concluída ({synced} arquivo(s))"
+                # Executa exatamente a mesma rotina de extração da bandeja (run_once)
+                ok = vba_scheduler.run_once(notify_user=True)
+                if not ok and not vba_scheduler.config.vba_script_path:
+                    # Se não houver script VBA configurado em vba_config.json, sincroniza arquivos da pasta
+                    synced = watcher.force_sync_all()
+                    return True, f"Sincronização de arquivos concluída ({synced} arquivo(s))"
+                elif not ok:
+                    return False, "Falha na execução do script VBA configurado."
 
             synced = watcher.force_sync_all()
             return True, f"Relatório extraído e {synced} arquivo(s) sincronizados com sucesso"
