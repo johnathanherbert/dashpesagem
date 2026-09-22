@@ -1,10 +1,33 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
+import toast from 'react-hot-toast';
 import { AgingData, RemessaData } from '@/types/aging';
-import { fetchAgingData, fetchRemessas } from '@/lib/api';
+import { fetchAgingData, fetchRemessas, triggerSapAutomation, checkSapAutomationStatus } from '@/lib/api';
 import { parseBarcode, ParsedBarcode } from '@/lib/barcode-parser';
 import { ProtectedRoute } from '@/components/protected-route';
+import { useFirebase } from '@/components/auth-provider';
+import { generateDevolverZwm296Vbs, DevolverVolumeItem } from '@/components/residuais-view';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { cn } from '@/lib/utils';
 import {
   QrCode,
   Camera,
@@ -29,14 +52,32 @@ import {
   Upload,
   Loader2,
   ImageIcon,
+  Undo2,
+  Plus,
+  Trash2,
+  Sparkles,
+  AlertCircle,
 } from 'lucide-react';
 import Link from 'next/link';
 
 export default function MobileConsultaPage() {
+  const { user, userData } = useFirebase();
   const [isMobileDevice, setIsMobileDevice] = useState<boolean>(true);
   const [loadingData, setLoadingData] = useState<boolean>(true);
   const [agingList, setAgingList] = useState<AgingData[]>([]);
   const [remessasList, setRemessasList] = useState<RemessaData[]>([]);
+
+  // Devolver Modal State
+  const [devolverOpen, setDevolverOpen] = useState<boolean>(false);
+  const [devolverMaterial, setDevolverMaterial] = useState<string>('');
+  const [devolverDescricao, setDevolverDescricao] = useState<string>('');
+  const [devolverLote, setDevolverLote] = useState<string>('');
+  const [devolverUnidade, setDevolverUnidade] = useState<string>('KG');
+  const [devolverSaldoTotal, setDevolverSaldoTotal] = useState<number>(0);
+  const [devolverVolumes, setDevolverVolumes] = useState<DevolverVolumeItem[]>([
+    { id: '1', quantidade: '', volume: '1' },
+  ]);
+  const [isDevolverRunning, setIsDevolverRunning] = useState<boolean>(false);
 
   // Scanner State
   const [scannerActive, setScannerActive] = useState<boolean>(false);
@@ -420,6 +461,205 @@ export default function MobileConsultaPage() {
       })
     : [];
 
+  // Helper para conversão numérica de inputs
+  const parseQtdNumber = (val: string): number => {
+    if (!val) return 0;
+    const cleaned = String(val).trim().replace(/\s/g, '').replace(',', '.');
+    const n = parseFloat(cleaned);
+    return isNaN(n) ? 0 : n;
+  };
+
+  const totalDevolvendo = useMemo(() => {
+    return (
+      Math.round(
+        devolverVolumes.reduce((acc, v) => acc + parseQtdNumber(v.quantidade), 0) * 1000
+      ) / 1000
+    );
+  }, [devolverVolumes]);
+
+  const saldoRestante = useMemo(() => {
+    return Math.round((devolverSaldoTotal - totalDevolvendo) * 1000) / 1000;
+  }, [devolverSaldoTotal, totalDevolvendo]);
+
+  const isOverSaldo = saldoRestante < -0.0001;
+  const isZeroRestante = Math.abs(saldoRestante) <= 0.0001 && totalDevolvendo > 0;
+
+  const handleOpenDevolver = (
+    material: string,
+    lote: string,
+    descricao?: string,
+    unidade?: string,
+    saldo?: number
+  ) => {
+    const numEstoque =
+      saldo !== undefined && saldo > 0
+        ? saldo
+        : totalEstoqueLote > 0
+        ? totalEstoqueLote
+        : (scannedResult?.quantidade && scannedResult.quantidade > 0 ? scannedResult.quantidade : 1);
+
+    const quantidadeFormatada = numEstoque.toLocaleString('pt-BR', {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 3,
+      useGrouping: false,
+    });
+
+    setDevolverMaterial(material);
+    setDevolverDescricao(descricao || materialDescription || '');
+    setDevolverLote(lote);
+    setDevolverUnidade(unidade?.toUpperCase() || unidadeMedida?.toUpperCase() || 'KG');
+    setDevolverSaldoTotal(numEstoque);
+    setDevolverVolumes([
+      {
+        id: '1',
+        quantidade: quantidadeFormatada,
+        volume: '1',
+      },
+    ]);
+    setDevolverOpen(true);
+  };
+
+  const handleAddVolume = () => {
+    const restante = Math.max(0, Math.round((devolverSaldoTotal - totalDevolvendo) * 1000) / 1000);
+    const initialQtd =
+      restante > 0.0001
+        ? restante.toLocaleString('pt-BR', {
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 3,
+            useGrouping: false,
+          })
+        : '';
+
+    setDevolverVolumes((prev) => [
+      ...prev,
+      {
+        id: String(Date.now() + Math.random()),
+        quantidade: initialQtd,
+        volume: '1',
+      },
+    ]);
+  };
+
+  const handleRemoveVolume = (idx: number) => {
+    if (devolverVolumes.length <= 1) return;
+    setDevolverVolumes((prev) => prev.filter((_, i) => i !== idx));
+  };
+
+  const handleUpdateVolume = (
+    idx: number,
+    field: 'quantidade' | 'volume',
+    value: string
+  ) => {
+    setDevolverVolumes((prev) => {
+      const copy = [...prev];
+      copy[idx] = { ...copy[idx], [field]: value };
+      return copy;
+    });
+  };
+
+  const handleFillRestante = () => {
+    if (saldoRestante <= 0.0001) return;
+    const restanteStr = saldoRestante.toLocaleString('pt-BR', {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 3,
+      useGrouping: false,
+    });
+
+    setDevolverVolumes((prev) => {
+      const lastIdx = prev.length - 1;
+      if (lastIdx >= 0 && parseQtdNumber(prev[lastIdx].quantidade) === 0) {
+        const updated = [...prev];
+        updated[lastIdx] = { ...updated[lastIdx], quantidade: restanteStr };
+        return updated;
+      }
+      return [
+        ...prev,
+        {
+          id: String(Date.now() + Math.random()),
+          quantidade: restanteStr,
+          volume: '1',
+        },
+      ];
+    });
+  };
+
+  const handleConfirmDevolver = async () => {
+    const validVolumes = devolverVolumes.filter((v) => parseQtdNumber(v.quantidade) > 0);
+    if (validVolumes.length === 0 || !devolverMaterial.trim() || !devolverLote.trim()) {
+      toast.error('Preencha ao menos 1 volume com quantidade válida maior que 0');
+      return;
+    }
+
+    if (isOverSaldo) {
+      toast.error(
+        `A soma das quantidades (${totalDevolvendo.toLocaleString('pt-BR')} ${devolverUnidade}) ultrapassa o saldo disponível (${devolverSaldoTotal.toLocaleString('pt-BR')} ${devolverUnidade})`
+      );
+      return;
+    }
+
+    setDevolverOpen(false);
+    setIsDevolverRunning(true);
+    const countVol = validVolumes.length;
+    const toastId = toast.loading(
+      `Enviando devolução (/nzwm296) de ${countVol} volume(s) do lote ${devolverLote} para o Planilha Sync...`
+    );
+
+    const vbsCode = generateDevolverZwm296Vbs(
+      devolverMaterial,
+      devolverLote,
+      validVolumes.map((v) => ({
+        quantidade: v.quantidade,
+        volume: v.volume || '1',
+      }))
+    );
+
+    try {
+      const res = await triggerSapAutomation('devolver', user?.email || userData?.email || 'Mobile Consulta', vbsCode);
+      if (!res.success || !res.job) {
+        toast.error(`Falha ao disparar automação: ${res.error || 'Erro desconhecido'}`, { id: toastId });
+        setIsDevolverRunning(false);
+        return;
+      }
+
+      const jobId = res.job.id;
+      toast.loading(`Aguardando execução no SAP GUI (${countVol} vol)...`, { id: toastId });
+
+      let attempts = 0;
+      const maxAttempts = 40; // até 80s
+      const interval = setInterval(async () => {
+        attempts++;
+        try {
+          const statusJob = await checkSapAutomationStatus(jobId);
+          if (statusJob?.status === 'completed') {
+            clearInterval(interval);
+            setIsDevolverRunning(false);
+            toast.success(
+              `Devolução (/nzwm296) de ${countVol} volume(s) executada com sucesso no SAP para o lote ${devolverLote}!`,
+              { id: toastId, icon: '↩️' }
+            );
+            loadStockData();
+          } else if (statusJob?.status === 'failed') {
+            clearInterval(interval);
+            setIsDevolverRunning(false);
+            toast.error(`Execução no SAP falhou: ${statusJob.result_message || 'Erro no script'}`, { id: toastId });
+          } else if (attempts >= maxAttempts) {
+            clearInterval(interval);
+            setIsDevolverRunning(false);
+            toast('Tempo limite aguardando o Planilha Sync. Verifique se o app está aberto.', { id: toastId, icon: '⚠️' });
+          }
+        } catch (e) {
+          if (attempts >= maxAttempts) {
+            clearInterval(interval);
+            setIsDevolverRunning(false);
+          }
+        }
+      }, 2000);
+    } catch (err: any) {
+      toast.error(`Erro: ${err?.message || err}`, { id: toastId });
+      setIsDevolverRunning(false);
+    }
+  };
+
   return (
     <ProtectedRoute>
       <div className="min-h-screen bg-[#0E1C2B] text-slate-100 flex flex-col font-sans pb-12">
@@ -699,6 +939,25 @@ export default function MobileConsultaPage() {
                     </span>
                   </div>
                 </div>
+                {/* Ação de Devolução Rápida do Lote Lido */}
+                {loteCode && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handleOpenDevolver(
+                        materialCode,
+                        loteCode,
+                        materialDescription,
+                        unidadeMedida,
+                        totalEstoqueLote
+                      )
+                    }
+                    className="w-full py-2.5 px-3 bg-[#E29A36] hover:bg-[#d48c2a] text-[#13283E] rounded-xl font-extrabold text-xs flex items-center justify-center gap-2 shadow-md active:scale-[0.98] transition-all mt-2"
+                  >
+                    <Undo2 className="h-4 w-4 text-[#13283E]" />
+                    <span>Devolver este Lote no SAP (/nzwm296)</span>
+                  </button>
+                )}
               </div>
 
               {/* Seção 1: Posições do LOTE ESPECÍFICO */}
@@ -755,6 +1014,25 @@ export default function MobileConsultaPage() {
                             <strong className="text-slate-300">{item.ultimo_movimento || 'N/D'}</strong>
                           </div>
                         </div>
+
+                        <div className="pt-1.5 flex justify-end">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              handleOpenDevolver(
+                                item.material,
+                                item.lote,
+                                item.texto_breve_material,
+                                item.unidade_medida,
+                                Number(item.estoque_disponivel || 0)
+                              )
+                            }
+                            className="px-2.5 py-1 bg-[#E29A36]/15 hover:bg-[#E29A36] text-[#E29A36] hover:text-[#13283E] border border-[#E29A36]/40 rounded-lg font-bold text-[11px] flex items-center gap-1 transition-all"
+                          >
+                            <Undo2 className="h-3 w-3" />
+                            <span>Devolver esta posição</span>
+                          </button>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -810,6 +1088,25 @@ export default function MobileConsultaPage() {
                             <span>Aging: <strong className="text-slate-300">{item.dias_aging ?? '-'}d</strong></span>
                             <span>Venc: <strong className="text-slate-300">{item.data_vencimento || 'N/D'}</strong></span>
                           </div>
+
+                          <div className="pt-1 flex justify-end">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleOpenDevolver(
+                                  item.material,
+                                  item.lote,
+                                  item.texto_breve_material,
+                                  item.unidade_medida,
+                                  Number(item.estoque_disponivel || 0)
+                                )
+                              }
+                              className="px-2 py-0.5 bg-[#E29A36]/15 hover:bg-[#E29A36] text-[#E29A36] hover:text-[#13283E] border border-[#E29A36]/40 rounded-md font-bold text-[10px] flex items-center gap-1 transition-all"
+                            >
+                              <Undo2 className="h-3 w-3" />
+                              <span>Devolver</span>
+                            </button>
+                          </div>
                         </div>
                       );
                     })}
@@ -845,6 +1142,227 @@ export default function MobileConsultaPage() {
             </div>
           )}
         </main>
+
+        {/* Modal de Devolução Fracionada (/nzwm296) Otimizado para Mobile */}
+        <Dialog open={devolverOpen} onOpenChange={setDevolverOpen}>
+          <DialogContent className="sm:max-w-xl max-w-[95vw] bg-[#13283E] border-[#2A4D6E] text-white p-4 sm:p-6 max-h-[92vh] flex flex-col rounded-2xl">
+            <DialogHeader className="shrink-0 pb-1">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <DialogTitle className="flex items-center gap-2 text-[#AEE4FF] text-base sm:text-lg font-bold">
+                  <Undo2 className="h-5 w-5 text-[#E29A36]" />
+                  <span>Devolução no SAP (/nzwm296)</span>
+                </DialogTitle>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <Badge variant="outline" className="bg-[#1B3550] text-[#AEE4FF] border-[#2A4D6E] font-mono text-[11px] px-2 py-0.5">
+                    Mat: <strong className="text-white ml-1">{devolverMaterial}</strong>
+                  </Badge>
+                  <Badge variant="outline" className="bg-[#1B3550] text-[#AEE4FF] border-[#2A4D6E] font-mono text-[11px] px-2 py-0.5">
+                    Lote: <strong className="text-white ml-1">{devolverLote}</strong>
+                  </Badge>
+                </div>
+              </div>
+              {devolverDescricao && (
+                <p className="text-xs text-slate-300 truncate">{devolverDescricao}</p>
+              )}
+              <DialogDescription className="text-slate-400 text-[11px]">
+                Fracione a devolução em volumes. O saldo restante é calculado automaticamente.
+              </DialogDescription>
+            </DialogHeader>
+
+            {/* Cards de Feedback Visual e Saldo */}
+            <div className="grid grid-cols-3 gap-2 my-2 shrink-0">
+              {/* Card 1: Saldo Disponível */}
+              <div className="p-2.5 rounded-xl bg-[#0D1D2D] border border-[#2A4D6E] flex flex-col justify-between">
+                <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Estoque</span>
+                <div className="mt-0.5">
+                  <span className="text-base sm:text-lg font-bold font-mono text-[#AEE4FF]">
+                    {devolverSaldoTotal.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 3 })}
+                  </span>
+                  <span className="text-[10px] text-slate-400 ml-1">{devolverUnidade}</span>
+                </div>
+              </div>
+
+              {/* Card 2: Total Devolvendo */}
+              <div className="p-2.5 rounded-xl bg-[#0D1D2D] border border-[#2A4D6E] flex flex-col justify-between">
+                <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Devolvendo</span>
+                <div className="mt-0.5">
+                  <span className={cn(
+                    "text-base sm:text-lg font-bold font-mono",
+                    isOverSaldo ? "text-red-400" : isZeroRestante ? "text-emerald-400" : "text-white"
+                  )}>
+                    {totalDevolvendo.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 3 })}
+                  </span>
+                  <span className="text-[10px] text-slate-400 ml-1">{devolverUnidade}</span>
+                </div>
+              </div>
+
+              {/* Card 3: Saldo Restante (Interativo / Auto-preenchimento) */}
+              <div
+                onClick={saldoRestante > 0.0001 ? handleFillRestante : undefined}
+                className={cn(
+                  "p-2.5 rounded-xl border flex flex-col justify-between transition-all duration-200",
+                  isZeroRestante
+                    ? "bg-emerald-950/40 border-emerald-500/50 text-emerald-300"
+                    : isOverSaldo
+                    ? "bg-red-950/40 border-red-500/50 text-red-300"
+                    : "bg-[#E29A36]/15 hover:bg-[#E29A36]/25 border-[#E29A36]/60 text-[#E29A36] cursor-pointer active:scale-95 shadow-sm"
+                )}
+                title={
+                  saldoRestante > 0.0001
+                    ? "Toque para preencher o saldo restante"
+                    : undefined
+                }
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-semibold uppercase tracking-wider">
+                    {isZeroRestante ? 'Completo' : isOverSaldo ? 'Excedido' : 'Restante'}
+                  </span>
+                  {isZeroRestante ? (
+                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
+                  ) : isOverSaldo ? (
+                    <AlertCircle className="h-3.5 w-3.5 text-red-400" />
+                  ) : (
+                    <span className="text-[9px] px-1 py-0.2 rounded bg-[#E29A36]/20 font-bold">
+                      Preencher ↵
+                    </span>
+                  )}
+                </div>
+                <div className="mt-0.5">
+                  <span className="text-base sm:text-lg font-bold font-mono">
+                    {isOverSaldo ? '+' : ''}
+                    {Math.abs(saldoRestante).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 3 })}
+                  </span>
+                  <span className="text-[10px] ml-1">{devolverUnidade}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Tabela de Volumes Fracionados */}
+            <div className="flex-1 overflow-y-auto border border-[#2A4D6E] rounded-xl bg-[#0D1D2D]/60 my-1">
+              <Table>
+                <TableHeader className="bg-[#1B3550] sticky top-0 z-10">
+                  <TableRow className="border-[#2A4D6E] hover:bg-transparent">
+                    <TableHead className="w-10 text-[#AEE4FF] text-[11px] font-bold text-center">#</TableHead>
+                    <TableHead className="text-[#AEE4FF] text-[11px] font-bold">Qtd a Devolver</TableHead>
+                    <TableHead className="w-20 text-[#AEE4FF] text-[11px] font-bold text-center">Vol</TableHead>
+                    <TableHead className="w-12 text-[#AEE4FF] text-[11px] font-bold text-center">Ação</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {devolverVolumes.map((volItem, idx) => (
+                    <TableRow key={volItem.id} className="border-[#2A4D6E]/50 hover:bg-[#1B3550]/40">
+                      <TableCell className="font-mono text-xs text-center font-bold text-slate-400">
+                        {idx + 1}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1.5">
+                          <Input
+                            type="text"
+                            inputMode="decimal"
+                            value={volItem.quantidade}
+                            onChange={(e) => handleUpdateVolume(idx, 'quantidade', e.target.value)}
+                            placeholder="Ex: 4,985"
+                            className="font-mono font-bold text-sm bg-[#13283E] border-[#2A4D6E] text-white focus-visible:ring-[#E29A36] h-8"
+                          />
+                          <span className="text-xs text-slate-400 font-semibold">{devolverUnidade}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          type="text"
+                          inputMode="numeric"
+                          value={volItem.volume}
+                          onChange={(e) => handleUpdateVolume(idx, 'volume', e.target.value)}
+                          placeholder="1"
+                          className="font-mono text-center text-xs bg-[#13283E] border-[#2A4D6E] text-white focus-visible:ring-[#E29A36] h-8 mx-auto w-16"
+                        />
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleRemoveVolume(idx)}
+                          disabled={devolverVolumes.length <= 1}
+                          className="h-7 w-7 text-red-400 hover:text-red-300 hover:bg-red-950/40 disabled:opacity-30"
+                          title="Remover volume"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+
+            {/* Barra de Ações Rápidas de Volumes */}
+            <div className="flex items-center justify-between flex-wrap gap-2 pt-2 shrink-0">
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleAddVolume}
+                  className="border-[#2A4D6E] bg-[#1B3550] text-[#AEE4FF] hover:bg-[#234465] hover:text-white font-bold h-8 text-xs gap-1.5"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  <span>+ Adicionar Volume</span>
+                </Button>
+
+                {saldoRestante > 0.0001 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleFillRestante}
+                    className="border-[#E29A36]/60 bg-[#E29A36]/10 text-[#E29A36] hover:bg-[#E29A36] hover:text-[#13283E] font-bold h-8 text-xs gap-1.5 transition-all"
+                  >
+                    <Sparkles className="h-3.5 w-3.5" />
+                    <span>Restante ({saldoRestante.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 3 })})</span>
+                  </Button>
+                )}
+              </div>
+
+              <span className="text-[10px] text-slate-400 font-mono">
+                /nzwm296 | BWLVS: 996 | WERKS: 600
+              </span>
+            </div>
+
+            <DialogFooter className="mt-2 pt-2 border-t border-[#2A4D6E] gap-2 sm:gap-0 shrink-0">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setDevolverOpen(false)}
+                className="border-[#2A4D6E] text-slate-300 hover:bg-[#1B3550] hover:text-white"
+              >
+                Cancelar
+              </Button>
+              <Button
+                size="sm"
+                onClick={handleConfirmDevolver}
+                disabled={
+                  totalDevolvendo <= 0 ||
+                  isOverSaldo ||
+                  isDevolverRunning ||
+                  devolverVolumes.some((v) => parseQtdNumber(v.quantidade) <= 0)
+                }
+                className="bg-[#E29A36] hover:bg-[#d48c2a] text-[#13283E] font-bold gap-1.5 shadow-md px-4"
+              >
+                {isDevolverRunning ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin text-[#13283E]" />
+                    <span>Executando no SAP...</span>
+                  </>
+                ) : (
+                  <>
+                    <Undo2 className="h-4 w-4 text-[#13283E]" />
+                    <span>
+                      Executar Devolução SAP ({devolverVolumes.length} {devolverVolumes.length === 1 ? 'Volume' : 'Volumes'})
+                    </span>
+                  </>
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </ProtectedRoute>
   );
