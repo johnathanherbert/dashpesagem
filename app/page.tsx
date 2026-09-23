@@ -24,9 +24,11 @@ import { RemessaUpload } from '@/components/remessa-upload';
 import { ResiduaisView } from '@/components/residuais-view';
 import { RemessasView } from '@/components/remessas-view';
 import { ToolsView } from '@/components/tools-view';
+import { ConsultaRapidaView } from '@/components/consulta-rapida-view';
 import { ConfiguracaoResiduaisComponent } from '@/components/configuracao-residuais';
 import { Sidebar } from '@/components/layout/sidebar';
 import { Topbar } from '@/components/layout/topbar';
+import { MobileNav } from '@/components/layout/mobile-nav';
 import { ExcelUpload } from '@/components/excel-upload';
 import { ParallaxBackground } from '@/components/parallax-background';
 import { Tabs, TabsContent } from '@/components/ui/tabs';
@@ -219,6 +221,7 @@ export default function Home() {
       residuais: 'residuais',
       remessas: 'remessas',
       tools: 'tools',
+      scanner: 'scanner',
       settings: 'settings',
     };
     const newTab = tabMap[tab] || 'financial';
@@ -348,161 +351,166 @@ export default function Home() {
           </DialogContent>
         </Dialog>
 
-        <main className="flex-1 w-full px-3 sm:px-6 py-4 space-y-4">
-          {/* Header compacto & Filtros ativos */}
-          <div className="flex items-center gap-2 flex-wrap">
-          
-          {/* Badges de filtros ativos */}
-          {selectedTipoDeposito !== 'all' && (
-            <Badge className="bg-[#1B3550] border border-[#2A4D6E] text-[#AEE4FF] text-xs flex items-center gap-1">
-              Dep: {selectedTipoDeposito}
-              <button
-                onClick={() => setSelectedTipoDeposito('all')}
-                className="hover:bg-white/20 rounded-full p-0.5"
-                title="Remover filtro"
-              >
-                <X className="h-3 w-3" />
-              </button>
-            </Badge>
-          )}
-
-          {selectedMaterialEspecial && (
-            <Badge className="bg-[#1B3550] border border-[#2A4D6E] text-[#AEE4FF] text-xs flex items-center gap-1">
-              Especial: {selectedMaterialEspecial.toUpperCase()}
-              <button
-                onClick={() => setSelectedMaterialEspecial(null)}
-                className="hover:bg-white/20 rounded-full p-0.5"
-                title="Remover filtro"
-              >
-                <X className="h-3 w-3" />
-              </button>
-            </Badge>
-          )}
-
-          {selectedCriticality && (
-            <Badge className="bg-[#1B3550] border border-[#E29A36]/40 text-[#E29A36] text-xs flex items-center gap-1">
-              Criticidade: {selectedCriticality}
-              <button
-                onClick={() => setSelectedCriticality(null)}
-                className="hover:bg-white/20 rounded-full p-0.5"
-                title="Remover filtro"
-              >
-                <X className="h-3 w-3" />
-              </button>
-            </Badge>
-          )}
-
-          {selectedVencimento && (
-            <Badge className="bg-[#1B3550] border border-[#E75B5B]/40 text-[#E75B5B] text-xs flex items-center gap-1">
-              {selectedVencimento === 'vencidos' ? 'Vencidos' : 'Vencendo em 30d'}
-              <button
-                onClick={() => setSelectedVencimento(null)}
-                className="hover:bg-white/20 rounded-full p-0.5"
-                title="Remover filtro"
-              >
-                <X className="h-3 w-3" />
-              </button>
-            </Badge>
-          )}
-
-          {materialFilter && (
-            <Badge className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs flex items-center gap-1">
-              Material: {materialFilter}
-              <button
-                onClick={() => setMaterialFilter(undefined)}
-                className="hover:bg-white/20 rounded-full p-0.5"
-                title="Remover filtro"
-              >
-                <X className="h-3 w-3" />
-              </button>
-            </Badge>
-          )}
-        </div>
-
-        {/* Loading State */}
-        {loading && (
-          <div className="flex items-center justify-center py-20">
-            <div className="flex flex-col items-center gap-3">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              <p className="text-sm text-muted-foreground">Carregando dados...</p>
-            </div>
-          </div>
-        )}
-
-        {/* Error State */}
-        {error && !loading && (
-          <div className="flex items-center justify-center py-20">
-            <div className="text-center space-y-3 max-w-md">
-              <p className="text-red-600 font-medium">{error}</p>
-              <p className="text-sm text-muted-foreground">
-                Verifique a conexão com o banco de dados PostgreSQL e as variáveis de ambiente no arquivo .env.local
-              </p>
-            </div>
-          </div>
-        )}
-
-        {/* Dashboard Content */}
-        {!loading && !error && data.length === 0 && (
-          <div className="flex items-center justify-center py-20">
-            <div className="text-center space-y-3">
-              <p className="text-lg font-medium">Nenhum dado disponível</p>
-              <p className="text-sm text-muted-foreground">
-                Faça upload de uma planilha Excel para começar
-              </p>
-            </div>
-          </div>
-        )}
-
-        {!loading && !error && data.length > 0 && (
-          <>
-            {/* Statistics Cards */}
-            <AgingStats
-              data={filteredData}
-              allData={data}
-              activeTab={activeTab}
-              configResiduais={configResiduais}
-              valores={valores}
-              remessas={remessas}
-              selectedCriticality={selectedCriticality}
-              onCriticalityClick={setSelectedCriticality}
-              onMaterialEspecialClick={setSelectedMaterialEspecial}
-              selectedMaterialEspecial={selectedMaterialEspecial}
-              onVencimentoClick={setSelectedVencimento}
-              selectedVencimento={selectedVencimento}
-              previousSnapshot={previousSnapshot}
-            />
-
-            {/* Tabs */}
-            <Tabs value={activeTab} onValueChange={(t) => {
-              setActiveTab(t);
-              setSelectedCriticality(null);
-            }} className="space-y-3">
-              {/* Filtro de Depósito */}
-              <div className="flex items-center gap-1 flex-wrap">
-                <button
-                  onClick={() => setSelectedTipoDeposito('all')}
-                  className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-colors border ${
-                    selectedTipoDeposito === 'all'
-                      ? 'bg-ems-ice text-ems-navy border-ems-ice font-bold'
-                      : 'bg-ems-card text-ems-steel border-ems-border hover:bg-ems-card-hover hover:text-white'
-                  }`}
-                >
-                  Todos
-                </button>
-                {tiposDeposito.map((tipo) => (
+        <main className="flex-1 w-full px-3 sm:px-6 py-4 space-y-4 pb-20 md:pb-4">
+          {/* Header compacto & Filtros ativos (Ocultos na aba de Consulta/Scanner) */}
+          {activeTab !== 'scanner' && (
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* Badges de filtros ativos */}
+              {selectedTipoDeposito !== 'all' && (
+                <Badge className="bg-[#1B3550] border border-[#2A4D6E] text-[#AEE4FF] text-xs flex items-center gap-1">
+                  Dep: {selectedTipoDeposito}
                   <button
-                    key={tipo}
-                    onClick={() => setSelectedTipoDeposito(selectedTipoDeposito === tipo ? 'all' : tipo)}
-                    className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-colors border ${
-                      selectedTipoDeposito === tipo
-                        ? 'bg-ems-ice text-ems-navy border-ems-ice font-bold'
-                        : 'bg-ems-card text-ems-steel border-ems-border hover:bg-ems-card-hover hover:text-white'
-                    }`}
+                    onClick={() => setSelectedTipoDeposito('all')}
+                    className="hover:bg-white/20 rounded-full p-0.5"
+                    title="Remover filtro"
                   >
-                    {tipo}
+                    <X className="h-3 w-3" />
                   </button>
-                ))}
+                </Badge>
+              )}
+
+              {selectedMaterialEspecial && (
+                <Badge className="bg-[#1B3550] border border-[#2A4D6E] text-[#AEE4FF] text-xs flex items-center gap-1">
+                  Especial: {selectedMaterialEspecial.toUpperCase()}
+                  <button
+                    onClick={() => setSelectedMaterialEspecial(null)}
+                    className="hover:bg-white/20 rounded-full p-0.5"
+                    title="Remover filtro"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </Badge>
+              )}
+
+              {selectedCriticality && (
+                <Badge className="bg-[#1B3550] border border-[#E29A36]/40 text-[#E29A36] text-xs flex items-center gap-1">
+                  Criticidade: {selectedCriticality}
+                  <button
+                    onClick={() => setSelectedCriticality(null)}
+                    className="hover:bg-white/20 rounded-full p-0.5"
+                    title="Remover filtro"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </Badge>
+              )}
+
+              {selectedVencimento && (
+                <Badge className="bg-[#1B3550] border border-[#E75B5B]/40 text-[#E75B5B] text-xs flex items-center gap-1">
+                  {selectedVencimento === 'vencidos' ? 'Vencidos' : 'Vencendo em 30d'}
+                  <button
+                    onClick={() => setSelectedVencimento(null)}
+                    className="hover:bg-white/20 rounded-full p-0.5"
+                    title="Remover filtro"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </Badge>
+              )}
+
+              {materialFilter && (
+                <Badge className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs flex items-center gap-1">
+                  Material: {materialFilter}
+                  <button
+                    onClick={() => setMaterialFilter(undefined)}
+                    className="hover:bg-white/20 rounded-full p-0.5"
+                    title="Remover filtro"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </Badge>
+              )}
+            </div>
+          )}
+
+          {/* Loading State */}
+          {loading && (
+            <div className="flex items-center justify-center py-20">
+              <div className="flex flex-col items-center gap-3">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <p className="text-sm text-muted-foreground">Carregando dados...</p>
               </div>
+            </div>
+          )}
+
+          {/* Error State */}
+          {error && !loading && (
+            <div className="flex items-center justify-center py-20">
+              <div className="text-center space-y-3 max-w-md">
+                <p className="text-red-600 font-medium">{error}</p>
+                <p className="text-sm text-muted-foreground">
+                  Verifique a conexão com o banco de dados PostgreSQL e as variáveis de ambiente no arquivo .env.local
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Dashboard Content */}
+          {!loading && !error && data.length === 0 && (
+            <div className="flex items-center justify-center py-20">
+              <div className="text-center space-y-3">
+                <p className="text-lg font-medium">Nenhum dado disponível</p>
+                <p className="text-sm text-muted-foreground">
+                  Faça upload de uma planilha Excel para começar
+                </p>
+              </div>
+            </div>
+          )}
+
+          {!loading && !error && data.length > 0 && (
+            <>
+              {/* Statistics Cards (Ocultos na aba de Consulta/Scanner) */}
+              {activeTab !== 'scanner' && (
+                <AgingStats
+                  data={filteredData}
+                  allData={data}
+                  activeTab={activeTab}
+                  configResiduais={configResiduais}
+                  valores={valores}
+                  remessas={remessas}
+                  selectedCriticality={selectedCriticality}
+                  onCriticalityClick={setSelectedCriticality}
+                  onMaterialEspecialClick={setSelectedMaterialEspecial}
+                  selectedMaterialEspecial={selectedMaterialEspecial}
+                  onVencimentoClick={setSelectedVencimento}
+                  selectedVencimento={selectedVencimento}
+                  previousSnapshot={previousSnapshot}
+                />
+              )}
+
+              {/* Tabs */}
+              <Tabs value={activeTab} onValueChange={(t) => {
+                setActiveTab(t);
+                setSelectedCriticality(null);
+              }} className="space-y-3">
+                {/* Filtro de Depósito (Oculto na aba de Consulta/Scanner) */}
+                {activeTab !== 'scanner' && (
+                  <div className="flex items-center gap-1 flex-wrap">
+                    <button
+                      onClick={() => setSelectedTipoDeposito('all')}
+                      className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-colors border ${
+                        selectedTipoDeposito === 'all'
+                          ? 'bg-ems-ice text-ems-navy border-ems-ice font-bold'
+                          : 'bg-ems-card text-ems-steel border-ems-border hover:bg-ems-card-hover hover:text-white'
+                      }`}
+                    >
+                      Todos
+                    </button>
+                    {tiposDeposito.map((tipo) => (
+                      <button
+                        key={tipo}
+                        onClick={() => setSelectedTipoDeposito(selectedTipoDeposito === tipo ? 'all' : tipo)}
+                        className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-colors border ${
+                          selectedTipoDeposito === tipo
+                            ? 'bg-ems-ice text-ems-navy border-ems-ice font-bold'
+                            : 'bg-ems-card text-ems-steel border-ems-border hover:bg-ems-card-hover hover:text-white'
+                        }`}
+                      >
+                        {tipo}
+                      </button>
+                    ))}
+                  </div>
+                )}
 
               <TabsContent value="financial" className="space-y-3">
                 {Object.keys(valores).length > 0 ? (
@@ -612,10 +620,23 @@ export default function Home() {
                   valores={valores}
                 />
               </TabsContent>
+
+              <TabsContent value="scanner" className="space-y-3">
+                <ConsultaRapidaView
+                  agingData={data}
+                  remessas={remessas}
+                  currentUserEmail={user?.email || userData?.email}
+                  onNavigateToTab={handleTabChange}
+                  isEmbedded={true}
+                />
+              </TabsContent>
             </Tabs>
           </>
         )}
         </main>
+
+        {/* Mobile Bottom Navigation Bar (Visível apenas em telas mobile) */}
+        <MobileNav activeTab={activeTab} onTabChange={handleTabChange} />
       </div>
     </ProtectedRoute>
   );

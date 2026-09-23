@@ -52,13 +52,14 @@ export function Sidebar({ open, onOpenChange, activeTab = 'financial', onTabChan
       label: 'Análise Financeira',
       description: 'Aging valorizado & evolução',
       icon: TrendingUp,
+
     },
     {
       id: 'onepage',
       label: 'Onepage Posições',
       description: 'Pesagem, Ajuste e Aju-Saída',
       icon: LayoutDashboard,
-      badge: 'Novo',
+      
     },
     {
       id: 'residuais',
@@ -77,7 +78,7 @@ export function Sidebar({ open, onOpenChange, activeTab = 'financial', onTabChan
       label: 'Central Tools',
       description: 'Valorizar MP & Lista Técnica',
       icon: Wrench,
-      badge: 'Novo',
+      
     },
   ];
 
@@ -181,30 +182,36 @@ export function Sidebar({ open, onOpenChange, activeTab = 'financial', onTabChan
             </nav>
           </div>
 
-          {/* Sistema & Gestão */}
+          {/* Ferramentas Móveis */}
           <div className="space-y-2">
             <p className="text-[10px] font-bold uppercase tracking-wider text-[#608BA6] px-2">
               Ferramentas Móveis
             </p>
             <nav className="space-y-1">
-              <Link
-                href="/mobile"
-                onClick={() => onOpenChange(false)}
-                className="w-full flex items-center gap-3 p-2.5 rounded-xl text-left transition-all bg-sky-500/10 hover:bg-sky-500/20 text-[#AEE4FF] border border-sky-500/30 group"
+              <button
+                type="button"
+                onClick={() => handleItemClick('scanner')}
+                className={`w-full flex items-center gap-3 p-2.5 rounded-xl text-left transition-all group ${
+                  activeTab === 'scanner'
+                    ? 'bg-sky-500/25 text-[#AEE4FF] border border-sky-400 font-bold shadow-2xs'
+                    : 'bg-sky-500/10 hover:bg-sky-500/20 text-[#AEE4FF] border border-sky-500/30'
+                }`}
               >
-                <div className="w-8 h-8 rounded-lg bg-sky-500/20 flex items-center justify-center text-[#AEE4FF] group-hover:bg-[#AEE4FF] group-hover:text-[#13283E] transition-colors">
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
+                  activeTab === 'scanner'
+                    ? 'bg-[#AEE4FF] text-[#13283E]'
+                    : 'bg-sky-500/20 text-[#AEE4FF] group-hover:bg-[#AEE4FF] group-hover:text-[#13283E]'
+                }`}>
                   <QrCode className="h-4 w-4" />
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1.5">
-                    <span className="text-xs font-semibold block text-[#AEE4FF]">Consulta Mobile (Leitor)</span>
-                    <span className="text-[9px] px-1.5 py-0 rounded-full bg-[#AEE4FF] text-[#13283E] font-black">
-                      Code 128
-                    </span>
+                    <span className="text-xs font-semibold block text-[#AEE4FF]">Consulta Rápida</span>
                   </div>
-                  <p className="text-[10px] text-[#608BA6] truncate">Leitura por câmera / Coletor</p>
+                  <p className="text-[10px] text-[#608BA6] truncate">Leitura por câmera, Coletor & Devolução</p>
                 </div>
-              </Link>
+                <ChevronRight className={`h-4 w-4 opacity-0 group-hover:opacity-100 transition-opacity ${activeTab === 'scanner' ? 'opacity-100 text-[#AEE4FF]' : 'text-[#608BA6]'}`} />
+              </button>
             </nav>
           </div>
 

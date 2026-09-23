@@ -498,7 +498,7 @@ export function AgingFinancial({
   return (
     <div className="space-y-3">
       {/* Cards de Estatisticas Financeiras */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-3">
         <Card className="bg-ems-card border border-ems-border text-white shadow-lg">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-0 pt-2.5 px-3">
             <CardTitle className="text-xs font-bold uppercase tracking-wider text-ems-ice">Valor Total</CardTitle>

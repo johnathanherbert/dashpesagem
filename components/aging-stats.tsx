@@ -195,7 +195,7 @@ export function AgingStats({
   };
 
   return (
-    <div className="flex gap-2 w-full pb-1 flex-wrap sm:flex-nowrap">
+    <div className="grid grid-cols-2 sm:flex sm:flex-nowrap gap-2 w-full pb-1">
       {/* 1. Card Total de Lotes */}
       <Card className="bg-ems-card border border-ems-border text-white flex-1 min-w-[110px] shadow-md">
         <div className="flex items-center gap-2 px-3 py-2">
