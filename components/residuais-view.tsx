@@ -197,63 +197,34 @@ If IsObject(WScript) Then
    WScript.ConnectObject application, "on"
 End If
 session.findById("wnd[0]").maximize
-session.findById("wnd[0]/tbar[0]/okcd").text = "/nmigo"
-session.findById("wnd[0]").sendVKey 0
 `;
 
-  // Preenche Código do Material (MAKTX)
-  const maktxLines = items.map((item, idx) => {
-    const mat = item.material.trim();
-    return `session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-MAKTX[1,${idx}]").text = "${mat}"`;
-  }).join('\n');
+  const itemsBlocks = items.map((item) => {
+    const matTrimmed = item.material.trim();
+    const loteTrimmed = item.lote.trim();
+    const qtdTrimmed = item.quantidade.trim().replace('.', ',');
+    const unitTrimmed = (item.unidade.trim() || 'KG').toUpperCase();
+    const caretPos = Math.max(1, loteTrimmed.length);
 
-  // Preenche Quantidade (ERFMG)
-  const erfmgLines = items.map((item, idx) => {
-    const qtd = item.quantidade.trim();
-    return `session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/txtGOITEM-ERFMG[3,${idx}]").text = "${qtd}"`;
-  }).join('\n');
-
-  // Preenche Unidade de Medida (ERFME)
-  const erfmeLines = items.map((item, idx) => {
-    const unit = (item.unidade.trim() || 'KG').toUpperCase();
-    return `session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-ERFME[5,${idx}]").text = "${unit}"`;
-  }).join('\n');
-
-  // Preenche Depósito Origem (LGOBE) = "PES"
-  const lgobeLines = items.map((_, idx) => {
-    return `session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-LGOBE[12,${idx}]").text = "PES"`;
-  }).join('\n');
-
-  // Preenche Centro (NAME1) = "600"
-  const name1Lines = items.map((_, idx) => {
-    return `session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-NAME1[9,${idx}]").text = "600"`;
-  }).join('\n');
-
-  // Preenche Depósito Destino (UMLGOBE) = "PES"
-  const umlgobeLines = items.map((_, idx) => {
-    return `session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-UMLGOBE[14,${idx}]").text = "PES"`;
-  }).join('\n');
-
-  // Preenche Motivo (GRUND) = "9000"
-  const grundLines = items.map((_, idx) => {
-    return `session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-GRUND[15,${idx}]").text = "9000"`;
-  }).join('\n');
-
-  // Validação da Grade via Enter no primeiro item
-  const validateGrid = `session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-MAKTX[1,0]").setFocus
-session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-MAKTX[1,0]").caretPosition = 0
+    return `session.findById("wnd[0]/tbar[0]/okcd").text = "/nmigo"
 session.findById("wnd[0]").sendVKey 0
-`;
-
-  // Preenche Lotes (CHARG)
-  const chargLines = items.map((item, idx) => {
-    const lote = item.lote.trim();
-    return `session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-CHARG[2,${idx}]").text = "${lote}"`;
-  }).join('\n');
-
-  // Gravação, Transfer Order (/nlt06, btn[44]) e retorno (/n)
-  const vbsFooter = `session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-CHARG[2,0]").setFocus
-session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-CHARG[2,0]").caretPosition = 0
+session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_FIRSTLINE:SAPLMIGO:0011/ctxtGODEFAULT_TV-BWART").text = "y84"
+session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_FIRSTLINE:SAPLMIGO:0011/ctxtGODEFAULT_TV-BWART").setFocus
+session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_FIRSTLINE:SAPLMIGO:0011/ctxtGODEFAULT_TV-BWART").caretPosition = 3
+session.findById("wnd[0]").sendVKey 0
+session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-MAKTX[1,0]").text = "${matTrimmed}"
+session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/txtGOITEM-ERFMG[3,0]").text = "${qtdTrimmed}"
+session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-ERFME[5,0]").text = "${unitTrimmed}"
+session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-LGOBE[12,0]").text = "PES"
+session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-NAME1[9,0]").text = "600"
+session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-UMLGOBE[14,0]").text = "PES"
+session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-GRUND[15,0]").text = "9000"
+session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-GRUND[15,0]").setFocus
+session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-GRUND[15,0]").caretPosition = 4
+session.findById("wnd[0]").sendVKey 0
+session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-CHARG[2,0]").text = "${loteTrimmed}"
+session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-CHARG[2,0]").setFocus
+session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-CHARG[2,0]").caretPosition = ${caretPos}
 session.findById("wnd[0]/tbar[1]/btn[7]").press
 session.findById("wnd[0]/tbar[1]/btn[23]").press
 session.findById("wnd[0]/tbar[0]/okcd").text = "/nlt06"
@@ -261,22 +232,10 @@ session.findById("wnd[0]").sendVKey 0
 session.findById("wnd[0]").sendVKey 0
 session.findById("wnd[0]/tbar[1]/btn[44]").press
 session.findById("wnd[0]/tbar[0]/okcd").text = "/n"
-session.findById("wnd[0]").sendVKey 0
-`;
+session.findById("wnd[0]").sendVKey 0`;
+  }).join('\n');
 
-  return [
-    vbsHeader,
-    maktxLines,
-    erfmgLines,
-    erfmeLines,
-    lgobeLines,
-    name1Lines,
-    umlgobeLines,
-    grundLines,
-    validateGrid,
-    chargLines,
-    vbsFooter,
-  ].filter(Boolean).join('\n');
+  return vbsHeader + itemsBlocks;
 }
 
 // Custom filter for numeric range [min, max]
@@ -1203,7 +1162,7 @@ export function ResiduaisView({
       toast.loading(`Aguardando execução no SAP GUI (${count} item(ns))...`, { id: toastId });
 
       let attempts = 0;
-      const maxAttempts = 60; // até 120s
+      const maxAttempts = Math.max(60, count * 20); // Polling a cada 2s (até 40s por item)
       const interval = setInterval(async () => {
         attempts++;
         try {
