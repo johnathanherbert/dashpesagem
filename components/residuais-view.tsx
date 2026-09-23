@@ -70,6 +70,9 @@ import {
   Sparkles,
   CheckCircle2,
   Calculator,
+  GripVertical,
+  Layers,
+  ChevronUp,
 } from 'lucide-react';
 import { AgingData, RemessaData, ConfiguracaoResiduais, AgingTableRow, NivelResidual } from '@/types/aging';
 import { enriquecerAgingComAnalise } from '@/lib/residuais-analyzer';
@@ -170,7 +173,7 @@ session.findById("wnd[0]").sendVKey 0
   ].filter(Boolean).join('\n');
 }
 
-// Helper para gerar o VBScript dinâmico de bloqueio MIGO (Y84) para o SAP GUI em documento único
+// Helper para gerar o VBScript dinâmico de bloqueio MIGO (Y84) para o SAP GUI em documento único com rolagem
 export interface BloquearItemParam {
   material: string;
   lote: string;
@@ -178,6 +181,55 @@ export interface BloquearItemParam {
   unidade: string;
   descricao?: string;
 }
+
+export type MacroActionType = 'bloquear_migo' | 'mover_ajuste' | 'atualizar_db' | 'devolver';
+
+export interface MacroActionItem {
+  id: string;
+  actionType: MacroActionType;
+}
+
+export const AVAILABLE_MACROS: Array<{
+  type: MacroActionType;
+  label: string;
+  shortLabel: string;
+  description: string;
+  color: string;
+  badgeBg: string;
+}> = [
+  {
+    type: 'bloquear_migo',
+    label: 'Bloquear no SAP (MIGO Y84)',
+    shortLabel: 'Bloquear MIGO',
+    description: 'Executa /nmigo (Y84) com scroll e confirmação de OT (/nlt06)',
+    color: 'text-[#AEE4FF]',
+    badgeBg: 'bg-[#AEE4FF]/10 border-[#AEE4FF]/30 text-[#AEE4FF]',
+  },
+  {
+    type: 'mover_ajuste',
+    label: 'Mover para Ajuste (999/AJUSTE)',
+    shortLabel: 'Mover/Ajuste',
+    description: 'Transfere saldo tipo S de PES para 999/AJUSTE via /nlt10',
+    color: 'text-indigo-300',
+    badgeBg: 'bg-indigo-500/10 border-indigo-500/30 text-indigo-300',
+  },
+  {
+    type: 'atualizar_db',
+    label: 'Atualizar Banco de Dados',
+    shortLabel: 'Atualizar DB',
+    description: 'Extrai relatório do SAP e sincroniza com o banco de dados',
+    color: 'text-emerald-300',
+    badgeBg: 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300',
+  },
+  {
+    type: 'devolver',
+    label: 'Devolver ao Almoxarifado',
+    shortLabel: 'Devolver (/nzwm296)',
+    description: 'Executa ordem de devolução via /nzwm296',
+    color: 'text-amber-300',
+    badgeBg: 'bg-amber-500/10 border-amber-500/30 text-amber-300',
+  },
+];
 
 export function generateBloquearMigoVbs(items: BloquearItemParam[]): string {
   if (items.length === 0) return '';
@@ -201,58 +253,41 @@ session.findById("wnd[0]/tbar[0]/okcd").text = "/nmigo"
 session.findById("wnd[0]").sendVKey 0
 `;
 
-  // Preenche Código do Material (MAKTX)
-  const maktxLines = items.map((item, idx) => {
+  const tblPath = `session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM")`;
+
+  // Preenche dados de cada item rolando a grade para a posição necessária (linha visual [col, 0])
+  const itemsLines = items.map((item, idx) => {
     const mat = item.material.trim();
-    return `session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-MAKTX[1,${idx}]").text = "${mat}"`;
-  }).join('\n');
-
-  // Preenche Quantidade (ERFMG)
-  const erfmgLines = items.map((item, idx) => {
     const qtd = item.quantidade.trim().replace('.', ',');
-    return `session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/txtGOITEM-ERFMG[3,${idx}]").text = "${qtd}"`;
-  }).join('\n');
-
-  // Preenche Unidade de Medida (ERFME)
-  const erfmeLines = items.map((item, idx) => {
     const unit = (item.unidade.trim() || 'KG').toUpperCase();
-    return `session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-ERFME[5,${idx}]").text = "${unit}"`;
+
+    return `${tblPath}.verticalScrollbar.position = ${idx}
+session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-MAKTX[1,0]").text = "${mat}"
+session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/txtGOITEM-ERFMG[3,0]").text = "${qtd}"
+session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-ERFME[5,0]").text = "${unit}"
+session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-LGOBE[12,0]").text = "PES"
+session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-NAME1[9,0]").text = "600"
+session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-UMLGOBE[14,0]").text = "PES"
+session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-GRUND[15,0]").text = "9000"`;
   }).join('\n');
 
-  // Preenche Depósito Origem (LGOBE) = "PES"
-  const lgobeLines = items.map((_, idx) => {
-    return `session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-LGOBE[12,${idx}]").text = "PES"`;
-  }).join('\n');
-
-  // Preenche Centro (NAME1) = "600"
-  const name1Lines = items.map((_, idx) => {
-    return `session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-NAME1[9,${idx}]").text = "600"`;
-  }).join('\n');
-
-  // Preenche Depósito Destino (UMLGOBE) = "PES"
-  const umlgobeLines = items.map((_, idx) => {
-    return `session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-UMLGOBE[14,${idx}]").text = "PES"`;
-  }).join('\n');
-
-  // Preenche Motivo (GRUND) = "9000"
-  const grundLines = items.map((_, idx) => {
-    return `session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-GRUND[15,${idx}]").text = "9000"`;
-  }).join('\n');
-
-  // Validação da Grade via Enter no primeiro item
-  const validateGrid = `session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-MAKTX[1,0]").setFocus
+  // Validação da Grade via Enter no primeiro item (retorna scroll para o topo)
+  const validateGrid = `${tblPath}.verticalScrollbar.position = 0
+session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-MAKTX[1,0]").setFocus
 session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-MAKTX[1,0]").caretPosition = 0
 session.findById("wnd[0]").sendVKey 0
 `;
 
-  // Preenche Lotes (CHARG)
+  // Preenche Lotes (CHARG) com scroll para cada item
   const chargLines = items.map((item, idx) => {
     const lote = item.lote.trim();
-    return `session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-CHARG[2,${idx}]").text = "${lote}"`;
+    return `${tblPath}.verticalScrollbar.position = ${idx}
+session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-CHARG[2,0]").text = "${lote}"`;
   }).join('\n');
 
   // Gravação, Transfer Order (/nlt06, btn[44]) e retorno (/n)
-  const vbsFooter = `session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-CHARG[2,0]").setFocus
+  const vbsFooter = `${tblPath}.verticalScrollbar.position = 0
+session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-CHARG[2,0]").setFocus
 session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-CHARG[2,0]").caretPosition = 0
 session.findById("wnd[0]/tbar[1]/btn[7]").press
 session.findById("wnd[0]/tbar[1]/btn[23]").press
@@ -266,13 +301,7 @@ session.findById("wnd[0]").sendVKey 0
 
   return [
     vbsHeader,
-    maktxLines,
-    erfmgLines,
-    erfmeLines,
-    lgobeLines,
-    name1Lines,
-    umlgobeLines,
-    grundLines,
+    itemsLines,
     validateGrid,
     chargLines,
     vbsFooter,
@@ -575,6 +604,10 @@ export function ResiduaisView({
   const [bloquearMigoOpen, setBloquearMigoOpen] = useState(false);
   const [bloquearSelectedItems, setBloquearSelectedItems] = useState<BloquearItemParam[]>([]);
   const [isBloquearMigoRunning, setIsBloquearMigoRunning] = useState(false);
+  const [macroPipeline, setMacroPipeline] = useState<MacroActionItem[]>([
+    { id: 'step-1', actionType: 'bloquear_migo' },
+  ]);
+  const [draggedMacroIndex, setDraggedMacroIndex] = useState<number | null>(null);
 
   // Helper para conversão numérica de inputs
   const parseQtdNumber = (val: string): number => {
@@ -1169,73 +1202,180 @@ export function ResiduaisView({
     });
   };
 
-  const handleConfirmBloquearMigo = async () => {
-    if (bloquearSelectedItems.length === 0) return;
+  const executeSapJobAndWait = (
+    command: string,
+    userEmail: string,
+    scriptCode?: string,
+    timeoutSeconds = 120
+  ): Promise<{ success: boolean; message?: string }> => {
+    return new Promise(async (resolve) => {
+      try {
+        const res = await triggerSapAutomation(command, userEmail, scriptCode);
+        if (!res.success || !res.job) {
+          return resolve({ success: false, message: res.error || 'Falha ao enfileirar automação' });
+        }
+        const jobId = res.job.id;
+        let attempts = 0;
+        const maxAttempts = Math.ceil(timeoutSeconds / 2);
+        const interval = setInterval(async () => {
+          attempts++;
+          try {
+            const statusJob = await checkSapAutomationStatus(jobId);
+            if (statusJob?.status === 'completed') {
+              clearInterval(interval);
+              return resolve({ success: true, message: statusJob.result_message });
+            } else if (statusJob?.status === 'failed') {
+              clearInterval(interval);
+              return resolve({
+                success: false,
+                message: statusJob.result_message || 'Erro durante a execução do script',
+              });
+            } else if (attempts >= maxAttempts) {
+              clearInterval(interval);
+              return resolve({
+                success: false,
+                message: 'Tempo limite excedido aguardando resposta do Planilha Sync',
+              });
+            }
+          } catch (e: any) {
+            if (attempts >= maxAttempts) {
+              clearInterval(interval);
+              return resolve({ success: false, message: e?.message || 'Erro de comunicação com a API' });
+            }
+          }
+        }, 2000);
+      } catch (err: any) {
+        resolve({ success: false, message: err?.message || 'Erro inesperado' });
+      }
+    });
+  };
 
-    const hasInvalid = bloquearSelectedItems.some(
-      (it) => !it.material.trim() || !it.lote.trim() || !it.quantidade.trim()
+  const handleAddMacroToPipeline = (actionType: MacroActionType) => {
+    setMacroPipeline((prev) => [
+      ...prev,
+      { id: `${actionType}-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`, actionType },
+    ]);
+  };
+
+  const handleRemoveMacroFromPipeline = (index: number) => {
+    setMacroPipeline((prev) => prev.filter((_, idx) => idx !== index));
+  };
+
+  const handleMoveMacroInPipeline = (fromIndex: number, toIndex: number) => {
+    if (toIndex < 0 || toIndex >= macroPipeline.length) return;
+    setMacroPipeline((prev) => {
+      const copy = [...prev];
+      const [moved] = copy.splice(fromIndex, 1);
+      copy.splice(toIndex, 0, moved);
+      return copy;
+    });
+  };
+
+  const handleApplyMacroPreset = (presetTypes: MacroActionType[]) => {
+    setMacroPipeline(
+      presetTypes.map((actionType, i) => ({
+        id: `${actionType}-${Date.now()}-${i}`,
+        actionType,
+      }))
     );
-    if (hasInvalid) {
-      toast.error('Preencha os campos obrigatórios (Material, Lote e Quantidade) de todos os itens');
+  };
+
+  const handleExecuteMacroPipeline = async () => {
+    if (macroPipeline.length === 0) {
+      toast.error('Adicione ao menos uma macro ao pipeline de execução.');
       return;
+    }
+
+    const hasBloquear = macroPipeline.some((m) => m.actionType === 'bloquear_migo');
+    if (hasBloquear) {
+      if (bloquearSelectedItems.length === 0) return;
+      const hasInvalid = bloquearSelectedItems.some(
+        (it) => !it.material.trim() || !it.lote.trim() || !it.quantidade.trim()
+      );
+      if (hasInvalid) {
+        toast.error('Preencha os campos obrigatórios (Material, Lote e Quantidade) de todos os itens');
+        return;
+      }
     }
 
     setBloquearMigoOpen(false);
     setIsBloquearMigoRunning(true);
-    const count = bloquearSelectedItems.length;
-    const toastId = toast.loading(
-      count === 1
-        ? `Enviando bloqueio de ${bloquearSelectedItems[0].material} (Lote ${bloquearSelectedItems[0].lote}) para o Planilha Sync...`
-        : `Enviando bloqueio sequencial de ${count} itens para o Planilha Sync...`
-    );
-
-    const vbsCode = generateBloquearMigoVbs(bloquearSelectedItems);
+    const totalSteps = macroPipeline.length;
+    const countItems = bloquearSelectedItems.length;
+    const toastId = toast.loading(`Iniciando pipeline de ${totalSteps} etapa(s) no SAP...`);
 
     try {
-      const res = await triggerSapAutomation('bloquear_migo', currentUserEmail || 'Dashboard', vbsCode);
-      if (!res.success || !res.job) {
-        toast.error(`Falha ao disparar automação: ${res.error || 'Erro desconhecido'}`, { id: toastId });
-        setIsBloquearMigoRunning(false);
-        return;
+      for (let stepIdx = 0; stepIdx < totalSteps; stepIdx++) {
+        const step = macroPipeline[stepIdx];
+        const stepNumber = stepIdx + 1;
+        const macroDef = AVAILABLE_MACROS.find((m) => m.type === step.actionType);
+        const label = macroDef?.shortLabel || step.actionType;
+
+        toast.loading(`[${stepNumber}/${totalSteps}] Executando: ${label}...`, { id: toastId });
+
+        let res: { success: boolean; message?: string };
+
+        if (step.actionType === 'bloquear_migo') {
+          const vbsCode = generateBloquearMigoVbs(bloquearSelectedItems);
+          res = await executeSapJobAndWait(
+            'bloquear_migo',
+            currentUserEmail || 'Dashboard',
+            vbsCode,
+            Math.max(60, countItems * 25)
+          );
+        } else if (step.actionType === 'mover_ajuste') {
+          res = await executeSapJobAndWait(
+            'movermigo',
+            currentUserEmail || 'Dashboard',
+            undefined,
+            60
+          );
+        } else if (step.actionType === 'atualizar_db') {
+          res = await executeSapJobAndWait(
+            'atualizar_db',
+            currentUserEmail || 'Dashboard',
+            undefined,
+            180
+          );
+        } else if (step.actionType === 'devolver') {
+          const firstMat = bloquearSelectedItems[0]?.material || '';
+          const firstLot = bloquearSelectedItems[0]?.lote || '';
+          const vbsCode = generateDevolverZwm296Vbs(
+            firstMat,
+            firstLot,
+            bloquearSelectedItems.map((it, idx) => ({
+              quantidade: it.quantidade,
+              volume: String(idx + 1),
+            }))
+          );
+          res = await executeSapJobAndWait(
+            'devolver',
+            currentUserEmail || 'Dashboard',
+            vbsCode,
+            90
+          );
+        } else {
+          res = { success: true };
+        }
+
+        if (!res.success) {
+          toast.error(
+            `Falha na etapa [${stepNumber}/${totalSteps}] (${label}): ${res.message || 'Erro na execução'}`,
+            { id: toastId, duration: 6000 }
+          );
+          setIsBloquearMigoRunning(false);
+          return;
+        }
       }
 
-      const jobId = res.job.id;
-      toast.loading(`Aguardando execução no SAP GUI (${count} item(ns))...`, { id: toastId });
-
-      let attempts = 0;
-      const maxAttempts = Math.max(60, count * 20); // Polling a cada 2s (até 40s por item)
-      const interval = setInterval(async () => {
-        attempts++;
-        try {
-          const statusJob = await checkSapAutomationStatus(jobId);
-          if (statusJob?.status === 'completed') {
-            clearInterval(interval);
-            setIsBloquearMigoRunning(false);
-            setRowSelection({});
-            toast.success(
-              count === 1
-                ? `Bloqueio MIGO executado com sucesso no SAP para o lote ${bloquearSelectedItems[0].lote}!`
-                : `Bloqueio MIGO de ${count} itens executado com sucesso no SAP!`,
-              { id: toastId, icon: '🔒' }
-            );
-          } else if (statusJob?.status === 'failed') {
-            clearInterval(interval);
-            setIsBloquearMigoRunning(false);
-            toast.error(`Execução no SAP falhou: ${statusJob.result_message || 'Erro no script'}`, { id: toastId });
-          } else if (attempts >= maxAttempts) {
-            clearInterval(interval);
-            setIsBloquearMigoRunning(false);
-            toast('Tempo limite aguardando o Planilha Sync. Verifique se o app está aberto.', { id: toastId, icon: '⚠️' });
-          }
-        } catch (e) {
-          if (attempts >= maxAttempts) {
-            clearInterval(interval);
-            setIsBloquearMigoRunning(false);
-          }
-        }
-      }, 2000);
+      toast.success(
+        `Pipeline completo de ${totalSteps} etapa(s) executado com sucesso no SAP!`,
+        { id: toastId, icon: '✨', duration: 5000 }
+      );
+      setRowSelection({});
     } catch (err: any) {
-      toast.error(`Erro: ${err?.message || err}`, { id: toastId });
+      toast.error(`Erro no pipeline: ${err?.message || err}`, { id: toastId });
+    } finally {
       setIsBloquearMigoRunning(false);
     }
   };
@@ -2180,109 +2320,285 @@ export function ResiduaisView({
         </DialogContent>
       </Dialog>
 
-      {/* Dialog para Bloquear/MIGO no SAP (Movimento Y84) */}
+      {/* Dialog para Bloquear/MIGO e Pipeline de Macros no SAP */}
       <Dialog open={bloquearMigoOpen} onOpenChange={setBloquearMigoOpen}>
-        <DialogContent className={cn("bg-[#13283E] border-[#2A4D6E] text-white", bloquearSelectedItems.length > 1 ? "sm:max-w-2xl" : "sm:max-w-md")}>
+        <DialogContent className={cn("bg-[#13283E] border-[#2A4D6E] text-white", "sm:max-w-3xl max-h-[90vh] overflow-y-auto")}>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-[#AEE4FF] text-base font-bold">
-              <Lock className="h-5 w-5 text-[#AEE4FF]" />
+              <Layers className="h-5 w-5 text-[#AEE4FF]" />
               <span>
-                Bloquear / MIGO no SAP (Y84)
-                {bloquearSelectedItems.length > 1 && ` — ${bloquearSelectedItems.length} Itens`}
+                Execução SAP &amp; Pipeline de Macros
+                {bloquearSelectedItems.length > 0 && ` (${bloquearSelectedItems.length} Item${bloquearSelectedItems.length > 1 ? 'ns' : ''})`}
               </span>
             </DialogTitle>
             <DialogDescription className="text-xs text-slate-300 pt-1">
-              {bloquearSelectedItems.length > 1
-                ? `Revise os ${bloquearSelectedItems.length} itens selecionados que serão bloqueados sequencialmente via Planilha Sync.`
-                : 'Confirme os dados da matéria-prima selecionada para envio e execução do script de bloqueio na sua sessão SAP via Planilha Sync.'}
+              Personalize a sequência de funções automáticas que o Planilha Sync executará no SAP para os itens selecionados.
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-3 py-2">
-            {bloquearSelectedItems.length === 1 ? (
-              <>
-                <div className="p-2.5 rounded-lg bg-[#1B3550]/80 border border-[#2A4D6E] space-y-1 text-xs">
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">Material:</span>
-                    <span className="font-mono font-bold text-[#AEE4FF]">{bloquearSelectedItems[0]?.material}</span>
-                  </div>
-                  {bloquearSelectedItems[0]?.descricao && (
-                    <div className="flex justify-between text-[11px]">
-                      <span className="text-slate-400">Descrição:</span>
-                      <span className="text-slate-200 truncate max-w-[240px]" title={bloquearSelectedItems[0]?.descricao}>
-                        {bloquearSelectedItems[0]?.descricao}
-                      </span>
+          <div className="space-y-4 py-2">
+            {/* 1. Resumo dos Itens Selecionados */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                <Package className="h-3.5 w-3.5 text-[#AEE4FF]" />
+                <span>Itens Selecionados para Processamento:</span>
+              </label>
+
+              {bloquearSelectedItems.length === 1 ? (
+                <>
+                  <div className="p-2.5 rounded-lg bg-[#1B3550]/80 border border-[#2A4D6E] space-y-1 text-xs">
+                    <div className="flex justify-between">
+                      <span className="text-slate-400">Material:</span>
+                      <span className="font-mono font-bold text-[#AEE4FF]">{bloquearSelectedItems[0]?.material}</span>
                     </div>
-                  )}
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">Lote:</span>
-                    <span className="font-mono font-bold text-amber-300">{bloquearSelectedItems[0]?.lote}</span>
+                    {bloquearSelectedItems[0]?.descricao && (
+                      <div className="flex justify-between text-[11px]">
+                        <span className="text-slate-400">Descrição:</span>
+                        <span className="text-slate-200 truncate max-w-[320px]" title={bloquearSelectedItems[0]?.descricao}>
+                          {bloquearSelectedItems[0]?.descricao}
+                        </span>
+                      </div>
+                    )}
+                    <div className="flex justify-between">
+                      <span className="text-slate-400">Lote:</span>
+                      <span className="font-mono font-bold text-amber-300">{bloquearSelectedItems[0]?.lote}</span>
+                    </div>
                   </div>
-                </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-xs text-slate-300 font-medium mb-1 block">
-                      Quantidade:
-                    </label>
-                    <Input
-                      value={bloquearSelectedItems[0]?.quantidade ?? ''}
-                      onChange={(e) => handleUpdateSingleBloquearItem('quantidade', e.target.value)}
-                      placeholder="Ex: 0,081"
-                      className="bg-[#1B3550] border-[#2A4D6E] text-white text-sm"
-                    />
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs text-slate-300 font-medium mb-1 block">
+                        Quantidade:
+                      </label>
+                      <Input
+                        value={bloquearSelectedItems[0]?.quantidade ?? ''}
+                        onChange={(e) => handleUpdateSingleBloquearItem('quantidade', e.target.value)}
+                        placeholder="Ex: 0,081"
+                        className="bg-[#1B3550] border-[#2A4D6E] text-white text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-slate-300 font-medium mb-1 block">
+                        Unidade (UMB):
+                      </label>
+                      <Input
+                        value={bloquearSelectedItems[0]?.unidade ?? ''}
+                        onChange={(e) => handleUpdateSingleBloquearItem('unidade', e.target.value.toUpperCase())}
+                        placeholder="KG, L, G, UN..."
+                        className="bg-[#1B3550] border-[#2A4D6E] text-white text-sm uppercase"
+                      />
+                    </div>
                   </div>
-                  <div>
-                    <label className="text-xs text-slate-300 font-medium mb-1 block">
-                      Unidade (UMB):
-                    </label>
-                    <Input
-                      value={bloquearSelectedItems[0]?.unidade ?? ''}
-                      onChange={(e) => handleUpdateSingleBloquearItem('unidade', e.target.value.toUpperCase())}
-                      placeholder="KG, L, G, UN..."
-                      className="bg-[#1B3550] border-[#2A4D6E] text-white text-sm uppercase"
-                    />
-                  </div>
-                </div>
-              </>
-            ) : (
-              <div className="max-h-60 overflow-y-auto rounded-lg border border-[#2A4D6E] bg-[#0E1D2D]">
-                <table className="w-full text-xs text-left">
-                  <thead className="text-[11px] text-slate-400 uppercase bg-[#1B3550]/80 sticky top-0 border-b border-[#2A4D6E]">
-                    <tr>
-                      <th className="px-3 py-2">Material</th>
-                      <th className="px-3 py-2">Descrição</th>
-                      <th className="px-3 py-2">Lote</th>
-                      <th className="px-3 py-2 text-right">Qtd</th>
-                      <th className="px-3 py-2 text-center">UMB</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-[#2A4D6E]/40 font-mono">
-                    {bloquearSelectedItems.map((item, idx) => (
-                      <tr key={idx} className="hover:bg-[#1B3550]/40">
-                        <td className="px-3 py-1.5 font-bold text-[#AEE4FF]">{item.material}</td>
-                        <td className="px-3 py-1.5 font-sans text-slate-300 text-[11px] max-w-[150px] truncate" title={item.descricao}>
-                          {item.descricao || '-'}
-                        </td>
-                        <td className="px-3 py-1.5 text-amber-300 font-bold">{item.lote}</td>
-                        <td className="px-3 py-1.5 text-right text-white">{item.quantidade}</td>
-                        <td className="px-3 py-1.5 text-center text-slate-300">{item.unidade}</td>
+                </>
+              ) : (
+                <div className="max-h-44 overflow-y-auto rounded-lg border border-[#2A4D6E] bg-[#0E1D2D]">
+                  <table className="w-full text-xs text-left">
+                    <thead className="text-[11px] text-slate-400 uppercase bg-[#1B3550]/80 sticky top-0 border-b border-[#2A4D6E]">
+                      <tr>
+                        <th className="px-3 py-1.5">Material</th>
+                        <th className="px-3 py-1.5">Descrição</th>
+                        <th className="px-3 py-1.5">Lote</th>
+                        <th className="px-3 py-1.5 text-right">Qtd</th>
+                        <th className="px-3 py-1.5 text-center">UMB</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-
-            <div className="p-3 rounded-lg bg-[#0E1D2D] border border-[#2A4D6E]/60 text-[11px] space-y-1 text-slate-300 font-mono">
-              <p className="text-[#AEE4FF] font-sans font-semibold">Parâmetros automáticos por item:</p>
-              <div>• Transação: <span className="text-white">/nmigo</span> (Movimento: <span className="text-amber-300">Y84</span>)</div>
-              <div>• Centro: <span className="text-white">600</span> | Depósito: <span className="text-white">PES &rarr; PES</span></div>
-              <div>• Motivo: <span className="text-amber-300">9000</span> | Pós-gravação: <span className="text-white">/nlt06</span></div>
+                    </thead>
+                    <tbody className="divide-y divide-[#2A4D6E]/40 font-mono">
+                      {bloquearSelectedItems.map((item, idx) => (
+                        <tr key={idx} className="hover:bg-[#1B3550]/40">
+                          <td className="px-3 py-1.5 font-bold text-[#AEE4FF]">{item.material}</td>
+                          <td className="px-3 py-1.5 font-sans text-slate-300 text-[11px] max-w-[200px] truncate" title={item.descricao}>
+                            {item.descricao || '-'}
+                          </td>
+                          <td className="px-3 py-1.5 text-amber-300 font-bold">{item.lote}</td>
+                          <td className="px-3 py-1.5 text-right text-white">{item.quantidade}</td>
+                          <td className="px-3 py-1.5 text-center text-slate-300">{item.unidade}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
 
-            <p className="text-[10px] text-amber-300">
-              ⚠️ Certifique-se de que o SAP GUI está aberto e o Planilha Sync em execução.
+            {/* 2. Pipeline de Macros / Sequência de Execução */}
+            <div className="p-3.5 rounded-xl bg-[#0E1D2D] border border-[#2A4D6E] space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <Layers className="h-4 w-4 text-[#AEE4FF]" />
+                  <span className="text-xs font-bold text-white uppercase tracking-wider">
+                    Pipeline de Macros (Ordem de Execução)
+                  </span>
+                  <Badge variant="outline" className="border-[#AEE4FF]/40 text-[#AEE4FF] text-[10px] py-0 px-1.5">
+                    {macroPipeline.length} etapa{macroPipeline.length !== 1 ? 's' : ''}
+                  </Badge>
+                </div>
+
+                {/* Predefinições Rápidas */}
+                <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
+                  <span className="text-slate-400 text-[10px] mr-1">Presets:</span>
+                  <button
+                    type="button"
+                    onClick={() => handleApplyMacroPreset(['bloquear_migo', 'mover_ajuste', 'atualizar_db'])}
+                    className="px-2 py-0.5 rounded bg-[#1B3550] hover:bg-[#234465] text-[#AEE4FF] border border-[#2A4D6E] text-[10px] font-semibold transition-colors"
+                    title="Bloquear MIGO ➔ Mover para Ajuste ➔ Atualizar Banco de Dados"
+                  >
+                    ⚡ Completo
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleApplyMacroPreset(['bloquear_migo', 'atualizar_db'])}
+                    className="px-2 py-0.5 rounded bg-[#1B3550] hover:bg-[#234465] text-emerald-300 border border-[#2A4D6E] text-[10px] font-semibold transition-colors"
+                    title="Bloquear MIGO ➔ Atualizar Banco de Dados"
+                  >
+                    🔒 Bloquear + DB
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleApplyMacroPreset(['bloquear_migo'])}
+                    className="px-2 py-0.5 rounded bg-[#1B3550] hover:bg-[#234465] text-slate-300 border border-[#2A4D6E] text-[10px] font-semibold transition-colors"
+                    title="Apenas Bloquear no SAP via MIGO"
+                  >
+                    🎯 Só Bloquear
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleApplyMacroPreset(['mover_ajuste', 'atualizar_db'])}
+                    className="px-2 py-0.5 rounded bg-[#1B3550] hover:bg-[#234465] text-indigo-300 border border-[#2A4D6E] text-[10px] font-semibold transition-colors"
+                    title="Mover para Ajuste ➔ Atualizar Banco de Dados"
+                  >
+                    📦 Mover + DB
+                  </button>
+                </div>
+              </div>
+
+              {/* Lista Sequencial de Macros */}
+              <div className="space-y-1.5 min-h-[60px]">
+                {macroPipeline.length === 0 ? (
+                  <div className="p-4 text-center text-xs text-slate-400 border border-dashed border-[#2A4D6E] rounded-lg">
+                    Nenhuma macro configurada. Adicione ações abaixo para montar seu fluxo automático.
+                  </div>
+                ) : (
+                  macroPipeline.map((step, idx) => {
+                    const macroDef = AVAILABLE_MACROS.find((m) => m.type === step.actionType);
+                    if (!macroDef) return null;
+
+                    return (
+                      <div
+                        key={step.id}
+                        draggable
+                        onDragStart={() => setDraggedMacroIndex(idx)}
+                        onDragOver={(e) => {
+                          e.preventDefault();
+                        }}
+                        onDrop={() => {
+                          if (draggedMacroIndex !== null && draggedMacroIndex !== idx) {
+                            handleMoveMacroInPipeline(draggedMacroIndex, idx);
+                            setDraggedMacroIndex(null);
+                          }
+                        }}
+                        className={cn(
+                          "flex items-center justify-between p-2 rounded-lg border transition-all duration-200 cursor-grab active:cursor-grabbing",
+                          "bg-[#13283E]/90 hover:bg-[#1B3550] border-[#2A4D6E]",
+                          draggedMacroIndex === idx && "opacity-50 border-[#AEE4FF]"
+                        )}
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <GripVertical className="h-4 w-4 text-slate-500 hover:text-slate-300 shrink-0" />
+                          <div className="w-5 h-5 rounded-full bg-[#1B3550] border border-[#2A4D6E] flex items-center justify-center text-[10px] font-bold text-slate-300 shrink-0">
+                            {idx + 1}
+                          </div>
+
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              {step.actionType === 'bloquear_migo' && <Lock className="h-3.5 w-3.5 text-[#AEE4FF] shrink-0" />}
+                              {step.actionType === 'mover_ajuste' && <ArrowRightLeft className="h-3.5 w-3.5 text-indigo-300 shrink-0" />}
+                              {step.actionType === 'atualizar_db' && <RefreshCw className="h-3.5 w-3.5 text-emerald-300 shrink-0" />}
+                              {step.actionType === 'devolver' && <Undo2 className="h-3.5 w-3.5 text-amber-300 shrink-0" />}
+                              <span className="text-xs font-semibold text-white truncate">
+                                {macroDef.label}
+                              </span>
+                            </div>
+                            <p className="text-[10px] text-slate-400 truncate">
+                              {macroDef.description}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-1 shrink-0 ml-2">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            disabled={idx === 0}
+                            onClick={() => handleMoveMacroInPipeline(idx, idx - 1)}
+                            className="h-6 w-6 text-slate-400 hover:text-white hover:bg-[#2A4D6E]/50"
+                            title="Mover para cima"
+                          >
+                            <ChevronUp className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            disabled={idx === macroPipeline.length - 1}
+                            onClick={() => handleMoveMacroInPipeline(idx, idx + 1)}
+                            className="h-6 w-6 text-slate-400 hover:text-white hover:bg-[#2A4D6E]/50"
+                            title="Mover para baixo"
+                          >
+                            <ArrowDown className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleRemoveMacroFromPipeline(idx)}
+                            className="h-6 w-6 text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                            title="Remover etapa"
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+
+              {/* Caixa de Ações Disponíveis para Adicionar */}
+              <div className="pt-2 border-t border-[#2A4D6E]/60 space-y-1.5">
+                <label className="text-[11px] font-semibold text-slate-400 flex items-center gap-1">
+                  <Plus className="h-3 w-3 text-[#AEE4FF]" />
+                  <span>Adicionar Ação ao Pipeline:</span>
+                </label>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+                  {AVAILABLE_MACROS.map((macro) => (
+                    <button
+                      key={macro.type}
+                      type="button"
+                      onClick={() => handleAddMacroToPipeline(macro.type)}
+                      className={cn(
+                        "p-2 rounded-lg border text-left transition-all duration-200 flex flex-col justify-between group",
+                        "bg-[#13283E] hover:bg-[#1B3550] border-[#2A4D6E] hover:border-[#AEE4FF]/50"
+                      )}
+                    >
+                      <div className="flex items-center justify-between w-full mb-1">
+                        {macro.type === 'bloquear_migo' && <Lock className="h-3.5 w-3.5 text-[#AEE4FF]" />}
+                        {macro.type === 'mover_ajuste' && <ArrowRightLeft className="h-3.5 w-3.5 text-indigo-300" />}
+                        {macro.type === 'atualizar_db' && <RefreshCw className="h-3.5 w-3.5 text-emerald-300" />}
+                        {macro.type === 'devolver' && <Undo2 className="h-3.5 w-3.5 text-amber-300" />}
+                        <Plus className="h-3.5 w-3.5 text-slate-400 group-hover:text-white" />
+                      </div>
+                      <span className="text-[11px] font-semibold text-slate-200 group-hover:text-white leading-tight">
+                        {macro.shortLabel}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <p className="text-[10px] text-amber-300 flex items-center gap-1">
+              <span>⚠️ Certifique-se de que o SAP GUI está aberto e o Planilha Sync em execução na sua máquina.</span>
             </p>
           </div>
 
@@ -2299,18 +2615,21 @@ export function ResiduaisView({
             <Button
               type="button"
               size="sm"
-              onClick={handleConfirmBloquearMigo}
+              onClick={handleExecuteMacroPipeline}
               disabled={
-                bloquearSelectedItems.length === 0 ||
-                bloquearSelectedItems.some((it) => !it.material || !it.lote || !it.quantidade)
+                macroPipeline.length === 0 ||
+                isBloquearMigoRunning ||
+                (macroPipeline.some((m) => m.actionType === 'bloquear_migo') &&
+                  (bloquearSelectedItems.length === 0 ||
+                    bloquearSelectedItems.some((it) => !it.material || !it.lote || !it.quantidade)))
               }
               className="bg-[#AEE4FF] hover:bg-[#86d4fa] text-[#13283E] font-bold gap-1.5"
             >
-              <Play className="h-3.5 w-3.5 fill-current" />
+              <Sparkles className="h-3.5 w-3.5 fill-current" />
               <span>
-                {bloquearSelectedItems.length > 1
-                  ? `Executar Bloqueio (${bloquearSelectedItems.length} Itens) no SAP`
-                  : 'Executar Bloqueio no SAP'}
+                {macroPipeline.length > 0
+                  ? `Executar Pipeline (${macroPipeline.length} Etapa${macroPipeline.length > 1 ? 's' : ''}) no SAP`
+                  : 'Selecione ao menos 1 etapa'}
               </span>
             </Button>
           </DialogFooter>
