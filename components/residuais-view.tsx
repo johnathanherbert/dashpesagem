@@ -63,6 +63,7 @@ import {
   Loader2,
   Play,
   Lock,
+  Unlock,
   RefreshCw,
   Undo2,
   Plus,
@@ -182,7 +183,7 @@ export interface BloquearItemParam {
   descricao?: string;
 }
 
-export type MacroActionType = 'bloquear_migo' | 'mover_ajuste' | 'atualizar_db' | 'devolver';
+export type MacroActionType = 'bloquear_migo' | 'desbloquear_migo' | 'mover_ajuste' | 'atualizar_db' | 'devolver';
 
 export interface MacroActionItem {
   id: string;
@@ -204,6 +205,14 @@ export const AVAILABLE_MACROS: Array<{
     description: 'Executa /nmigo (Y84) com scroll e confirmação de OT (/nlt06)',
     color: 'text-[#AEE4FF]',
     badgeBg: 'bg-[#AEE4FF]/10 border-[#AEE4FF]/30 text-[#AEE4FF]',
+  },
+  {
+    type: 'desbloquear_migo',
+    label: 'Desbloquear no SAP (MIGO Y83)',
+    shortLabel: 'Desbloquear MIGO',
+    description: 'Executa /nmigo (Y83) para liberar saldo bloqueado (sem motivo 9000)',
+    color: 'text-emerald-300',
+    badgeBg: 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300',
   },
   {
     type: 'mover_ajuste',
@@ -251,6 +260,10 @@ End If
 session.findById("wnd[0]").maximize
 session.findById("wnd[0]/tbar[0]/okcd").text = "/nmigo"
 session.findById("wnd[0]").sendVKey 0
+session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_FIRSTLINE:SAPLMIGO:0011/ctxtGODEFAULT_TV-BWART").text = "y84"
+session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_FIRSTLINE:SAPLMIGO:0011/ctxtGODEFAULT_TV-BWART").setFocus
+session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_FIRSTLINE:SAPLMIGO:0011/ctxtGODEFAULT_TV-BWART").caretPosition = 3
+session.findById("wnd[0]").sendVKey 0
 `;
 
   const tblPath = `session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM")`;
@@ -269,6 +282,87 @@ session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:
 session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-NAME1[9,0]").text = "600"
 session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-UMLGOBE[14,0]").text = "PES"
 session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-GRUND[15,0]").text = "9000"`;
+  }).join('\n');
+
+  // Validação da Grade via Enter no primeiro item (retorna scroll para o topo)
+  const validateGrid = `${tblPath}.verticalScrollbar.position = 0
+session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-MAKTX[1,0]").setFocus
+session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-MAKTX[1,0]").caretPosition = 0
+session.findById("wnd[0]").sendVKey 0
+`;
+
+  // Preenche Lotes (CHARG) com scroll para cada item
+  const chargLines = items.map((item, idx) => {
+    const lote = item.lote.trim();
+    return `${tblPath}.verticalScrollbar.position = ${idx}
+session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-CHARG[2,0]").text = "${lote}"`;
+  }).join('\n');
+
+  // Gravação, Transfer Order (/nlt06, btn[44]) e retorno (/n)
+  const vbsFooter = `${tblPath}.verticalScrollbar.position = 0
+session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-CHARG[2,0]").setFocus
+session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-CHARG[2,0]").caretPosition = 0
+session.findById("wnd[0]/tbar[1]/btn[7]").press
+session.findById("wnd[0]/tbar[1]/btn[23]").press
+session.findById("wnd[0]/tbar[0]/okcd").text = "/nlt06"
+session.findById("wnd[0]").sendVKey 0
+session.findById("wnd[0]").sendVKey 0
+session.findById("wnd[0]/tbar[1]/btn[44]").press
+session.findById("wnd[0]/tbar[0]/okcd").text = "/n"
+session.findById("wnd[0]").sendVKey 0
+`;
+
+  return [
+    vbsHeader,
+    itemsLines,
+    validateGrid,
+    chargLines,
+    vbsFooter,
+  ].filter(Boolean).join('\n');
+}
+
+// Helper para gerar o VBScript dinâmico de Desbloqueio MIGO (Y83) para o SAP GUI em documento único com rolagem (sem campo GRUND 9000)
+export function generateDesbloquearMigoVbs(items: BloquearItemParam[]): string {
+  if (items.length === 0) return '';
+
+  const vbsHeader = `If Not IsObject(application) Then
+   Set SapGuiAuto  = GetObject("SAPGUI")
+   Set application = SapGuiAuto.GetScriptingEngine
+End If
+If Not IsObject(connection) Then
+   Set connection = application.Children(0)
+End If
+If Not IsObject(session) Then
+   Set session    = connection.Children(0)
+End If
+If IsObject(WScript) Then
+   WScript.ConnectObject session,     "on"
+   WScript.ConnectObject application, "on"
+End If
+session.findById("wnd[0]").maximize
+session.findById("wnd[0]/tbar[0]/okcd").text = "/nmigo"
+session.findById("wnd[0]").sendVKey 0
+session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_FIRSTLINE:SAPLMIGO:0011/ctxtGODEFAULT_TV-BWART").text = "y83"
+session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_FIRSTLINE:SAPLMIGO:0011/ctxtGODEFAULT_TV-BWART").setFocus
+session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_FIRSTLINE:SAPLMIGO:0011/ctxtGODEFAULT_TV-BWART").caretPosition = 3
+session.findById("wnd[0]").sendVKey 0
+`;
+
+  const tblPath = `session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM")`;
+
+  // Preenche dados de cada item rolando a grade para a posição necessária (SEM o campo GRUND 9000)
+  const itemsLines = items.map((item, idx) => {
+    const mat = item.material.trim();
+    const qtd = item.quantidade.trim().replace('.', ',');
+    const unit = (item.unidade.trim() || 'KG').toUpperCase();
+
+    return `${tblPath}.verticalScrollbar.position = ${idx}
+session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-MAKTX[1,0]").text = "${mat}"
+session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/txtGOITEM-ERFMG[3,0]").text = "${qtd}"
+session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-ERFME[5,0]").text = "${unit}"
+session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-LGOBE[12,0]").text = "PES"
+session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-NAME1[9,0]").text = "600"
+session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-UMLGOBE[14,0]").text = "PES"`;
   }).join('\n');
 
   // Validação da Grade via Enter no primeiro item (retorna scroll para o topo)
@@ -1190,7 +1284,24 @@ export function ResiduaisView({
     });
 
     setBloquearSelectedItems(items);
+    setMacroPipeline([{ id: `step-${Date.now()}`, actionType: 'bloquear_migo' }]);
     setBloquearMigoOpen(true);
+  };
+
+  const handleToggleMigoMode = (mode: 'bloquear' | 'desbloquear') => {
+    const targetType = mode === 'bloquear' ? 'bloquear_migo' : 'desbloquear_migo';
+    setMacroPipeline((prev) => {
+      const hasMigo = prev.some((m) => m.actionType === 'bloquear_migo' || m.actionType === 'desbloquear_migo');
+      if (!hasMigo) {
+        return [{ id: `step-${Date.now()}`, actionType: targetType }, ...prev];
+      }
+      return prev.map((m) => {
+        if (m.actionType === 'bloquear_migo' || m.actionType === 'desbloquear_migo') {
+          return { ...m, actionType: targetType };
+        }
+        return m;
+      });
+    });
   };
 
   const handleUpdateSingleBloquearItem = (field: keyof BloquearItemParam, value: string) => {
@@ -1286,8 +1397,10 @@ export function ResiduaisView({
       return;
     }
 
-    const hasBloquear = macroPipeline.some((m) => m.actionType === 'bloquear_migo');
-    if (hasBloquear) {
+    const hasBloquearOrDesbloquear = macroPipeline.some(
+      (m) => m.actionType === 'bloquear_migo' || m.actionType === 'desbloquear_migo'
+    );
+    if (hasBloquearOrDesbloquear) {
       if (bloquearSelectedItems.length === 0) return;
       const hasInvalid = bloquearSelectedItems.some(
         (it) => !it.material.trim() || !it.lote.trim() || !it.quantidade.trim()
@@ -1319,6 +1432,14 @@ export function ResiduaisView({
           const vbsCode = generateBloquearMigoVbs(bloquearSelectedItems);
           res = await executeSapJobAndWait(
             'bloquear_migo',
+            currentUserEmail || 'Dashboard',
+            vbsCode,
+            Math.max(60, countItems * 25)
+          );
+        } else if (step.actionType === 'desbloquear_migo') {
+          const vbsCode = generateDesbloquearMigoVbs(bloquearSelectedItems);
+          res = await executeSapJobAndWait(
+            'desbloquear_migo',
             currentUserEmail || 'Dashboard',
             vbsCode,
             Math.max(60, countItems * 25)
@@ -1737,17 +1858,20 @@ export function ResiduaisView({
           onClick={handleOpenBloquearMigo}
           disabled={selectedCount === 0 || isBloquearMigoRunning}
           className="bg-[#1B3550] border border-[#2A4D6E] hover:bg-[#234465] text-[#AEE4FF] hover:text-white shadow-md transition-all duration-300 font-bold gap-1.5"
-          title={selectedCount === 0 ? 'Selecione ao menos 1 item para Bloquear/MIGO' : `Executar bloqueio MIGO (Y84) de ${selectedCount} item(ns) no SAP via Planilha Sync`}
+          title={selectedCount === 0 ? 'Selecione ao menos 1 item para Bloquear / Desbloquear' : `Executar bloqueio (Y84) ou desbloqueio (Y83) MIGO de ${selectedCount} item(ns) no SAP via Planilha Sync`}
         >
           {isBloquearMigoRunning ? (
             <>
               <Loader2 className="h-4 w-4 animate-spin text-[#AEE4FF]" />
-              <span>Bloqueando SAP...</span>
+              <span>Executando SAP...</span>
             </>
           ) : (
             <>
-              <Lock className="h-4 w-4 text-[#AEE4FF]" />
-              <span>Bloquear/MIGO{selectedCount > 1 ? ` (${selectedCount})` : ''}</span>
+              <div className="flex items-center -space-x-1">
+                <Lock className="h-4 w-4 text-[#AEE4FF]" />
+                <Unlock className="h-4 w-4 text-emerald-300" />
+              </div>
+              <span>Bloquear / Desbloquear{selectedCount > 1 ? ` (${selectedCount})` : ''}</span>
             </>
           )}
         </Button>
@@ -2337,6 +2461,35 @@ export function ResiduaisView({
           </DialogHeader>
 
           <div className="space-y-4 py-2">
+            {/* Seletor de Opção: Bloquear (Y84) vs Desbloquear (Y83) */}
+            <div className="bg-[#0E1D2D] p-1.5 rounded-xl border border-[#2A4D6E] flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => handleToggleMigoMode('bloquear')}
+                className={cn(
+                  "flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2",
+                  !macroPipeline.some((m) => m.actionType === 'desbloquear_migo')
+                    ? "bg-[#1B3550] text-[#AEE4FF] border border-[#2A4D6E] shadow-sm"
+                    : "text-slate-400 hover:text-white hover:bg-[#1B3550]/40"
+                )}
+              >
+                <Lock className="h-4 w-4 text-[#AEE4FF]" />
+                <span>Bloquear no SAP (MIGO Y84)</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleToggleMigoMode('desbloquear')}
+                className={cn(
+                  "flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2",
+                  macroPipeline.some((m) => m.actionType === 'desbloquear_migo')
+                    ? "bg-emerald-950/60 text-emerald-300 border border-emerald-500/40 shadow-sm"
+                    : "text-slate-400 hover:text-white hover:bg-[#1B3550]/40"
+                )}
+              >
+                <Unlock className="h-4 w-4 text-emerald-300" />
+                <span>Desbloquear no SAP (MIGO Y83)</span>
+              </button>
+            </div>
             {/* 1. Resumo dos Itens Selecionados */}
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
@@ -2447,7 +2600,7 @@ export function ResiduaisView({
                   <button
                     type="button"
                     onClick={() => handleApplyMacroPreset(['bloquear_migo', 'atualizar_db'])}
-                    className="px-2 py-0.5 rounded bg-[#1B3550] hover:bg-[#234465] text-emerald-300 border border-[#2A4D6E] text-[10px] font-semibold transition-colors"
+                    className="px-2 py-0.5 rounded bg-[#1B3550] hover:bg-[#234465] text-cyan-300 border border-[#2A4D6E] text-[10px] font-semibold transition-colors"
                     title="Bloquear MIGO ➔ Atualizar Banco de Dados"
                   >
                     🔒 Bloquear + DB
@@ -2456,9 +2609,25 @@ export function ResiduaisView({
                     type="button"
                     onClick={() => handleApplyMacroPreset(['bloquear_migo'])}
                     className="px-2 py-0.5 rounded bg-[#1B3550] hover:bg-[#234465] text-slate-300 border border-[#2A4D6E] text-[10px] font-semibold transition-colors"
-                    title="Apenas Bloquear no SAP via MIGO"
+                    title="Apenas Bloquear no SAP via MIGO (Y84)"
                   >
                     🎯 Só Bloquear
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleApplyMacroPreset(['desbloquear_migo', 'atualizar_db'])}
+                    className="px-2 py-0.5 rounded bg-[#1B3550] hover:bg-[#234465] text-emerald-300 border border-emerald-500/40 text-[10px] font-semibold transition-colors"
+                    title="Desbloquear MIGO (Y83) ➔ Atualizar Banco de Dados"
+                  >
+                    🔓 Desbloquear + DB
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleApplyMacroPreset(['desbloquear_migo'])}
+                    className="px-2 py-0.5 rounded bg-[#1B3550] hover:bg-[#234465] text-emerald-300 border border-emerald-500/30 text-[10px] font-semibold transition-colors"
+                    title="Apenas Desbloquear no SAP via MIGO (Y83)"
+                  >
+                    🔓 Só Desbloquear
                   </button>
                   <button
                     type="button"
@@ -2511,6 +2680,7 @@ export function ResiduaisView({
                           <div className="min-w-0">
                             <div className="flex items-center gap-2">
                               {step.actionType === 'bloquear_migo' && <Lock className="h-3.5 w-3.5 text-[#AEE4FF] shrink-0" />}
+                              {step.actionType === 'desbloquear_migo' && <Unlock className="h-3.5 w-3.5 text-emerald-300 shrink-0" />}
                               {step.actionType === 'mover_ajuste' && <ArrowRightLeft className="h-3.5 w-3.5 text-indigo-300 shrink-0" />}
                               {step.actionType === 'atualizar_db' && <RefreshCw className="h-3.5 w-3.5 text-emerald-300 shrink-0" />}
                               {step.actionType === 'devolver' && <Undo2 className="h-3.5 w-3.5 text-amber-300 shrink-0" />}
@@ -2570,7 +2740,7 @@ export function ResiduaisView({
                   <Plus className="h-3 w-3 text-[#AEE4FF]" />
                   <span>Adicionar Ação ao Pipeline:</span>
                 </label>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5">
                   {AVAILABLE_MACROS.map((macro) => (
                     <button
                       key={macro.type}
@@ -2583,6 +2753,7 @@ export function ResiduaisView({
                     >
                       <div className="flex items-center justify-between w-full mb-1">
                         {macro.type === 'bloquear_migo' && <Lock className="h-3.5 w-3.5 text-[#AEE4FF]" />}
+                        {macro.type === 'desbloquear_migo' && <Unlock className="h-3.5 w-3.5 text-emerald-300" />}
                         {macro.type === 'mover_ajuste' && <ArrowRightLeft className="h-3.5 w-3.5 text-indigo-300" />}
                         {macro.type === 'atualizar_db' && <RefreshCw className="h-3.5 w-3.5 text-emerald-300" />}
                         {macro.type === 'devolver' && <Undo2 className="h-3.5 w-3.5 text-amber-300" />}

@@ -9,6 +9,7 @@ import {
   generateDevolverZwm296Vbs,
   DevolverVolumeItem,
   generateBloquearMigoVbs,
+  generateDesbloquearMigoVbs,
   BloquearItemParam,
   MacroActionType,
   MacroActionItem,
@@ -46,6 +47,7 @@ import {
   Loader2,
   Undo2,
   Lock,
+  Unlock,
   Plus,
   Trash2,
   Sparkles,
@@ -88,7 +90,7 @@ export function ConsultaRapidaView({
   ]);
   const [isDevolverRunning, setIsDevolverRunning] = useState<boolean>(false);
 
-  // Bloquear Modal State & Macro Pipeline
+  // Bloquear/Desbloquear Modal State & Macro Pipeline
   const [bloquearMigoOpen, setBloquearMigoOpen] = useState<boolean>(false);
   const [bloquearSelectedItems, setBloquearSelectedItems] = useState<BloquearItemParam[]>([]);
   const [macroPipeline, setMacroPipeline] = useState<MacroActionItem[]>([
@@ -490,10 +492,6 @@ export function ConsultaRapidaView({
     return loteItems.reduce((acc, curr) => acc + (Number(curr.estoque_disponivel) || 0), 0);
   }, [loteItems]);
 
-  const totalEstoqueMaterial = useMemo(() => {
-    return allMaterialItems.reduce((acc, curr) => acc + (Number(curr.estoque_disponivel) || 0), 0);
-  }, [allMaterialItems]);
-
   const materialCode = loteItems[0]?.material || scannedResult?.material || '';
   const materialDescription =
     loteItems[0]?.texto_breve_material ||
@@ -677,7 +675,7 @@ export function ConsultaRapidaView({
     }
   };
 
-  // Lógica de Bloquear MIGO / Pipeline de Macros
+  // Lógica de Bloquear/Desbloquear MIGO / Pipeline de Macros
   const handleOpenBloquear = (
     mat: string,
     lot: string,
@@ -700,6 +698,22 @@ export function ConsultaRapidaView({
     ]);
     setMacroPipeline([{ id: `step-${Date.now()}`, actionType: 'bloquear_migo' }]);
     setBloquearMigoOpen(true);
+  };
+
+  const handleToggleMigoMode = (mode: 'bloquear' | 'desbloquear') => {
+    const targetType = mode === 'bloquear' ? 'bloquear_migo' : 'desbloquear_migo';
+    setMacroPipeline((prev) => {
+      const hasMigo = prev.some((m) => m.actionType === 'bloquear_migo' || m.actionType === 'desbloquear_migo');
+      if (!hasMigo) {
+        return [{ id: `step-${Date.now()}`, actionType: targetType }, ...prev];
+      }
+      return prev.map((m) => {
+        if (m.actionType === 'bloquear_migo' || m.actionType === 'desbloquear_migo') {
+          return { ...m, actionType: targetType };
+        }
+        return m;
+      });
+    });
   };
 
   const handleUpdateSingleBloquearItem = (field: keyof BloquearItemParam, value: string) => {
@@ -742,7 +756,7 @@ export function ConsultaRapidaView({
   };
 
   const executeSapJobAndWait = async (
-    action: 'bloquear_migo' | 'movermigo' | 'atualizar_db' | 'devolver',
+    action: string,
     user: string,
     vbsCode?: string,
     maxSeconds = 60
@@ -791,8 +805,10 @@ export function ConsultaRapidaView({
       return;
     }
 
-    const hasBloquear = macroPipeline.some((m) => m.actionType === 'bloquear_migo');
-    if (hasBloquear) {
+    const hasBloquearOrDesbloquear = macroPipeline.some(
+      (m) => m.actionType === 'bloquear_migo' || m.actionType === 'desbloquear_migo'
+    );
+    if (hasBloquearOrDesbloquear) {
       if (bloquearSelectedItems.length === 0) return;
       const hasInvalid = bloquearSelectedItems.some(
         (it) => !it.material.trim() || !it.lote.trim() || !it.quantidade.trim()
@@ -824,6 +840,14 @@ export function ConsultaRapidaView({
           const vbsCode = generateBloquearMigoVbs(bloquearSelectedItems);
           res = await executeSapJobAndWait(
             'bloquear_migo',
+            currentUserEmail || 'Mobile / Consulta',
+            vbsCode,
+            Math.max(60, countItems * 25)
+          );
+        } else if (step.actionType === 'desbloquear_migo') {
+          const vbsCode = generateDesbloquearMigoVbs(bloquearSelectedItems);
+          res = await executeSapJobAndWait(
+            'desbloquear_migo',
             currentUserEmail || 'Mobile / Consulta',
             vbsCode,
             Math.max(60, countItems * 25)
@@ -1061,7 +1085,7 @@ export function ConsultaRapidaView({
             <Package className="h-10 w-10 text-[#608BA6] mx-auto opacity-60" />
             <p className="text-sm font-semibold text-slate-300">Aguardando leitura de etiqueta</p>
             <p className="text-xs text-[#608BA6] max-w-xs mx-auto">
-              Escaneie o código de barras Code 128 com a câmera ou digite os dados acima para devolver ou bloquear diretamente no SAP.
+              Escaneie o código de barras Code 128 com a câmera ou digite os dados acima para devolver, bloquear ou desbloquear no SAP.
             </p>
           </div>
         )}
@@ -1097,8 +1121,8 @@ export function ConsultaRapidaView({
                 </div>
               </div>
 
-              {/* Botões de Ação Imediata: Devolver & Bloquear */}
-              <div className="grid grid-cols-2 gap-2 pt-1">
+              {/* Botões de Ação Imediata: Devolver, Bloquear & Desbloquear */}
+              <div className="grid grid-cols-3 gap-2 pt-1">
                 {/* 1. Botão Devolver */}
                 <button
                   type="button"
@@ -1112,13 +1136,13 @@ export function ConsultaRapidaView({
                     )
                   }
                   disabled={isDevolverRunning || !loteCode}
-                  className="py-3 px-3 bg-[#E29A36] hover:bg-[#d48c2a] text-[#13283E] font-bold text-xs rounded-xl shadow-md transition-all active:scale-[0.98] flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="py-2.5 px-2 bg-[#E29A36] hover:bg-[#d48c2a] text-[#13283E] font-bold text-[11px] rounded-xl shadow-md transition-all active:scale-[0.98] flex flex-col items-center justify-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Undo2 className="h-4 w-4 shrink-0" />
-                  <span className="truncate">Devolver (/nzwm296)</span>
+                  <span className="truncate">Devolver</span>
                 </button>
 
-                {/* 2. Botão Bloquear MIGO */}
+                {/* 2. Botão Bloquear / Desbloquear MIGO */}
                 <button
                   type="button"
                   onClick={() =>
@@ -1131,10 +1155,13 @@ export function ConsultaRapidaView({
                     )
                   }
                   disabled={isBloquearMigoRunning || !loteCode}
-                  className="py-3 px-3 bg-[#AEE4FF] hover:bg-white text-[#13283E] font-bold text-xs rounded-xl shadow-md transition-all active:scale-[0.98] flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="py-2.5 px-3 bg-[#AEE4FF] hover:bg-white text-[#13283E] font-bold text-[11px] rounded-xl shadow-md transition-all active:scale-[0.98] flex flex-col items-center justify-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed col-span-1"
                 >
-                  <Lock className="h-4 w-4 shrink-0" />
-                  <span className="truncate">Bloquear (MIGO)</span>
+                  <div className="flex items-center -space-x-1">
+                    <Lock className="h-4 w-4 shrink-0 text-[#13283E]" />
+                    <Unlock className="h-4 w-4 shrink-0 text-[#13283E]" />
+                  </div>
+                  <span className="truncate">Bloquear / Desbloquear</span>
                 </button>
               </div>
             </div>
@@ -1195,7 +1222,7 @@ export function ConsultaRapidaView({
                           </span>
 
                           <div className="flex items-center gap-1">
-                            {/* Botão Bloquear Item */}
+                            {/* Botão Bloquear / Desbloquear Item */}
                             <button
                               type="button"
                               onClick={() =>
@@ -1208,9 +1235,9 @@ export function ConsultaRapidaView({
                                 )
                               }
                               className="px-2 py-1 bg-[#AEE4FF]/15 hover:bg-[#AEE4FF] text-[#AEE4FF] hover:text-[#13283E] border border-[#AEE4FF]/30 rounded-lg text-[10px] font-bold transition-all flex items-center gap-1"
-                              title="Bloquear no SAP via MIGO"
+                              title="Bloquear ou Desbloquear no SAP via MIGO"
                             >
-                              <Lock className="h-3 w-3" /> Bloquear
+                              <Lock className="h-3 w-3" /> Bloq / Desbloq
                             </button>
 
                             {/* Botão Devolver Item */}
@@ -1294,7 +1321,7 @@ export function ConsultaRapidaView({
                               }
                               className="px-1.5 py-0.5 bg-[#AEE4FF]/15 hover:bg-[#AEE4FF] text-[#AEE4FF] hover:text-[#13283E] border border-[#AEE4FF]/30 rounded text-[9px] font-bold transition-all"
                             >
-                              Bloquear
+                              Bloq / Desbloq
                             </button>
                             <button
                               type="button"
@@ -1532,21 +1559,60 @@ export function ConsultaRapidaView({
         </DialogContent>
       </Dialog>
 
-      {/* Dialog para Bloquear/MIGO e Pipeline de Macros no SAP */}
+      {/* Dialog para Bloquear/Desbloquear e Pipeline de Macros no SAP */}
       <Dialog open={bloquearMigoOpen} onOpenChange={setBloquearMigoOpen}>
         <DialogContent className="bg-[#13283E] border-[#2A4D6E] text-white sm:max-w-xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-[#AEE4FF] text-base font-bold">
-              <Lock className="h-5 w-5 text-[#AEE4FF]" />
-              <span>Bloquear no SAP (MIGO Y84)</span>
+              {macroPipeline.some((m) => m.actionType === 'desbloquear_migo') ? (
+                <>
+                  <Unlock className="h-5 w-5 text-emerald-300" />
+                  <span>Desbloquear no SAP (MIGO Y83)</span>
+                </>
+              ) : (
+                <>
+                  <Lock className="h-5 w-5 text-[#AEE4FF]" />
+                  <span>Bloquear no SAP (MIGO Y84)</span>
+                </>
+              )}
             </DialogTitle>
             <DialogDescription className="text-xs text-slate-300 pt-1">
-              Transfere o saldo de Livre para Bloqueado (tipo S) via MIGO no SAP GUI.
+              Transfere o saldo entre Livre e Bloqueado (tipo S) via MIGO no SAP GUI.
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-2">
-            {/* Detalhes do Item a Bloquear */}
+            {/* Seletor de Opção: Bloquear (Y84) vs Desbloquear (Y83) */}
+            <div className="bg-[#0E1D2D] p-1.5 rounded-xl border border-[#2A4D6E] flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => handleToggleMigoMode('bloquear')}
+                className={cn(
+                  "flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2",
+                  !macroPipeline.some((m) => m.actionType === 'desbloquear_migo')
+                    ? "bg-[#1B3550] text-[#AEE4FF] border border-[#2A4D6E] shadow-sm"
+                    : "text-slate-400 hover:text-white hover:bg-[#1B3550]/40"
+                )}
+              >
+                <Lock className="h-4 w-4 text-[#AEE4FF]" />
+                <span>Bloquear (Y84)</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleToggleMigoMode('desbloquear')}
+                className={cn(
+                  "flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2",
+                  macroPipeline.some((m) => m.actionType === 'desbloquear_migo')
+                    ? "bg-emerald-950/60 text-emerald-300 border border-emerald-500/40 shadow-sm"
+                    : "text-slate-400 hover:text-white hover:bg-[#1B3550]/40"
+                )}
+              >
+                <Unlock className="h-4 w-4 text-emerald-300" />
+                <span>Desbloquear (Y83)</span>
+              </button>
+            </div>
+
+            {/* Detalhes do Item a Bloquear / Desbloquear */}
             <div className="p-3 rounded-xl bg-[#0E1D2D] border border-[#2A4D6E] space-y-2 text-xs">
               <div className="flex justify-between">
                 <span className="text-slate-400">Material:</span>
@@ -1609,7 +1675,14 @@ export function ConsultaRapidaView({
                     onClick={() => handleApplyMacroPreset(['bloquear_migo'])}
                     className="px-2 py-0.5 rounded bg-[#1B3550] hover:bg-[#234465] text-slate-300 border border-[#2A4D6E] font-semibold"
                   >
-                    🎯 Só Bloquear
+                    🔒 Só Bloquear (Y84)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleApplyMacroPreset(['desbloquear_migo'])}
+                    className="px-2 py-0.5 rounded bg-[#1B3550] hover:bg-[#234465] text-emerald-300 border border-emerald-500/30 font-semibold"
+                  >
+                    🔓 Só Desbloquear (Y83)
                   </button>
                 </div>
               </div>
@@ -1631,6 +1704,7 @@ export function ConsultaRapidaView({
                         </div>
                         <div className="flex items-center gap-1.5 min-w-0">
                           {step.actionType === 'bloquear_migo' && <Lock className="h-3.5 w-3.5 text-[#AEE4FF] shrink-0" />}
+                          {step.actionType === 'desbloquear_migo' && <Unlock className="h-3.5 w-3.5 text-emerald-300 shrink-0" />}
                           {step.actionType === 'mover_ajuste' && <ArrowRightLeft className="h-3.5 w-3.5 text-indigo-300 shrink-0" />}
                           {step.actionType === 'atualizar_db' && <RefreshCw className="h-3.5 w-3.5 text-emerald-300 shrink-0" />}
                           {step.actionType === 'devolver' && <Undo2 className="h-3.5 w-3.5 text-amber-300 shrink-0" />}
@@ -1708,7 +1782,7 @@ export function ConsultaRapidaView({
               disabled={isBloquearMigoRunning || macroPipeline.length === 0}
               className="bg-[#AEE4FF] hover:bg-[#86d4fa] text-[#13283E] font-bold gap-1.5"
             >
-              <Lock className="h-3.5 w-3.5" />
+              <Sparkles className="h-3.5 w-3.5" />
               <span>Executar no SAP</span>
             </Button>
           </DialogFooter>
