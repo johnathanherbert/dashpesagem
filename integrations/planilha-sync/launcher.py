@@ -285,9 +285,9 @@ def main() -> None:
     # Iniciar Worker de Automações SAP (recebe solicitações sob demanda do dashboard)
     def _on_sap_automation_success(cmd: str = ''):
         cmd_norm = str(cmd).lower().strip()
-        # Se for comando de extração/atualização, a extração já foi realizada no _handle_sap_command
-        if cmd_norm in ('extrair_relatorio', 'atualizar_db', 'sync_db', 'extrair'):
-            logger.info("Comando '%s' finalizado. Nenhuma re-extração adicional necessária.", cmd)
+        # Se for comando de extração/atualização ou bloqueio, não dispara re-extração automática
+        if cmd_norm in ('extrair_relatorio', 'atualizar_db', 'sync_db', 'extrair', 'bloquear_migo', 'bloquear'):
+            logger.info("Comando '%s' finalizado. Nenhuma re-extração automática necessária.", cmd)
             return
 
         logger.info("Automação SAP '%s' concluída com sucesso. Disparando sincronização/extração de dados...", cmd)
