@@ -38,7 +38,7 @@ jobs:
       version: ${{ steps.version.outputs.value }}
 
     steps:
-      - name: Checkout repositório
+      - name: Checkout repositório 
         uses: actions/checkout@v4
 
       - name: Extrair versão (tag ou SHA curto)

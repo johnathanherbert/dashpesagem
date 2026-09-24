@@ -497,7 +497,15 @@ export function ConsultaRapidaView({
     loteItems[0]?.texto_breve_material ||
     allMaterialItems[0]?.texto_breve_material ||
     'Material lido via etiqueta';
-  const loteCode = loteItems[0]?.lote || scannedResult?.lote || '';
+  // Importante: o lote exibido/considerado "lido" deve vir exclusivamente do que foi
+  // efetivamente escaneado/digitado, nunca "adivinhado" a partir do primeiro item da
+  // lista. Uma busca apenas por código de material deve listar todos os lotes em aberto.
+  const loteCode = (scannedResult?.lote || '').trim();
+  const loteEncontradoNoEstoque = useMemo(() => {
+    if (!loteCode) return true;
+    const cleanLot = loteCode.toUpperCase();
+    return agingList.some((item) => String(item.lote).trim().toUpperCase() === cleanLot);
+  }, [loteCode, agingList]);
   const unidadeMedida = loteItems[0]?.unidade_medida || allMaterialItems[0]?.unidade_medida || 'KG';
 
   const formatAgingDays = (days?: number) => {
@@ -911,29 +919,38 @@ export function ConsultaRapidaView({
   };
 
   return (
-    <div className={cn("text-slate-100 font-sans", !isEmbedded && "max-w-2xl mx-auto")}>
-      <div className="space-y-4">
+    <div className={cn("text-slate-100 font-sans w-full", !isEmbedded ? "max-w-6xl mx-auto px-2 sm:px-3" : "w-full")}>
+      <div className="space-y-2.5">
         {/* Card de Leitura / Entrada */}
-        <div className="bg-[#13283E] border border-[#2A4D6E] rounded-2xl p-4 shadow-sm space-y-3">
+        <div className="bg-[#13283E] border border-[#2A4D6E] rounded-lg p-2.5 sm:p-3.5 shadow-sm space-y-2.5">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-[#AEE4FF] flex items-center gap-1.5">
-              <QrCode className="h-4 w-4 text-[#AEE4FF]" />
-              Leitor de Código de Barras / Coletor
-            </span>
+            <div className="flex items-center gap-2">
+              <div className="p-1.5 rounded-md bg-[#AEE4FF]/10 border border-[#AEE4FF]/30">
+                <QrCode className="h-4 w-4 text-[#AEE4FF]" />
+              </div>
+              <div>
+                <span className="text-xs font-bold uppercase tracking-wider text-[#AEE4FF] block">
+                  Consulta Rápida & Bipagem
+                </span>
+                <span className="text-[10px] text-[#608BA6] hidden sm:inline">
+                  Leitor de código de barras, fotos de etiquetas ou entrada manual
+                </span>
+              </div>
+            </div>
             {scannedResult && (
               <button
                 type="button"
                 onClick={handleClear}
-                className="text-xs text-rose-400 hover:text-rose-300 font-semibold flex items-center gap-1"
+                className="text-xs text-rose-400 hover:text-rose-300 font-semibold flex items-center gap-1.5 px-2 py-1 rounded-md bg-rose-500/10 border border-rose-500/20 hover:bg-rose-500/20 transition-all"
               >
-                <RotateCcw className="h-3 w-3" /> Limpar
+                <RotateCcw className="h-3.5 w-3.5" /> Limpar Consulta
               </button>
             )}
           </div>
 
           {/* Container do Vídeo da Câmera */}
-          <div className={`overflow-hidden rounded-2xl bg-black/80 border-2 border-[#AEE4FF]/40 shadow-inner relative ${scannerActive ? 'block' : 'hidden'}`}>
-            <div id={scannerContainerId} className="w-full min-h-[260px]" />
+          <div className={`overflow-hidden rounded-lg bg-black/80 border border-[#AEE4FF]/40 shadow-inner relative ${scannerActive ? 'block' : 'hidden'}`}>
+            <div id={scannerContainerId} className="w-full min-h-[240px]" />
             
             {/* Controles sobrepostos da câmera (Lanterna e Zoom) */}
             {scannerActive && (
@@ -942,7 +959,7 @@ export function ConsultaRapidaView({
                   <button
                     type="button"
                     onClick={toggleTorch}
-                    className={`p-2.5 rounded-xl border backdrop-blur-md shadow-lg transition-all ${
+                    className={`p-2.5 rounded-md border backdrop-blur-md shadow-lg transition-all ${
                       torchOn
                         ? 'bg-amber-400 text-slate-950 border-amber-300 font-bold'
                         : 'bg-black/60 text-white border-white/20 hover:bg-black/80'
@@ -957,7 +974,7 @@ export function ConsultaRapidaView({
 
             {/* Slider de Zoom rápido se suportado */}
             {scannerActive && maxZoom > 1 && (
-              <div className="absolute bottom-10 left-4 right-4 z-20 flex items-center justify-center gap-3 bg-black/60 backdrop-blur-md p-2 rounded-xl border border-white/10">
+              <div className="absolute bottom-10 left-4 right-4 z-20 flex items-center justify-center gap-3 bg-black/60 backdrop-blur-md p-2 rounded-md border border-white/10">
                 <ZoomOut className="h-4 w-4 text-slate-300" />
                 <input
                   type="range"
@@ -984,7 +1001,7 @@ export function ConsultaRapidaView({
           </div>
 
           {cameraError && (
-            <div className="p-2.5 rounded-lg bg-rose-500/15 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-2">
+            <div className="p-2.5 rounded-md bg-rose-500/15 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-2">
               <AlertTriangle className="h-4 w-4 shrink-0" />
               <span>{cameraError}</span>
             </div>
@@ -1003,439 +1020,468 @@ export function ConsultaRapidaView({
             className="hidden"
           />
 
-          {/* Ações de Captura */}
-          <div className="grid grid-cols-2 gap-2">
-            {/* Botão 1: Tirar Foto em Alta Resolução (Câmera Nativa) */}
-            <button
-              type="button"
-              disabled={processingImage}
-              onClick={() => fileInputRef.current?.click()}
-              className="py-3 px-3 bg-[#AEE4FF] hover:bg-white text-[#13283E] rounded-xl font-bold text-xs flex flex-col items-center justify-center gap-1.5 shadow-sm active:scale-[0.98] transition-all disabled:opacity-50"
-            >
-              {processingImage ? (
-                <>
-                  <Loader2 className="h-5 w-5 animate-spin text-[#13283E]" />
-                  <span>Processando Foto...</span>
-                </>
-              ) : (
-                <>
-                  <Camera className="h-5 w-5 text-[#13283E]" />
-                  <span>Tirar Foto HD</span>
-                </>
-              )}
-            </button>
-
-            {/* Botão 2: Câmera Ao Vivo ou Fechar */}
-            {!scannerActive ? (
+          {/* Ações de Captura e Campo de Entrada */}
+          <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 pt-1">
+            {/* Botões de Câmera */}
+            <div className="grid grid-cols-2 gap-2 sm:col-span-5">
               <button
                 type="button"
                 disabled={processingImage}
-                onClick={startScanner}
-                className="py-3 px-3 bg-[#1B3550] hover:bg-[#224467] text-[#AEE4FF] border border-[#2A4D6E] rounded-xl font-bold text-xs flex flex-col items-center justify-center gap-1.5 shadow-sm active:scale-[0.98] transition-all disabled:opacity-50"
+                onClick={() => fileInputRef.current?.click()}
+                className="py-2 px-3 bg-[#AEE4FF] hover:bg-white text-[#13283E] rounded-md font-bold text-xs flex items-center justify-center gap-2 shadow-sm active:scale-[0.98] transition-all disabled:opacity-50"
               >
-                <QrCode className="h-5 w-5 text-[#AEE4FF]" />
-                <span>Leitor Ao Vivo</span>
+                {processingImage ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin text-[#13283E]" />
+                    <span>Lendo...</span>
+                  </>
+                ) : (
+                  <>
+                    <Camera className="h-4 w-4 text-[#13283E]" />
+                    <span>Tirar Foto HD</span>
+                  </>
+                )}
               </button>
-            ) : (
-              <button
-                type="button"
-                onClick={stopScanner}
-                className="py-3 px-3 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-bold text-xs flex flex-col items-center justify-center gap-1.5 active:scale-[0.98] transition-all"
-              >
-                <CameraOff className="h-5 w-5" />
-                <span>Fechar Leitor</span>
-              </button>
-            )}
-          </div>
 
-          {/* Formulário Manual / Leitor Físico USB/Bluetooth */}
-          <form onSubmit={handleManualSearch} className="space-y-2 pt-1">
-            <div className="relative">
-              <input
-                ref={inputRef}
-                type="text"
-                value={manualInput}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  setManualInput(val);
-                  if (val.trim().length >= 6 && (val.includes(' ') || val.includes('\t') || val.includes(';') || val.includes('|'))) {
-                    handleBarcodeScanned(val);
-                  }
-                }}
-                placeholder="Bipe com o coletor ou digite..."
-                className="w-full pl-3 pr-10 py-2.5 bg-[#0E1C2B] border border-[#2A4D6E] rounded-xl text-sm text-slate-100 placeholder:text-slate-500 focus:outline-hidden focus:border-[#AEE4FF] focus:ring-1 focus:ring-[#AEE4FF] transition-all font-mono"
-              />
+              {!scannerActive ? (
+                <button
+                  type="button"
+                  disabled={processingImage}
+                  onClick={startScanner}
+                  className="py-2 px-3 bg-[#1B3550] hover:bg-[#224467] text-[#AEE4FF] border border-[#2A4D6E] rounded-md font-bold text-xs flex items-center justify-center gap-2 shadow-sm active:scale-[0.98] transition-all disabled:opacity-50"
+                >
+                  <QrCode className="h-4 w-4 text-[#AEE4FF]" />
+                  <span>Leitor Ao Vivo</span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={stopScanner}
+                  className="py-2 px-3 bg-rose-600 hover:bg-rose-700 text-white rounded-md font-bold text-xs flex items-center justify-center gap-2 active:scale-[0.98] transition-all"
+                >
+                  <CameraOff className="h-4 w-4" />
+                  <span>Fechar Leitor</span>
+                </button>
+              )}
+            </div>
+
+            {/* Formulário Manual / Coletor */}
+            <form onSubmit={handleManualSearch} className="sm:col-span-7 flex gap-2">
+              <div className="relative flex-1">
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={manualInput}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setManualInput(val);
+                    if (val.trim().length >= 6 && (val.includes(' ') || val.includes('\t') || val.includes(';') || val.includes('|'))) {
+                      handleBarcodeScanned(val);
+                    }
+                  }}
+                  placeholder="Bipe com coletor ou digite material/lote..."
+                  className="w-full pl-3 pr-9 py-2 bg-[#0E1C2B] border border-[#2A4D6E] rounded-md text-xs sm:text-sm text-slate-100 placeholder:text-slate-500 focus:outline-hidden focus:border-[#AEE4FF] focus:ring-1 focus:ring-[#AEE4FF] transition-all font-mono"
+                />
+                {manualInput && (
+                  <button
+                    type="button"
+                    onClick={() => setManualInput('')}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
               <button
                 type="submit"
-                className="absolute right-1.5 top-1.5 bottom-1.5 px-3 bg-[#AEE4FF] text-[#13283E] rounded-lg font-bold text-xs flex items-center justify-center hover:bg-white active:scale-95 transition-all"
+                className="px-4 bg-[#AEE4FF] hover:bg-white text-[#13283E] rounded-md font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition-all shrink-0"
               >
                 <Search className="h-4 w-4" />
+                <span className="hidden sm:inline">Buscar</span>
               </button>
-            </div>
-            <div className="flex items-center justify-between text-[10px] text-[#608BA6]">
-              <span>📡 Pronto para Coletor Bluetooth / USB</span>
-              <span>(Enter ou bip automático)</span>
-            </div>
-          </form>
+            </form>
+          </div>
         </div>
 
         {/* Se nenhum resultado pesquisado ainda */}
         {!scannedResult && !loadingData && (
-          <div className="text-center py-10 px-4 bg-[#13283E]/40 border border-[#2A4D6E]/50 rounded-2xl space-y-2">
-            <Package className="h-10 w-10 text-[#608BA6] mx-auto opacity-60" />
-            <p className="text-sm font-semibold text-slate-300">Aguardando leitura de etiqueta</p>
-            <p className="text-xs text-[#608BA6] max-w-xs mx-auto">
-              Escaneie o código de barras Code 128 com a câmera ou digite os dados acima para devolver, bloquear ou desbloquear no SAP.
-            </p>
+          <div className="text-center py-10 px-4 bg-[#13283E]/40 border border-[#2A4D6E]/50 rounded-lg space-y-2.5">
+            <div className="w-12 h-12 rounded-md bg-[#1B3550] border border-[#2A4D6E] flex items-center justify-center mx-auto text-[#AEE4FF] shadow-inner">
+              <Package className="h-6 w-6 opacity-80" />
+            </div>
+            <div>
+              <p className="text-base font-bold text-slate-200">Aguardando leitura de etiqueta ou material</p>
+              <p className="text-xs text-[#608BA6] max-w-md mx-auto mt-1">
+                Escaneie o código de barras com a câmera, bipe com o coletor ou informe o código para consultar outros lotes do material, remessas e executar devoluções ou bloqueios no SAP.
+              </p>
+            </div>
           </div>
         )}
 
         {/* Resultado da Consulta Direta */}
         {scannedResult && (
-          <div className="space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-200">
+          <div className="space-y-2.5 animate-in fade-in slide-in-from-bottom-2 duration-200">
             {/* Card Principal do Material / Lote Lido */}
-            <div className="bg-[#13283E] border border-[#2A4D6E] rounded-2xl p-4 shadow-sm space-y-3">
-              <div className="flex items-start justify-between gap-2 border-b border-[#2A4D6E] pb-3">
-                <div className="min-w-0 flex-1">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#608BA6]">Material</span>
-                  <h2 className="text-xl font-mono font-extrabold text-[#AEE4FF] leading-none mt-0.5">
-                    {materialCode || 'N/A'}
-                  </h2>
-                  <p className="text-xs text-slate-200 font-medium mt-1 leading-snug">
+            <div className="bg-[#13283E] border border-[#2A4D6E] rounded-lg p-3 sm:p-4">
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
+                {/* Informações do Material e Lote */}
+                <div className="md:col-span-7 space-y-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-[#608BA6] bg-[#0E1C2B] px-1.5 py-0.5 rounded border border-[#2A4D6E]">
+                      Material
+                    </span>
+                    <span className="text-lg sm:text-xl font-mono font-extrabold text-[#AEE4FF]">
+                      {materialCode || 'N/A'}
+                    </span>
+                    {loteCode ? (
+                      <Badge
+                        className={cn(
+                          "font-mono text-xs px-2 py-0.5 font-bold",
+                          loteEncontradoNoEstoque
+                            ? "bg-amber-500/15 border-amber-500/40 text-amber-300"
+                            : "bg-rose-500/15 border-rose-500/40 text-rose-300"
+                        )}
+                      >
+                        Lote Lido: {loteCode}
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="text-[10px] px-2 py-0.5 font-semibold bg-[#0E1C2B] border-[#2A4D6E] text-slate-300">
+                        Busca por código · todos os lotes
+                      </Badge>
+                    )}
+                  </div>
+                  {loteCode && !loteEncontradoNoEstoque && (
+                    <p className="text-[10px] text-rose-300 font-semibold flex items-center gap-1">
+                      <AlertTriangle className="h-3 w-3 shrink-0" />
+                      Lote não localizado no estoque atual — exibindo todos os lotes do material.
+                    </p>
+                  )}
+                  <p className="text-xs sm:text-sm text-slate-200 font-medium leading-snug">
                     {materialDescription}
                   </p>
-                </div>
-                <div className="text-right shrink-0">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#608BA6] block">Lote Lido</span>
-                  <p className="text-sm font-mono font-bold text-amber-300 bg-amber-500/10 border border-amber-500/30 px-2 py-0.5 rounded-md mt-0.5 inline-block">
-                    {loteCode || 'N/A'}
-                  </p>
-                  <div className="mt-1 flex items-baseline justify-end gap-1">
-                    <span className="text-base font-mono font-extrabold text-white">
-                      {totalEstoqueLote > 0
-                        ? totalEstoqueLote.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 3 })
-                        : (scannedResult.quantidade !== null && scannedResult.quantidade !== undefined ? scannedResult.quantidade : '0')}
-                    </span>
-                    <span className="text-[10px] text-slate-400 font-bold">{unidadeMedida}</span>
+                  
+                  {/* Resumo rápido de estoque */}
+                  <div className="flex items-center gap-2 pt-1 text-xs text-slate-300 flex-wrap">
+                    <div className="flex items-baseline gap-1 bg-[#1B3550] border border-[#2A4D6E] px-2 py-1 rounded-md">
+                      <span className="text-[10px] text-slate-400 font-semibold">
+                        {loteCode ? 'Estoque Lote:' : 'Estoque Total:'}
+                      </span>
+                      <span className="font-mono font-bold text-white">
+                        {totalEstoqueLote > 0
+                          ? totalEstoqueLote.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 3 })
+                          : (scannedResult.quantidade !== null && scannedResult.quantidade !== undefined ? scannedResult.quantidade : '0')}
+                      </span>
+                      <span className="text-[10px] text-[#AEE4FF] font-bold">{unidadeMedida}</span>
+                    </div>
+
+                    {allMaterialItems.length > 0 && (
+                      <div className="flex items-baseline gap-1 bg-[#1B3550] border border-[#2A4D6E] px-2 py-1 rounded-md">
+                        <span className="text-[10px] text-slate-400 font-semibold">Lotes:</span>
+                        <span className="font-mono font-bold text-[#AEE4FF]">
+                          {allMaterialItems.length}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </div>
-              </div>
 
-              {/* Botões de Ação Imediata: Devolver, Bloquear & Desbloquear */}
-              <div className="grid grid-cols-3 gap-2 pt-1">
-                {/* 1. Botão Devolver */}
-                <button
-                  type="button"
-                  onClick={() =>
-                    handleOpenDevolver(
-                      materialCode,
-                      loteCode,
-                      materialDescription,
-                      unidadeMedida,
-                      totalEstoqueLote > 0 ? totalEstoqueLote : Number(scannedResult.quantidade || 0)
-                    )
-                  }
-                  disabled={isDevolverRunning || !loteCode}
-                  className="py-2.5 px-2 bg-[#E29A36] hover:bg-[#d48c2a] text-[#13283E] font-bold text-[11px] rounded-xl shadow-md transition-all active:scale-[0.98] flex flex-col items-center justify-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <Undo2 className="h-4 w-4 shrink-0" />
-                  <span className="truncate">Devolver</span>
-                </button>
+                {/* Botões de Ação Imediata */}
+                <div className="md:col-span-5 space-y-1">
+                  <div className="grid grid-cols-2 gap-2">
+                    {/* 1. Botão Devolver */}
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleOpenDevolver(
+                          materialCode,
+                          loteCode,
+                          materialDescription,
+                          unidadeMedida,
+                          totalEstoqueLote > 0 ? totalEstoqueLote : Number(scannedResult.quantidade || 0)
+                        )
+                      }
+                      disabled={isDevolverRunning || !loteCode}
+                      title="Devolver ao almoxarifado via /nzwm296"
+                      className="py-2 px-2.5 bg-[#E29A36] hover:bg-[#d48c2a] text-[#13283E] font-bold text-xs rounded-md shadow-sm transition-all active:scale-[0.98] flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <Undo2 className="h-4 w-4 shrink-0" />
+                      <span>Devolver</span>
+                    </button>
 
-                {/* 2. Botão Bloquear / Desbloquear MIGO */}
-                <button
-                  type="button"
-                  onClick={() =>
-                    handleOpenBloquear(
-                      materialCode,
-                      loteCode,
-                      totalEstoqueLote > 0 ? totalEstoqueLote : Number(scannedResult.quantidade || 0),
-                      unidadeMedida,
-                      materialDescription
-                    )
-                  }
-                  disabled={isBloquearMigoRunning || !loteCode}
-                  className="py-2.5 px-3 bg-[#AEE4FF] hover:bg-white text-[#13283E] font-bold text-[11px] rounded-xl shadow-md transition-all active:scale-[0.98] flex flex-col items-center justify-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed col-span-1"
-                >
-                  <div className="flex items-center -space-x-1">
-                    <Lock className="h-4 w-4 shrink-0 text-[#13283E]" />
-                    <Unlock className="h-4 w-4 shrink-0 text-[#13283E]" />
+                    {/* 2. Botão Bloquear / Desbloquear MIGO */}
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleOpenBloquear(
+                          materialCode,
+                          loteCode,
+                          totalEstoqueLote > 0 ? totalEstoqueLote : Number(scannedResult.quantidade || 0),
+                          unidadeMedida,
+                          materialDescription
+                        )
+                      }
+                      disabled={isBloquearMigoRunning || !loteCode}
+                      title="Bloquear ou desbloquear no SAP via MIGO"
+                      className="py-2 px-2.5 bg-[#AEE4FF] hover:bg-white text-[#13283E] font-bold text-xs rounded-md shadow-sm transition-all active:scale-[0.98] flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <div className="flex items-center -space-x-1 shrink-0">
+                        <Lock className="h-3.5 w-3.5 text-[#13283E]" />
+                        <Unlock className="h-3.5 w-3.5 text-[#13283E]" />
+                      </div>
+                      <span>Bloq/Desbloq</span>
+                    </button>
                   </div>
-                  <span className="truncate">Bloquear / Desbloquear</span>
-                </button>
+                  {!loteCode && (
+                    <p className="text-[10px] text-slate-400 text-center md:text-right">
+                      Selecione um lote na lista abaixo para devolver ou bloquear.
+                    </p>
+                  )}
+                </div>
               </div>
             </div>
 
-            {/* 1. Posições Físicas do Lote */}
-            {loteCode && (
-              <div className="bg-[#13283E] border border-[#2A4D6E] rounded-2xl p-4 shadow-sm space-y-2.5">
-                <div className="flex items-center justify-between border-b border-[#2A4D6E] pb-2">
-                  <span className="text-xs font-bold uppercase tracking-wider text-amber-300 flex items-center gap-1.5">
-                    <MapPin className="h-3.5 w-3.5 text-amber-400" />
-                    Posições no Estoque ({loteItems.length})
-                  </span>
-                  <Badge variant="outline" className="text-[10px] bg-[#1B3550] border-[#2A4D6E] text-slate-300 font-mono">
-                    Total: {totalEstoqueLote.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 3 })} {unidadeMedida}
-                  </Badge>
-                </div>
-
-                {loteItems.length === 0 ? (
-                  <p className="text-xs text-slate-400 py-2 text-center">
-                    Nenhuma posição física ativa para este lote na última atualização de estoque.
-                  </p>
-                ) : (
-                  <div className="space-y-2">
-                    {loteItems.map((item, idx) => (
-                      <div
-                        key={idx}
-                        className="bg-[#1B3550] border border-[#2A4D6E] rounded-xl p-3 flex items-center justify-between text-xs"
-                      >
-                        <div className="space-y-1 min-w-0 flex-1 pr-2">
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            <span className="font-mono font-black text-[#AEE4FF] text-sm">
-                              {item.posicao_deposito || 'SEM POSIÇÃO'}
-                            </span>
-                            <Badge className="bg-[#0E1D2D] border border-[#2A4D6E] text-[10px] text-slate-300 font-mono py-0 px-1.5">
-                              {item.tipo_deposito || 'PES'}
-                            </Badge>
-                            {item.tipo_estoque && item.tipo_estoque !== 'Livre' && (
-                              <Badge className="bg-rose-500/20 text-rose-300 border border-rose-500/30 text-[9px] py-0 px-1 font-bold">
-                                Tipo {item.tipo_estoque}
-                              </Badge>
-                            )}
-                          </div>
-                          <div className="text-[11px] text-slate-300 flex items-center gap-2">
-                            <span>Aging: {formatAgingDays(item.dias_aging)}</span>
-                            {item.data_vencimento && (
-                              <>
-                                <span>•</span>
-                                <span className="text-slate-400">Venc: <strong className="text-slate-200">{item.data_vencimento}</strong></span>
-                              </>
-                            )}
-                          </div>
-                        </div>
-
-                        <div className="text-right flex flex-col items-end gap-1.5 shrink-0">
-                          <span className="text-sm font-black text-amber-300 font-mono">
-                            {Number(item.estoque_disponivel || 0).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 3 })}
-                            <span className="text-[10px] text-slate-400 ml-1 font-normal">{item.unidade_medida || 'KG'}</span>
-                          </span>
-
-                          <div className="flex items-center gap-1">
-                            {/* Botão Bloquear / Desbloquear Item */}
-                            <button
-                              type="button"
-                              onClick={() =>
-                                handleOpenBloquear(
-                                  item.material,
-                                  item.lote,
-                                  Number(item.estoque_disponivel) || 0,
-                                  item.unidade_medida,
-                                  item.texto_breve_material || materialDescription
-                                )
-                              }
-                              className="px-2 py-1 bg-[#AEE4FF]/15 hover:bg-[#AEE4FF] text-[#AEE4FF] hover:text-[#13283E] border border-[#AEE4FF]/30 rounded-lg text-[10px] font-bold transition-all flex items-center gap-1"
-                              title="Bloquear ou Desbloquear no SAP via MIGO"
-                            >
-                              <Lock className="h-3 w-3" /> Bloq / Desbloq
-                            </button>
-
-                            {/* Botão Devolver Item */}
-                            <button
-                              type="button"
-                              onClick={() =>
-                                handleOpenDevolver(
-                                  item.material,
-                                  item.lote,
-                                  item.texto_breve_material || materialDescription,
-                                  item.unidade_medida,
-                                  Number(item.estoque_disponivel) || 0
-                                )
-                              }
-                              className="px-2 py-1 bg-[#E29A36]/20 hover:bg-[#E29A36] text-[#E29A36] hover:text-[#13283E] border border-[#E29A36]/40 rounded-lg text-[10px] font-bold transition-all flex items-center gap-1"
-                              title="Devolver ao almoxarifado via /nzwm296"
-                            >
-                              <Undo2 className="h-3 w-3" /> Devolver
-                            </button>
-                          </div>
-                        </div>
+            {/* Grid Principal com Outros Lotes do Material e Remessas Abertas */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-2.5">
+              {/* Coluna 1: Outros Lotes do Material */}
+              <div className="lg:col-span-7 space-y-2.5">
+                <div className="bg-[#13283E] border border-[#2A4D6E] rounded-lg p-3 sm:p-4 space-y-2.5">
+                  <div className="flex items-center justify-between border-b border-[#2A4D6E] pb-2.5">
+                    <div className="flex items-center gap-2">
+                      <div className="p-1 rounded-md bg-[#AEE4FF]/10 text-[#AEE4FF]">
+                        <Package className="h-4 w-4" />
                       </div>
-                    ))}
+                      <div>
+                        <h3 className="text-xs font-bold uppercase tracking-wider text-[#AEE4FF]">
+                          Outros Lotes do Material
+                        </h3>
+                        <p className="text-[10px] text-slate-400">
+                          {allMaterialItems.length} {allMaterialItems.length === 1 ? 'lote encontrado' : 'lotes encontrados no estoque'}
+                        </p>
+                      </div>
+                    </div>
+                    {allMaterialItems.length > 0 && (
+                      <Badge variant="outline" className="text-[10px] bg-[#1B3550] border-[#2A4D6E] text-slate-300 font-mono">
+                        Total: {allMaterialItems.reduce((acc, c) => acc + (Number(c.estoque_disponivel) || 0), 0).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 3 })} {unidadeMedida}
+                      </Badge>
+                    )}
                   </div>
-                )}
-              </div>
-            )}
 
-            {/* 2. Outros Lotes do Mesmo Material */}
-            {allMaterialItems.length > 0 && (
-              <div className="bg-[#13283E] border border-[#2A4D6E] rounded-2xl p-4 shadow-sm space-y-2.5">
-                <div className="flex items-center justify-between border-b border-[#2A4D6E] pb-2">
-                  <span className="text-xs font-bold uppercase tracking-wider text-[#AEE4FF] flex items-center gap-1.5">
-                    <Package className="h-3.5 w-3.5 text-[#AEE4FF]" />
-                    Outros Lotes do Material ({allMaterialItems.length})
-                  </span>
-                </div>
-
-                <div className="max-h-56 overflow-y-auto space-y-1.5 pr-1">
-                  {allMaterialItems.map((item, idx) => {
-                    const isCurrentLote = loteCode && String(item.lote).trim().toUpperCase() === loteCode.trim().toUpperCase();
-                    return (
-                      <div
-                        key={idx}
-                        className={`p-2.5 rounded-xl border text-xs flex items-center justify-between transition-all ${
-                          isCurrentLote
-                            ? 'bg-amber-500/10 border-amber-500/40 ring-1 ring-amber-500/30'
-                            : 'bg-[#1B3550]/70 border-[#2A4D6E]'
-                        }`}
-                      >
-                        <div className="min-w-0 flex-1 pr-2">
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            <span className="font-mono font-bold text-amber-300">{item.lote}</span>
-                            <span className="text-[10px] text-slate-400">Pos: <strong className="text-slate-200">{item.posicao_deposito}</strong></span>
-                            {isCurrentLote && (
-                              <Badge className="bg-amber-400 text-slate-950 text-[9px] px-1.5 py-0 font-extrabold">Lido</Badge>
+                  {allMaterialItems.length === 0 ? (
+                    <div className="text-center py-6 px-3 bg-[#1B3550]/40 rounded-md border border-[#2A4D6E]/40 space-y-1">
+                      <p className="text-xs font-semibold text-slate-300">Nenhum lote deste material encontrado em estoque</p>
+                      <p className="text-[10px] text-slate-500">Verifique se o material possui saldo ativo na última atualização.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-1.5 max-h-[480px] overflow-y-auto pr-1">
+                      {allMaterialItems.map((item, idx) => {
+                        const isCurrentLote = loteCode && String(item.lote).trim().toUpperCase() === loteCode.trim().toUpperCase();
+                        return (
+                          <div
+                            key={idx}
+                            className={cn(
+                              "p-2.5 rounded-md border text-xs transition-all",
+                              isCurrentLote
+                                ? "bg-amber-500/10 border-amber-500/40 ring-1 ring-amber-500/30"
+                                : "bg-[#1B3550] hover:bg-[#203e5e] border-[#2A4D6E]"
                             )}
-                          </div>
-                          <div className="text-[10px] text-slate-400 mt-0.5 flex items-center gap-2">
-                            <span>Aging: {formatAgingDays(item.dias_aging)}</span>
-                          </div>
-                        </div>
+                          >
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                              {/* Lote e Posição */}
+                              <div className="space-y-1 min-w-0 flex-1">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className="font-mono font-bold text-amber-300 text-sm">
+                                    {item.lote}
+                                  </span>
+                                  {isCurrentLote && (
+                                    <Badge className="bg-amber-400 text-slate-950 text-[9px] px-1.5 py-0 font-extrabold">
+                                      Lido
+                                    </Badge>
+                                  )}
+                                  <div className="flex items-center gap-1">
+                                    <span className="text-[11px] text-slate-400">Posição:</span>
+                                    <span className="font-mono font-bold text-[#AEE4FF] text-xs">
+                                      {item.posicao_deposito || 'S/ POS'}
+                                    </span>
+                                    {item.tipo_deposito && (
+                                      <Badge className="bg-[#0E1D2D] border border-[#2A4D6E] text-[9px] text-slate-300 font-mono py-0 px-1">
+                                        {item.tipo_deposito}
+                                      </Badge>
+                                    )}
+                                  </div>
+                                </div>
 
-                        <div className="text-right flex flex-col items-end gap-1 shrink-0">
-                          <span className="font-mono font-bold text-slate-100">
-                            {Number(item.estoque_disponivel || 0).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 3 })}
-                            <span className="text-[10px] text-slate-400 ml-1 font-normal">{item.unidade_medida || 'KG'}</span>
-                          </span>
+                                <div className="text-[10px] text-slate-400 flex items-center gap-2 flex-wrap">
+                                  <span>Aging: {formatAgingDays(item.dias_aging)}</span>
+                                  {item.data_vencimento && (
+                                    <>
+                                      <span>•</span>
+                                      <span>Venc: <strong className="text-slate-200">{item.data_vencimento}</strong></span>
+                                    </>
+                                  )}
+                                  {item.tipo_estoque && item.tipo_estoque !== 'Livre' && (
+                                    <>
+                                      <span>•</span>
+                                      <span className="text-rose-400 font-semibold">Tipo {item.tipo_estoque}</span>
+                                    </>
+                                  )}
+                                </div>
+                              </div>
 
-                          <div className="flex items-center gap-1">
-                            <button
-                              type="button"
-                              onClick={() =>
-                                handleOpenBloquear(
-                                  item.material,
-                                  item.lote,
-                                  Number(item.estoque_disponivel) || 0,
-                                  item.unidade_medida,
-                                  item.texto_breve_material || materialDescription
-                                )
-                              }
-                              className="px-1.5 py-0.5 bg-[#AEE4FF]/15 hover:bg-[#AEE4FF] text-[#AEE4FF] hover:text-[#13283E] border border-[#AEE4FF]/30 rounded text-[9px] font-bold transition-all"
-                            >
-                              Bloq / Desbloq
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() =>
-                                handleOpenDevolver(
-                                  item.material,
-                                  item.lote,
-                                  item.texto_breve_material || materialDescription,
-                                  item.unidade_medida,
-                                  Number(item.estoque_disponivel) || 0
-                                )
-                              }
-                              className="px-1.5 py-0.5 bg-[#E29A36]/20 hover:bg-[#E29A36] text-[#E29A36] hover:text-[#13283E] border border-[#E29A36]/40 rounded text-[9px] font-bold transition-all"
-                            >
-                              Devolver
-                            </button>
+                              {/* Saldo e Ações Rápidas */}
+                              <div className="flex items-center sm:flex-col sm:items-end justify-between sm:justify-center gap-2 shrink-0 border-t sm:border-t-0 border-[#2A4D6E]/50 pt-2 sm:pt-0">
+                                <div className="text-left sm:text-right">
+                                  <span className="font-mono font-extrabold text-sm text-white">
+                                    {Number(item.estoque_disponivel || 0).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 3 })}
+                                  </span>
+                                  <span className="text-[10px] text-[#AEE4FF] ml-1 font-semibold">{item.unidade_medida || 'KG'}</span>
+                                </div>
+
+                                <div className="flex items-center gap-1.5">
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      handleOpenBloquear(
+                                        item.material,
+                                        item.lote,
+                                        Number(item.estoque_disponivel) || 0,
+                                        item.unidade_medida,
+                                        item.texto_breve_material || materialDescription
+                                      )
+                                    }
+                                    className="px-2 py-1 bg-[#AEE4FF]/15 hover:bg-[#AEE4FF] text-[#AEE4FF] hover:text-[#13283E] border border-[#AEE4FF]/30 rounded-lg text-[10px] font-bold transition-all flex items-center gap-1"
+                                    title="Bloquear ou Desbloquear no SAP via MIGO"
+                                  >
+                                    <Lock className="h-3 w-3" /> Bloq
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      handleOpenDevolver(
+                                        item.material,
+                                        item.lote,
+                                        item.texto_breve_material || materialDescription,
+                                        item.unidade_medida,
+                                        Number(item.estoque_disponivel) || 0
+                                      )
+                                    }
+                                    className="px-2 py-1 bg-[#E29A36]/20 hover:bg-[#E29A36] text-[#E29A36] hover:text-[#13283E] border border-[#E29A36]/40 rounded-lg text-[10px] font-bold transition-all flex items-center gap-1"
+                                    title="Devolver ao almoxarifado via /nzwm296"
+                                  >
+                                    <Undo2 className="h-3 w-3" /> Devolver
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
                           </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* 3. Remessas Abertas do Material */}
-            {materialCode && (
-              <div className="bg-[#13283E] border border-[#2A4D6E] rounded-2xl p-4 shadow-sm space-y-2.5">
-                <div className="flex items-center justify-between border-b border-[#2A4D6E] pb-2">
-                  <span className="text-xs font-bold uppercase tracking-wider text-[#AEE4FF] flex items-center gap-1.5">
-                    <Clock className="h-3.5 w-3.5 text-[#AEE4FF]" />
-                    Remessas Abertas ({materialRemessas.length})
-                  </span>
-                  {onNavigateToTab && materialRemessas.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => onNavigateToTab('remessas')}
-                      className="text-[10px] text-[#AEE4FF] hover:underline font-semibold flex items-center gap-0.5"
-                    >
-                      Ver todas <ChevronRight className="h-3 w-3" />
-                    </button>
+                        );
+                      })}
+                    </div>
                   )}
                 </div>
-
-                {materialRemessas.length === 0 ? (
-                  <p className="text-xs text-slate-400 py-1.5 text-center">
-                    Nenhuma remessa em aberto encontrada para este material.
-                  </p>
-                ) : (
-                  <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1">
-                    {materialRemessas.map((rem, idx) => (
-                      <div
-                        key={idx}
-                        className="bg-[#1B3550]/70 border border-[#2A4D6E] rounded-xl p-2.5 text-xs flex items-center justify-between"
-                      >
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="font-mono font-bold text-[#AEE4FF]">{rem.numero_remessa}</span>
-                            <span className="text-[10px] text-slate-400">Item {rem.item}</span>
-                          </div>
-                          <p className="text-[10px] text-slate-400 mt-0.5">
-                            Data: <strong className="text-slate-200">{rem.data_disponibilidade || rem.data_picking || '-'}</strong>
-                          </p>
-                        </div>
-
-                        <div className="text-right">
-                          <span className="font-mono font-bold text-emerald-400">
-                            {Number(rem.quantidade || 0).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 3 })}
-                          </span>
-                          <p className="text-[9px] text-slate-400 font-bold">{rem.unidade_medida || 'KG'}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
               </div>
-            )}
+
+              {/* Coluna 2: Remessas Abertas do Material */}
+              <div className="lg:col-span-5 space-y-2.5">
+                <div className="bg-[#13283E] border border-[#2A4D6E] rounded-lg p-3 sm:p-4 space-y-2.5">
+                  <div className="flex items-center justify-between border-b border-[#2A4D6E] pb-2.5">
+                    <div className="flex items-center gap-2">
+                      <div className="p-1 rounded-md bg-[#AEE4FF]/10 text-[#AEE4FF]">
+                        <Clock className="h-4 w-4" />
+                      </div>
+                      <div>
+                        <h3 className="text-xs font-bold uppercase tracking-wider text-[#AEE4FF]">
+                          Remessas Abertas
+                        </h3>
+                        <p className="text-[10px] text-slate-400">
+                          {materialRemessas.length} {materialRemessas.length === 1 ? 'remessa pendente' : 'remessas pendentes'}
+                        </p>
+                      </div>
+                    </div>
+                    {onNavigateToTab && materialRemessas.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => onNavigateToTab('remessas')}
+                        className="text-[10px] text-[#AEE4FF] hover:underline font-semibold flex items-center gap-0.5"
+                      >
+                        Ver todas <ChevronRight className="h-3 w-3" />
+                      </button>
+                    )}
+                  </div>
+
+                  {materialRemessas.length === 0 ? (
+                    <div className="text-center py-6 px-3 bg-[#1B3550]/40 rounded-md border border-[#2A4D6E]/40 space-y-1">
+                      <p className="text-xs font-semibold text-slate-300">Nenhuma remessa em aberto</p>
+                      <p className="text-[10px] text-slate-500">Não há ordens de picking pendentes para este material.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-1.5 max-h-[480px] overflow-y-auto pr-1">
+                      {materialRemessas.map((rem, idx) => (
+                        <div
+                          key={idx}
+                          className="bg-[#1B3550] border border-[#2A4D6E] rounded-md p-2.5 text-xs flex items-center justify-between hover:bg-[#203e5e] transition-all"
+                        >
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="font-mono font-bold text-[#AEE4FF]">{rem.numero_remessa}</span>
+                              <span className="text-[10px] text-slate-400 bg-[#0E1D2D] px-1.5 py-0.5 rounded border border-[#2A4D6E]">
+                                Item {rem.item}
+                              </span>
+                            </div>
+                            <p className="text-[10px] text-slate-400 mt-1">
+                              Data: <strong className="text-slate-200">{rem.data_disponibilidade || rem.data_picking || '-'}</strong>
+                            </p>
+                          </div>
+
+                          <div className="text-right">
+                            <span className="font-mono font-bold text-emerald-400 text-sm">
+                              {Number(rem.quantidade || 0).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 3 })}
+                            </span>
+                            <p className="text-[10px] text-slate-400 font-semibold">{rem.unidade_medida || 'KG'}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
         )}
       </div>
 
       {/* Dialog para Devolução Fracionada (/nzwm296) */}
       <Dialog open={devolverOpen} onOpenChange={setDevolverOpen}>
-        <DialogContent className="sm:max-w-lg bg-[#13283E] border-[#2A4D6E] text-white">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-[#E29A36] text-base font-bold">
-              <Undo2 className="h-5 w-5 text-[#E29A36]" />
+        <DialogContent className="sm:max-w-lg bg-[#13283E] border-[#2A4D6E] text-white p-4 sm:p-6 max-h-[92vh] overflow-y-auto gap-3">
+          <DialogHeader className="gap-1">
+            <DialogTitle className="flex items-start gap-2 text-[#E29A36] text-sm sm:text-base font-bold text-left">
+              <Undo2 className="h-4 w-4 sm:h-5 sm:w-5 text-[#E29A36] shrink-0 mt-0.5" />
               <span>Devolução Fracionada ao Almoxarifado (/nzwm296)</span>
             </DialogTitle>
-            <DialogDescription className="text-xs text-slate-300 pt-1">
+            <DialogDescription className="text-xs text-slate-300">
               Informe a divisão de volumes para devolução de saldo no SAP.
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 py-2">
+          <div className="space-y-3 py-1">
             {/* Informações do Lote */}
-            <div className="p-3 rounded-xl bg-[#0E1D2D] border border-[#2A4D6E] space-y-1 text-xs">
-              <div className="flex justify-between">
-                <span className="text-slate-400">Material:</span>
-                <span className="font-mono font-bold text-[#AEE4FF]">{devolverMaterial}</span>
+            <div className="p-2.5 rounded-md bg-[#0E1D2D] border border-[#2A4D6E] space-y-1 text-xs">
+              <div className="flex justify-between gap-2">
+                <span className="text-slate-400 shrink-0">Material:</span>
+                <span className="font-mono font-bold text-[#AEE4FF] truncate text-right">{devolverMaterial}</span>
               </div>
               {devolverDescricao && (
-                <div className="flex justify-between text-[11px]">
-                  <span className="text-slate-400">Descrição:</span>
-                  <span className="text-slate-200 truncate max-w-[280px]">{devolverDescricao}</span>
+                <div className="flex justify-between gap-2 text-[11px]">
+                  <span className="text-slate-400 shrink-0">Descrição:</span>
+                  <span className="text-slate-200 truncate text-right">{devolverDescricao}</span>
                 </div>
               )}
-              <div className="flex justify-between">
-                <span className="text-slate-400">Lote:</span>
-                <span className="font-mono font-bold text-amber-300">{devolverLote}</span>
+              <div className="flex justify-between gap-2">
+                <span className="text-slate-400 shrink-0">Lote:</span>
+                <span className="font-mono font-bold text-amber-300 truncate text-right">{devolverLote}</span>
               </div>
-              <div className="flex justify-between border-t border-[#2A4D6E]/50 pt-1 mt-1 font-semibold">
-                <span className="text-slate-400">Saldo Disponível no Estoque:</span>
-                <span className="font-mono text-emerald-400">
+              <div className="flex justify-between gap-2 border-t border-[#2A4D6E]/50 pt-1 mt-1 font-semibold">
+                <span className="text-slate-400 shrink-0">Saldo Disponível:</span>
+                <span className="font-mono text-emerald-400 text-right">
                   {devolverSaldoTotal.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 3 })} {devolverUnidade}
                 </span>
               </div>
@@ -1443,7 +1489,7 @@ export function ConsultaRapidaView({
 
             {/* Lista de Volumes */}
             <div className="space-y-2">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                 <span className="text-xs font-bold uppercase tracking-wider text-slate-300">
                   Volumes a Devolver ({devolverVolumes.length})
                 </span>
@@ -1452,54 +1498,57 @@ export function ConsultaRapidaView({
                   size="sm"
                   variant="outline"
                   onClick={handleAddVolume}
-                  className="h-7 text-xs bg-[#1B3550] border-[#2A4D6E] text-[#AEE4FF] hover:bg-[#2A4D6E]"
+                  className="h-8 sm:h-7 text-xs bg-[#1B3550] border-[#2A4D6E] text-[#AEE4FF] hover:bg-[#2A4D6E] w-full sm:w-auto"
                 >
                   <Plus className="h-3.5 w-3.5 mr-1" /> Adicionar Volume
                 </Button>
               </div>
 
-              <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+              <div className="space-y-2 max-h-64 sm:max-h-48 overflow-y-auto pr-1">
                 {devolverVolumes.map((vol, idx) => (
                   <div
                     key={vol.id}
-                    className="p-2.5 rounded-xl bg-[#0E1D2D] border border-[#2A4D6E] flex items-center gap-2"
+                    className="p-2.5 rounded-md bg-[#0E1D2D] border border-[#2A4D6E] space-y-2"
                   >
-                    <span className="text-xs font-bold text-[#AEE4FF] w-6 shrink-0 text-center">
-                      #{idx + 1}
-                    </span>
-
-                    <div className="flex-1">
-                      <label className="text-[10px] text-slate-400 block mb-0.5">Qtd a devolver</label>
-                      <Input
-                        type="text"
-                        value={vol.quantidade}
-                        onChange={(e) => handleUpdateVolume(idx, 'quantidade', e.target.value)}
-                        placeholder="Ex: 5,420"
-                        className="h-8 text-xs bg-[#13283E] border-[#2A4D6E] text-white font-mono"
-                      />
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-[#AEE4FF]">
+                        Volume #{idx + 1}
+                      </span>
+                      <Button
+                        type="button"
+                        size="icon"
+                        variant="ghost"
+                        disabled={devolverVolumes.length === 1}
+                        onClick={() => handleRemoveVolume(idx)}
+                        className="h-6 w-6 text-red-400 hover:text-red-300 hover:bg-red-500/10 shrink-0"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
                     </div>
 
-                    <div className="w-20">
-                      <label className="text-[10px] text-slate-400 block mb-0.5">Volume</label>
-                      <Input
-                        type="text"
-                        value={vol.volume}
-                        onChange={(e) => handleUpdateVolume(idx, 'volume', e.target.value)}
-                        placeholder="1"
-                        className="h-8 text-xs bg-[#13283E] border-[#2A4D6E] text-white font-mono text-center"
-                      />
-                    </div>
+                    <div className="grid grid-cols-[1fr_5.5rem] gap-2">
+                      <div>
+                        <label className="text-[10px] text-slate-400 block mb-0.5">Qtd a devolver</label>
+                        <Input
+                          type="text"
+                          value={vol.quantidade}
+                          onChange={(e) => handleUpdateVolume(idx, 'quantidade', e.target.value)}
+                          placeholder="Ex: 5,420"
+                          className="h-9 sm:h-8 text-xs bg-[#13283E] border-[#2A4D6E] text-white font-mono"
+                        />
+                      </div>
 
-                    <Button
-                      type="button"
-                      size="icon"
-                      variant="ghost"
-                      disabled={devolverVolumes.length === 1}
-                      onClick={() => handleRemoveVolume(idx)}
-                      className="h-8 w-8 text-red-400 hover:text-red-300 hover:bg-red-500/10 shrink-0 mt-3"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                      <div>
+                        <label className="text-[10px] text-slate-400 block mb-0.5">Volume</label>
+                        <Input
+                          type="text"
+                          value={vol.volume}
+                          onChange={(e) => handleUpdateVolume(idx, 'volume', e.target.value)}
+                          placeholder="1"
+                          className="h-9 sm:h-8 text-xs bg-[#13283E] border-[#2A4D6E] text-white font-mono text-center"
+                        />
+                      </div>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -1510,19 +1559,19 @@ export function ConsultaRapidaView({
                   <button
                     type="button"
                     onClick={handleFillRestante}
-                    className="text-xs text-[#AEE4FF] hover:underline flex items-center gap-1 font-semibold"
+                    className="text-xs text-[#AEE4FF] hover:underline flex items-start gap-1.5 font-semibold text-left"
                   >
-                    <Sparkles className="h-3.5 w-3.5 text-[#AEE4FF]" />
-                    Adicionar restante ({saldoRestante.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 3 })} {devolverUnidade}) em novo volume
+                    <Sparkles className="h-3.5 w-3.5 text-[#AEE4FF] shrink-0 mt-0.5" />
+                    <span>Adicionar restante ({saldoRestante.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 3 })} {devolverUnidade}) em novo volume</span>
                   </button>
                 </div>
               )}
 
               {/* Barra de Progresso / Totalizador */}
-              <div className="p-2.5 rounded-xl bg-[#0E1D2D] border border-[#2A4D6E] space-y-1 text-xs">
-                <div className="flex justify-between font-mono">
-                  <span className="text-slate-400">Total a Devolver:</span>
-                  <span className={cn('font-bold', isOverSaldo ? 'text-red-400' : 'text-[#AEE4FF]')}>
+              <div className="p-2.5 rounded-md bg-[#0E1D2D] border border-[#2A4D6E] space-y-1 text-xs">
+                <div className="flex justify-between items-baseline gap-2 flex-wrap font-mono">
+                  <span className="text-slate-400 shrink-0">Total a Devolver:</span>
+                  <span className={cn('font-bold text-right', isOverSaldo ? 'text-red-400' : 'text-[#AEE4FF]')}>
                     {somaVolumes.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 3 })} / {devolverSaldoTotal.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 3 })} {devolverUnidade}
                   </span>
                 </div>
@@ -1535,11 +1584,10 @@ export function ConsultaRapidaView({
             </div>
           </div>
 
-          <DialogFooter className="gap-2 sm:gap-0 pt-2">
+          <DialogFooter className="gap-2 pt-2">
             <Button
               type="button"
               variant="outline"
-              size="sm"
               onClick={() => setDevolverOpen(false)}
               className="bg-[#1B3550] border-[#2A4D6E] text-slate-300 hover:text-white"
             >
@@ -1547,7 +1595,6 @@ export function ConsultaRapidaView({
             </Button>
             <Button
               type="button"
-              size="sm"
               onClick={handleConfirmDevolver}
               disabled={isDevolverRunning || isOverSaldo || somaVolumes <= 0}
               className="bg-[#E29A36] hover:bg-[#d48c2a] text-[#13283E] font-bold gap-1.5"
@@ -1583,7 +1630,7 @@ export function ConsultaRapidaView({
 
           <div className="space-y-4 py-2">
             {/* Seletor de Opção: Bloquear (Y84) vs Desbloquear (Y83) */}
-            <div className="bg-[#0E1D2D] p-1.5 rounded-xl border border-[#2A4D6E] flex items-center gap-1.5">
+            <div className="bg-[#0E1D2D] p-1.5 rounded-md border border-[#2A4D6E] flex items-center gap-1.5">
               <button
                 type="button"
                 onClick={() => handleToggleMigoMode('bloquear')}
@@ -1613,7 +1660,7 @@ export function ConsultaRapidaView({
             </div>
 
             {/* Detalhes do Item a Bloquear / Desbloquear */}
-            <div className="p-3 rounded-xl bg-[#0E1D2D] border border-[#2A4D6E] space-y-2 text-xs">
+            <div className="p-3 rounded-md bg-[#0E1D2D] border border-[#2A4D6E] space-y-2 text-xs">
               <div className="flex justify-between">
                 <span className="text-slate-400">Material:</span>
                 <span className="font-mono font-bold text-[#AEE4FF]">{bloquearSelectedItems[0]?.material}</span>
@@ -1652,7 +1699,7 @@ export function ConsultaRapidaView({
             </div>
 
             {/* Pipeline de Macros / Opções Rápidas */}
-            <div className="p-3 rounded-xl bg-[#0E1D2D] border border-[#2A4D6E] space-y-2.5">
+            <div className="p-3 rounded-md bg-[#0E1D2D] border border-[#2A4D6E] space-y-2.5">
               <div className="flex flex-wrap items-center justify-between gap-1.5">
                 <div className="flex items-center gap-1.5">
                   <Layers className="h-4 w-4 text-[#AEE4FF]" />
