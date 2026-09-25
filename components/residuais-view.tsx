@@ -263,44 +263,53 @@ session.findById("wnd[0]").sendVKey 0
 session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_FIRSTLINE:SAPLMIGO:0011/ctxtGODEFAULT_TV-BWART").text = "y84"
 session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_FIRSTLINE:SAPLMIGO:0011/ctxtGODEFAULT_TV-BWART").setFocus
 session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_FIRSTLINE:SAPLMIGO:0011/ctxtGODEFAULT_TV-BWART").caretPosition = 3
-session.findById("wnd[0]").sendVKey 0
-`;
+session.findById("wnd[0]").sendVKey 0`;
 
-  const tblPath = `session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM")`;
-
-  // Preenche dados de cada item rolando a grade para a posição necessária (linha visual [col, 0])
-  const itemsLines = items.map((item, idx) => {
+  // Preenche dados dos itens indexando diretamente por linha na tabela [coluna, linha]
+  const maktxLines = items.map((item, idx) => {
     const mat = item.material.trim();
-    const qtd = item.quantidade.trim().replace('.', ',');
-    const unit = (item.unidade.trim() || 'KG').toUpperCase();
-
-    return `${tblPath}.verticalScrollbar.position = ${idx}
-session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-MAKTX[1,0]").text = "${mat}"
-session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/txtGOITEM-ERFMG[3,0]").text = "${qtd}"
-session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-ERFME[5,0]").text = "${unit}"
-session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-LGOBE[12,0]").text = "PES"
-session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-NAME1[9,0]").text = "600"
-session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-UMLGOBE[14,0]").text = "PES"
-session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-GRUND[15,0]").text = "9000"`;
+    return `session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-MAKTX[1,${idx}]").text = "${mat}"`;
   }).join('\n');
 
-  // Validação da Grade via Enter no primeiro item (retorna scroll para o topo)
-  const validateGrid = `${tblPath}.verticalScrollbar.position = 0
-session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-MAKTX[1,0]").setFocus
-session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-MAKTX[1,0]").caretPosition = 0
-session.findById("wnd[0]").sendVKey 0
-`;
+  const erfmgLines = items.map((item, idx) => {
+    const qtd = item.quantidade.trim().replace('.', ',');
+    return `session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/txtGOITEM-ERFMG[3,${idx}]").text = "${qtd}"`;
+  }).join('\n');
 
-  // Preenche Lotes (CHARG) com scroll para cada item
+  const erfmeLines = items.map((item, idx) => {
+    const unit = (item.unidade.trim() || 'KG').toUpperCase();
+    return `session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-ERFME[5,${idx}]").text = "${unit}"`;
+  }).join('\n');
+
+  const lgobeLines = items.map((_, idx) => {
+    return `session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-LGOBE[12,${idx}]").text = "PES"`;
+  }).join('\n');
+
+  const name1Lines = items.map((_, idx) => {
+    return `session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-NAME1[9,${idx}]").text = "600"`;
+  }).join('\n');
+
+  const umlgobeLines = items.map((_, idx) => {
+    return `session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-UMLGOBE[14,${idx}]").text = "PES"`;
+  }).join('\n');
+
+  const grundLines = items.map((_, idx) => {
+    return `session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-GRUND[15,${idx}]").text = "9000"`;
+  }).join('\n');
+
+  // Validação da grade
+  const validateGrid = `session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-MAKTX[1,0]").setFocus
+session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-MAKTX[1,0]").caretPosition = 0
+session.findById("wnd[0]").sendVKey 0`;
+
+  // Preenche lotes (CHARG)
   const chargLines = items.map((item, idx) => {
     const lote = item.lote.trim();
-    return `${tblPath}.verticalScrollbar.position = ${idx}
-session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-CHARG[2,0]").text = "${lote}"`;
+    return `session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-CHARG[2,${idx}]").text = "${lote}"`;
   }).join('\n');
 
-  // Gravação, Transfer Order (/nlt06, btn[44]) e retorno (/n)
-  const vbsFooter = `${tblPath}.verticalScrollbar.position = 0
-session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-CHARG[2,0]").setFocus
+  // Conclusão e gravação
+  const vbsFooter = `session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-CHARG[2,0]").setFocus
 session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-CHARG[2,0]").caretPosition = 0
 session.findById("wnd[0]/tbar[1]/btn[7]").press
 session.findById("wnd[0]/tbar[1]/btn[23]").press
@@ -309,19 +318,24 @@ session.findById("wnd[0]").sendVKey 0
 session.findById("wnd[0]").sendVKey 0
 session.findById("wnd[0]/tbar[1]/btn[44]").press
 session.findById("wnd[0]/tbar[0]/okcd").text = "/n"
-session.findById("wnd[0]").sendVKey 0
-`;
+session.findById("wnd[0]").sendVKey 0`;
 
   return [
     vbsHeader,
-    itemsLines,
+    maktxLines,
+    erfmgLines,
+    erfmeLines,
+    lgobeLines,
+    name1Lines,
+    umlgobeLines,
+    grundLines,
     validateGrid,
     chargLines,
     vbsFooter,
   ].filter(Boolean).join('\n');
 }
 
-// Helper para gerar o VBScript dinâmico de Desbloqueio MIGO (Y83) para o SAP GUI em documento único com rolagem (sem campo GRUND 9000)
+// Helper para gerar o VBScript dinâmico de Desbloqueio MIGO (Y83) para o SAP GUI em documento único com suporte a múltiplos itens (sem campo GRUND 9000)
 export function generateDesbloquearMigoVbs(items: BloquearItemParam[]): string {
   if (items.length === 0) return '';
 
@@ -345,43 +359,49 @@ session.findById("wnd[0]").sendVKey 0
 session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_FIRSTLINE:SAPLMIGO:0011/ctxtGODEFAULT_TV-BWART").text = "y83"
 session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_FIRSTLINE:SAPLMIGO:0011/ctxtGODEFAULT_TV-BWART").setFocus
 session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_FIRSTLINE:SAPLMIGO:0011/ctxtGODEFAULT_TV-BWART").caretPosition = 3
-session.findById("wnd[0]").sendVKey 0
-`;
+session.findById("wnd[0]").sendVKey 0`;
 
-  const tblPath = `session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM")`;
-
-  // Preenche dados de cada item rolando a grade para a posição necessária (SEM o campo GRUND 9000)
-  const itemsLines = items.map((item, idx) => {
+  // Preenche dados dos itens indexando diretamente por linha na tabela [coluna, linha] (SEM o campo GRUND 9000)
+  const maktxLines = items.map((item, idx) => {
     const mat = item.material.trim();
-    const qtd = item.quantidade.trim().replace('.', ',');
-    const unit = (item.unidade.trim() || 'KG').toUpperCase();
-
-    return `${tblPath}.verticalScrollbar.position = ${idx}
-session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-MAKTX[1,0]").text = "${mat}"
-session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/txtGOITEM-ERFMG[3,0]").text = "${qtd}"
-session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-ERFME[5,0]").text = "${unit}"
-session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-LGOBE[12,0]").text = "PES"
-session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-NAME1[9,0]").text = "600"
-session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-UMLGOBE[14,0]").text = "PES"`;
+    return `session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-MAKTX[1,${idx}]").text = "${mat}"`;
   }).join('\n');
 
-  // Validação da Grade via Enter no primeiro item (retorna scroll para o topo)
-  const validateGrid = `${tblPath}.verticalScrollbar.position = 0
-session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-MAKTX[1,0]").setFocus
-session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-MAKTX[1,0]").caretPosition = 0
-session.findById("wnd[0]").sendVKey 0
-`;
+  const erfmgLines = items.map((item, idx) => {
+    const qtd = item.quantidade.trim().replace('.', ',');
+    return `session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/txtGOITEM-ERFMG[3,${idx}]").text = "${qtd}"`;
+  }).join('\n');
 
-  // Preenche Lotes (CHARG) com scroll para cada item
+  const erfmeLines = items.map((item, idx) => {
+    const unit = (item.unidade.trim() || 'KG').toUpperCase();
+    return `session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-ERFME[5,${idx}]").text = "${unit}"`;
+  }).join('\n');
+
+  const lgobeLines = items.map((_, idx) => {
+    return `session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-LGOBE[12,${idx}]").text = "PES"`;
+  }).join('\n');
+
+  const name1Lines = items.map((_, idx) => {
+    return `session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-NAME1[9,${idx}]").text = "600"`;
+  }).join('\n');
+
+  const umlgobeLines = items.map((_, idx) => {
+    return `session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-UMLGOBE[14,${idx}]").text = "PES"`;
+  }).join('\n');
+
+  // Validação da grade
+  const validateGrid = `session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-MAKTX[1,0]").setFocus
+session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-MAKTX[1,0]").caretPosition = 0
+session.findById("wnd[0]").sendVKey 0`;
+
+  // Preenche lotes (CHARG)
   const chargLines = items.map((item, idx) => {
     const lote = item.lote.trim();
-    return `${tblPath}.verticalScrollbar.position = ${idx}
-session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-CHARG[2,0]").text = "${lote}"`;
+    return `session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-CHARG[2,${idx}]").text = "${lote}"`;
   }).join('\n');
 
-  // Gravação, Transfer Order (/nlt06, btn[44]) e retorno (/n)
-  const vbsFooter = `${tblPath}.verticalScrollbar.position = 0
-session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-CHARG[2,0]").setFocus
+  // Conclusão e gravação
+  const vbsFooter = `session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-CHARG[2,0]").setFocus
 session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0008/subSUB_ITEMLIST:SAPLMIGO:0200/tblSAPLMIGOTV_GOITEM/ctxtGOITEM-CHARG[2,0]").caretPosition = 0
 session.findById("wnd[0]/tbar[1]/btn[7]").press
 session.findById("wnd[0]/tbar[1]/btn[23]").press
@@ -390,12 +410,16 @@ session.findById("wnd[0]").sendVKey 0
 session.findById("wnd[0]").sendVKey 0
 session.findById("wnd[0]/tbar[1]/btn[44]").press
 session.findById("wnd[0]/tbar[0]/okcd").text = "/n"
-session.findById("wnd[0]").sendVKey 0
-`;
+session.findById("wnd[0]").sendVKey 0`;
 
   return [
     vbsHeader,
-    itemsLines,
+    maktxLines,
+    erfmgLines,
+    erfmeLines,
+    lgobeLines,
+    name1Lines,
+    umlgobeLines,
     validateGrid,
     chargLines,
     vbsFooter,
