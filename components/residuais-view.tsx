@@ -180,14 +180,118 @@ export interface BloquearItemParam {
   lote: string;
   quantidade: string;
   unidade: string;
+  depositoOrigem?: string;
   descricao?: string;
 }
 
-export type MacroActionType = 'bloquear_migo' | 'desbloquear_migo' | 'mover_ajuste' | 'atualizar_db' | 'devolver';
+export interface MoverItemParam {
+  material: string;
+  lote: string;
+  quantidade: string;
+  unidade: string;
+  depositoOrigem: string;
+  descricao?: string;
+}
+
+export interface MoverRoute {
+  id: string;
+  tipo: string;
+  posicao: string;
+  label: string;
+  description: string;
+}
+
+export const PREDEFINED_MOVER_ROUTES: MoverRoute[] = [
+  { id: 'pes_pesagem', tipo: 'pes', posicao: 'pesagem', label: 'PES PESAGEM', description: 'Depósito PES / Posição PESAGEM' },
+  { id: '999_ajuste', tipo: '999', posicao: 'ajuste', label: '999 AJUSTE', description: 'Depósito 999 / Posição AJUSTE' },
+  { id: '999_aju_saida', tipo: '999', posicao: 'aju-saida', label: '999 AJU-SAIDA', description: 'Depósito 999 / Posição AJU-SAIDA' },
+  { id: '922_tr_zone', tipo: '922', posicao: 'tr-zone', label: '922 TR-ZONE', description: 'Área 922 / Posição TR-ZONE' },
+];
+
+export function generateMoverLt10Vbs(
+  items: MoverItemParam[],
+  route: { tipo: string; posicao: string }
+): string {
+  if (items.length === 0) return '';
+
+  const vbsHeader = `If Not IsObject(application) Then
+   Set SapGuiAuto  = GetObject("SAPGUI")
+   Set application = SapGuiAuto.GetScriptingEngine
+End If
+If Not IsObject(connection) Then
+   Set connection = application.Children(0)
+End If
+If Not IsObject(session) Then
+   Set session    = connection.Children(0)
+End If
+If IsObject(WScript) Then
+   WScript.ConnectObject session,     "on"
+   WScript.ConnectObject application, "on"
+End If
+session.findById("wnd[0]").maximize`;
+
+  const destLgtyp = (route.tipo || 'pes').trim().toLowerCase();
+  const destLgpla = (route.posicao || 'pesagem').trim().toLowerCase();
+
+  const itemBlocks = items.map((item, idx) => {
+    const lote = item.lote.trim();
+    const depOrigem = (item.depositoOrigem || 'pes').trim().toLowerCase();
+    const qtd = item.quantidade.trim().replace('.', ',');
+
+    return `' --- Item ${idx + 1}: Lote ${lote} | Qtd ${qtd} | Origem: ${depOrigem.toUpperCase()} -> Destino: ${destLgtyp.toUpperCase()}/${destLgpla.toUpperCase()} ---
+session.findById("wnd[0]/tbar[0]/okcd").text = "/nlt10"
+session.findById("wnd[0]").sendVKey 0
+session.findById("wnd[0]/usr/ctxtS1_LGNUM").text = "wnm"
+session.findById("wnd[0]/usr/ctxtS1_LGTYP-LOW").text = "***"
+session.findById("wnd[0]/usr/ctxtS1_LGTYP-LOW").setFocus
+session.findById("wnd[0]/usr/ctxtS1_LGTYP-LOW").caretPosition = 3
+session.findById("wnd[0]/tbar[1]/btn[16]").press
+session.findById("wnd[0]/usr/ssub%_SUBSCREEN_%_SUB%_CONTAINER:SAPLSSEL:2001/ssubSUBSCREEN_CONTAINER2:SAPLSSEL:2000/cntlSUB_CONTAINER/shellcont/shellcont/shell/shellcont[1]/shell").expandNode "         48"
+session.findById("wnd[0]/usr/ssub%_SUBSCREEN_%_SUB%_CONTAINER:SAPLSSEL:2001/ssubSUBSCREEN_CONTAINER2:SAPLSSEL:2000/cntlSUB_CONTAINER/shellcont/shellcont/shell/shellcont[1]/shell").selectNode "         53"
+session.findById("wnd[0]/usr/ssub%_SUBSCREEN_%_SUB%_CONTAINER:SAPLSSEL:2001/ssubSUBSCREEN_CONTAINER2:SAPLSSEL:2000/cntlSUB_CONTAINER/shellcont/shellcont/shell/shellcont[1]/shell").topNode = "         48"
+session.findById("wnd[0]/usr/ssub%_SUBSCREEN_%_SUB%_CONTAINER:SAPLSSEL:2001/ssubSUBSCREEN_CONTAINER2:SAPLSSEL:2000/cntlSUB_CONTAINER/shellcont/shellcont/shell/shellcont[1]/shell").doubleClickNode "         53"
+session.findById("wnd[0]/usr/ssub%_SUBSCREEN_%_SUB%_CONTAINER:SAPLSSEL:2001/ssubSUBSCREEN_CONTAINER2:SAPLSSEL:2000/ssubSUBSCREEN_CONTAINER:SAPLSSEL:1106/txt%%DYN001-LOW").text = "${lote}"
+session.findById("wnd[0]/usr/ssub%_SUBSCREEN_%_SUB%_CONTAINER:SAPLSSEL:2001/ssubSUBSCREEN_CONTAINER2:SAPLSSEL:2000/ssubSUBSCREEN_CONTAINER:SAPLSSEL:1106/txt%%DYN001-LOW").setFocus
+session.findById("wnd[0]/usr/ssub%_SUBSCREEN_%_SUB%_CONTAINER:SAPLSSEL:2001/ssubSUBSCREEN_CONTAINER2:SAPLSSEL:2000/ssubSUBSCREEN_CONTAINER:SAPLSSEL:1106/txt%%DYN001-LOW").caretPosition = 7
+session.findById("wnd[0]/usr/ssub%_SUBSCREEN_%_SUB%_CONTAINER:SAPLSSEL:2001/ssubSUBSCREEN_CONTAINER2:SAPLSSEL:2000/cntlSUB_CONTAINER/shellcont/shellcont/shell/shellcont[1]/shell").unselectNode "         53"
+session.findById("wnd[0]/usr/ssub%_SUBSCREEN_%_SUB%_CONTAINER:SAPLSSEL:2001/ssubSUBSCREEN_CONTAINER2:SAPLSSEL:2000/cntlSUB_CONTAINER/shellcont/shellcont/shell/shellcont[1]/shell").selectNode "         97"
+session.findById("wnd[0]/usr/ssub%_SUBSCREEN_%_SUB%_CONTAINER:SAPLSSEL:2001/ssubSUBSCREEN_CONTAINER2:SAPLSSEL:2000/cntlSUB_CONTAINER/shellcont/shellcont/shell/shellcont[1]/shell").topNode = "         97"
+session.findById("wnd[0]/usr/ssub%_SUBSCREEN_%_SUB%_CONTAINER:SAPLSSEL:2001/ssubSUBSCREEN_CONTAINER2:SAPLSSEL:2000/cntlSUB_CONTAINER/shellcont/shellcont/shell/shellcont[1]/shell").doubleClickNode "         97"
+session.findById("wnd[0]/usr/ssub%_SUBSCREEN_%_SUB%_CONTAINER:SAPLSSEL:2001/ssubSUBSCREEN_CONTAINER2:SAPLSSEL:2000/ssubSUBSCREEN_CONTAINER:SAPLSSEL:1106/ctxt%%DYN002-LOW").text = "${depOrigem}"
+session.findById("wnd[0]/usr/ssub%_SUBSCREEN_%_SUB%_CONTAINER:SAPLSSEL:2001/ssubSUBSCREEN_CONTAINER2:SAPLSSEL:2000/ssubSUBSCREEN_CONTAINER:SAPLSSEL:1106/ctxt%%DYN002-LOW").setFocus
+session.findById("wnd[0]/usr/ssub%_SUBSCREEN_%_SUB%_CONTAINER:SAPLSSEL:2001/ssubSUBSCREEN_CONTAINER2:SAPLSSEL:2000/ssubSUBSCREEN_CONTAINER:SAPLSSEL:1106/ctxt%%DYN002-LOW").caretPosition = 3
+session.findById("wnd[0]/usr/ssub%_SUBSCREEN_%_SUB%_CONTAINER:SAPLSSEL:2001/ssubSUBSCREEN_CONTAINER2:SAPLSSEL:2000/cntlSUB_CONTAINER/shellcont/shellcont/shell/shellcont[1]/shell").unselectNode "         97"
+session.findById("wnd[0]/usr/ssub%_SUBSCREEN_%_SUB%_CONTAINER:SAPLSSEL:2001/ssubSUBSCREEN_CONTAINER2:SAPLSSEL:2000/cntlSUB_CONTAINER/shellcont/shellcont/shell/shellcont[1]/shell").selectNode "         82"
+session.findById("wnd[0]/usr/ssub%_SUBSCREEN_%_SUB%_CONTAINER:SAPLSSEL:2001/ssubSUBSCREEN_CONTAINER2:SAPLSSEL:2000/cntlSUB_CONTAINER/shellcont/shellcont/shell/shellcont[1]/shell").topNode = "         82"
+session.findById("wnd[0]/usr/ssub%_SUBSCREEN_%_SUB%_CONTAINER:SAPLSSEL:2001/ssubSUBSCREEN_CONTAINER2:SAPLSSEL:2000/cntlSUB_CONTAINER/shellcont/shellcont/shell/shellcont[1]/shell").doubleClickNode "         82"
+session.findById("wnd[0]/usr/ssub%_SUBSCREEN_%_SUB%_CONTAINER:SAPLSSEL:2001/ssubSUBSCREEN_CONTAINER2:SAPLSSEL:2000/ssubSUBSCREEN_CONTAINER:SAPLSSEL:1106/txt%%DYN002-LOW").text = "${qtd}"
+session.findById("wnd[0]/usr/ssub%_SUBSCREEN_%_SUB%_CONTAINER:SAPLSSEL:2001/ssubSUBSCREEN_CONTAINER2:SAPLSSEL:2000/ssubSUBSCREEN_CONTAINER:SAPLSSEL:1106/txt%%DYN002-LOW").setFocus
+session.findById("wnd[0]/usr/ssub%_SUBSCREEN_%_SUB%_CONTAINER:SAPLSSEL:2001/ssubSUBSCREEN_CONTAINER2:SAPLSSEL:2000/ssubSUBSCREEN_CONTAINER:SAPLSSEL:1106/txt%%DYN002-LOW").caretPosition = 5
+session.findById("wnd[0]/tbar[1]/btn[8]").press
+session.findById("wnd[0]/usr/lbl[2,6]").setFocus
+session.findById("wnd[0]/usr/lbl[2,6]").caretPosition = 2
+session.findById("wnd[0]").sendVKey 2
+session.findById("wnd[0]/tbar[1]/btn[48]").press
+session.findById("wnd[1]/usr/chkRL03T-SQUIT").selected = true
+session.findById("wnd[1]/usr/ctxtLAGP-LGTYP").text = "${destLgtyp}"
+session.findById("wnd[1]/usr/ctxtLAGP-LGPLA").text = "${destLgpla}"
+session.findById("wnd[1]/usr/chkRL03T-SQUIT").setFocus
+session.findById("wnd[1]/tbar[0]/btn[0]").press
+session.findById("wnd[0]/tbar[0]/okcd").text = "/n"
+session.findById("wnd[0]").sendVKey 0`;
+  });
+
+  return [vbsHeader, ...itemBlocks].join('\n');
+}
+
+export type MacroActionType = 'bloquear_migo' | 'desbloquear_migo' | 'mover_lt10' | 'mover_ajuste' | 'atualizar_db' | 'devolver';
 
 export interface MacroActionItem {
   id: string;
   actionType: MacroActionType;
+  routeId?: string;
+  customTipo?: string;
+  customPosicao?: string;
 }
 
 export const AVAILABLE_MACROS: Array<{
@@ -215,12 +319,20 @@ export const AVAILABLE_MACROS: Array<{
     badgeBg: 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300',
   },
   {
-    type: 'mover_ajuste',
-    label: 'Mover para Ajuste (999/AJUSTE)',
-    shortLabel: 'Mover/Ajuste',
-    description: 'Transfere saldo tipo S de PES para 999/AJUSTE via /nlt10',
+    type: 'mover_lt10',
+    label: 'Mover no SAP (/nlt10)',
+    shortLabel: 'Mover (/nlt10)',
+    description: 'Transfere itens por lote/qtd via /nlt10 para rota pré-definida',
     color: 'text-indigo-300',
     badgeBg: 'bg-indigo-500/10 border-indigo-500/30 text-indigo-300',
+  },
+  {
+    type: 'mover_ajuste',
+    label: 'Mover/Ajuste em Massa (movermigo)',
+    shortLabel: 'Mover/Ajuste (S)',
+    description: 'Transfere saldo bloqueado S de PES para 999/AJUSTE via /nlt10',
+    color: 'text-purple-300',
+    badgeBg: 'bg-purple-500/10 border-purple-500/30 text-purple-300',
   },
   {
     type: 'atualizar_db',
@@ -717,8 +829,11 @@ export function ResiduaisView({
   ]);
   const [isDevolverRunning, setIsDevolverRunning] = useState(false);
   const [isApplyingInvestigacao, setIsApplyingInvestigacao] = useState(false);
-  const [isMoverAjusteRunning, setIsMoverAjusteRunning] = useState(false);
-  const [moverAjusteConfirmOpen, setMoverAjusteConfirmOpen] = useState(false);
+  const [isMoverRunning, setIsMoverRunning] = useState(false);
+  const [moverModalOpen, setMoverModalOpen] = useState(false);
+  const [moverItems, setMoverItems] = useState<MoverItemParam[]>([]);
+  const [selectedMoverRoute, setSelectedMoverRoute] = useState<string>('pes_pesagem');
+  const [moverModalMode, setMoverModalMode] = useState<'route' | 'bulk_ajuste'>('route');
   const [bloquearMigoOpen, setBloquearMigoOpen] = useState(false);
   const [bloquearSelectedItems, setBloquearSelectedItems] = useState<BloquearItemParam[]>([]);
   const [isBloquearMigoRunning, setIsBloquearMigoRunning] = useState(false);
@@ -1238,17 +1353,134 @@ export function ResiduaisView({
     });
   };
 
-  // Dispara a execução do script movermigo no SAP via Planilha Sync
-  const handleConfirmMoverAjuste = async () => {
-    setMoverAjusteConfirmOpen(false);
-    setIsMoverAjusteRunning(true);
-    const toastId = toast.loading('Enviando solicitação movermigo para o Planilha Sync...');
+  const handleOpenMoverModal = () => {
+    const selectedRows = table.getFilteredSelectedRowModel().rows;
+    if (selectedRows.length > 0) {
+      const items: MoverItemParam[] = selectedRows.map((row) => {
+        const selected = row.original;
+        const quantidadeTabela = selected.estoque_disponivel.toLocaleString('pt-BR', {
+          minimumFractionDigits: 0,
+          maximumFractionDigits: 3,
+          useGrouping: false,
+        });
+        return {
+          material: selected.material,
+          descricao: selected.texto_breve_material || '',
+          lote: selected.lote,
+          quantidade: quantidadeTabela,
+          unidade: selected.unidade_medida?.toUpperCase() || 'KG',
+          depositoOrigem: selected.deposito || 'PES',
+        };
+      });
+      setMoverItems(items);
+      setMoverModalMode('route');
+    } else {
+      setMoverItems([]);
+      setMoverModalMode('route');
+    }
+    setMoverModalOpen(true);
+  };
+
+  const handleUpdateMoverItem = (idx: number, field: keyof MoverItemParam, value: string) => {
+    setMoverItems((prev) => {
+      const copy = [...prev];
+      copy[idx] = { ...copy[idx], [field]: value };
+      return copy;
+    });
+  };
+
+  const handleRemoveMoverItem = (idx: number) => {
+    setMoverItems((prev) => prev.filter((_, i) => i !== idx));
+  };
+
+  const handleAddManualMoverItem = () => {
+    setMoverItems((prev) => [
+      ...prev,
+      {
+        material: '',
+        lote: '',
+        quantidade: '',
+        unidade: 'KG',
+        depositoOrigem: 'PES',
+        descricao: '',
+      },
+    ]);
+  };
+
+  // Dispara a transferência personalizada via /nlt10 no SAP
+  const handleConfirmMoverLt10 = async () => {
+    if (moverItems.length === 0) {
+      toast.error('Nenhum item adicionado para transferência.');
+      return;
+    }
+
+    const invalidItem = moverItems.find((it) => !it.lote?.trim() || !it.quantidade?.trim());
+    if (invalidItem) {
+      toast.error('Preencha o lote e a quantidade de todos os itens.');
+      return;
+    }
+
+    const route = PREDEFINED_MOVER_ROUTES.find((r) => r.id === selectedMoverRoute) || PREDEFINED_MOVER_ROUTES[0];
+    const vbsCode = generateMoverLt10Vbs(moverItems, { tipo: route.tipo, posicao: route.posicao });
+
+    setMoverModalOpen(false);
+    setIsMoverRunning(true);
+    const toastId = toast.loading(`Enviando transferência /nlt10 (${route.label}) para o Planilha Sync...`);
+
+    try {
+      const res = await triggerSapAutomation('mover_lt10', currentUserEmail || 'Dashboard', vbsCode);
+      if (!res.success || !res.job) {
+        toast.error(`Falha ao disparar automação: ${res.error || 'Erro desconhecido'}`, { id: toastId });
+        setIsMoverRunning(false);
+        return;
+      }
+
+      const jobId = res.job.id;
+      toast.loading(`Aguardando execução do /nlt10 no SAP (${moverItems.length} item(ns))...`, { id: toastId });
+
+      let attempts = 0;
+      const maxAttempts = Math.max(30, moverItems.length * 15);
+      const interval = setInterval(async () => {
+        attempts++;
+        try {
+          const statusJob = await checkSapAutomationStatus(jobId);
+          if (statusJob?.status === 'completed') {
+            clearInterval(interval);
+            setIsMoverRunning(false);
+            toast.success(`Transferência /nlt10 (${route.label}) executada com sucesso no SAP!`, { id: toastId, icon: '🚀' });
+          } else if (statusJob?.status === 'failed') {
+            clearInterval(interval);
+            setIsMoverRunning(false);
+            toast.error(`Execução no SAP falhou: ${statusJob.result_message || 'Erro no script'}`, { id: toastId });
+          } else if (attempts >= maxAttempts) {
+            clearInterval(interval);
+            setIsMoverRunning(false);
+            toast('Tempo limite aguardando o Planilha Sync. Verifique se o app está aberto.', { id: toastId, icon: '⚠️' });
+          }
+        } catch (e) {
+          if (attempts >= maxAttempts) {
+            clearInterval(interval);
+            setIsMoverRunning(false);
+          }
+        }
+      }, 2000);
+    } catch (err: any) {
+      toast.error(`Erro: ${err?.message || err}`, { id: toastId });
+      setIsMoverRunning(false);
+    }
+  };
+
+  // Dispara a execução do script em massa movermigo (saldo tipo S) no SAP
+  const handleConfirmMoverAjusteBulk = async () => {
+    setMoverModalOpen(false);
+    setIsMoverRunning(true);
+    const toastId = toast.loading('Enviando solicitação movermigo (saldo tipo S) para o Planilha Sync...');
 
     try {
       const res = await triggerSapAutomation('movermigo', currentUserEmail || 'Dashboard');
       if (!res.success || !res.job) {
         toast.error(`Falha ao disparar automação: ${res.error || 'Erro desconhecido'}`, { id: toastId });
-        setIsMoverAjusteRunning(false);
+        setIsMoverRunning(false);
         return;
       }
 
@@ -1256,34 +1488,34 @@ export function ResiduaisView({
       toast.loading('Aguardando execução do script movermigo no SAP GUI...', { id: toastId });
 
       let attempts = 0;
-      const maxAttempts = 30; // até 60s
+      const maxAttempts = 30;
       const interval = setInterval(async () => {
         attempts++;
         try {
           const statusJob = await checkSapAutomationStatus(jobId);
           if (statusJob?.status === 'completed') {
             clearInterval(interval);
-            setIsMoverAjusteRunning(false);
+            setIsMoverRunning(false);
             toast.success('Script movermigo executado com sucesso no SAP!', { id: toastId, icon: '🚀' });
           } else if (statusJob?.status === 'failed') {
             clearInterval(interval);
-            setIsMoverAjusteRunning(false);
+            setIsMoverRunning(false);
             toast.error(`Execução no SAP falhou: ${statusJob.result_message || 'Erro no script'}`, { id: toastId });
           } else if (attempts >= maxAttempts) {
             clearInterval(interval);
-            setIsMoverAjusteRunning(false);
+            setIsMoverRunning(false);
             toast('Tempo limite aguardando o Planilha Sync. Verifique se o app está aberto.', { id: toastId, icon: '⚠️' });
           }
         } catch (e) {
           if (attempts >= maxAttempts) {
             clearInterval(interval);
-            setIsMoverAjusteRunning(false);
+            setIsMoverRunning(false);
           }
         }
       }, 2000);
     } catch (err: any) {
       toast.error(`Erro: ${err?.message || err}`, { id: toastId });
-      setIsMoverAjusteRunning(false);
+      setIsMoverRunning(false);
     }
   };
 
@@ -1304,6 +1536,7 @@ export function ResiduaisView({
         lote: selected.lote,
         quantidade: quantidadeTabela,
         unidade: selected.unidade_medida?.toUpperCase() || 'KG',
+        depositoOrigem: selected.deposito || 'PES',
       };
     });
 
@@ -1388,7 +1621,11 @@ export function ResiduaisView({
   const handleAddMacroToPipeline = (actionType: MacroActionType) => {
     setMacroPipeline((prev) => [
       ...prev,
-      { id: `${actionType}-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`, actionType },
+      {
+        id: `${actionType}-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+        actionType,
+        routeId: actionType === 'mover_lt10' ? 'pes_pesagem' : undefined,
+      },
     ]);
   };
 
@@ -1406,11 +1643,18 @@ export function ResiduaisView({
     });
   };
 
+  const handleUpdateStepRoute = (stepId: string, routeId: string) => {
+    setMacroPipeline((prev) =>
+      prev.map((s) => (s.id === stepId ? { ...s, routeId } : s))
+    );
+  };
+
   const handleApplyMacroPreset = (presetTypes: MacroActionType[]) => {
     setMacroPipeline(
       presetTypes.map((actionType, i) => ({
         id: `${actionType}-${Date.now()}-${i}`,
         actionType,
+        routeId: actionType === 'mover_lt10' ? 'pes_pesagem' : undefined,
       }))
     );
   };
@@ -1464,6 +1708,23 @@ export function ResiduaisView({
           const vbsCode = generateDesbloquearMigoVbs(bloquearSelectedItems);
           res = await executeSapJobAndWait(
             'desbloquear_migo',
+            currentUserEmail || 'Dashboard',
+            vbsCode,
+            Math.max(60, countItems * 25)
+          );
+        } else if (step.actionType === 'mover_lt10') {
+          const targetRoute = PREDEFINED_MOVER_ROUTES.find((r) => r.id === (step.routeId || 'pes_pesagem')) || PREDEFINED_MOVER_ROUTES[0];
+          const moverItemsParam: MoverItemParam[] = bloquearSelectedItems.map((it) => ({
+            material: it.material,
+            lote: it.lote,
+            quantidade: it.quantidade,
+            unidade: it.unidade,
+            depositoOrigem: it.depositoOrigem || 'PES',
+            descricao: it.descricao,
+          }));
+          const vbsCode = generateMoverLt10Vbs(moverItemsParam, { tipo: targetRoute.tipo, posicao: targetRoute.posicao });
+          res = await executeSapJobAndWait(
+            'mover_lt10',
             currentUserEmail || 'Dashboard',
             vbsCode,
             Math.max(60, countItems * 25)
@@ -1858,12 +2119,12 @@ export function ResiduaisView({
         <Button
           variant="default"
           size="sm"
-          onClick={() => setMoverAjusteConfirmOpen(true)}
-          disabled={isMoverAjusteRunning}
+          onClick={handleOpenMoverModal}
+          disabled={isMoverRunning}
           className="bg-[#1B3550] border border-[#2A4D6E] hover:bg-[#234465] text-[#AEE4FF] hover:text-white shadow-md transition-all duration-300 font-bold gap-1.5"
-          title="Executar script movermigo no SAP via Planilha Sync para transferir itens tipo S para 999/AJUSTE"
+          title="Mover estoque via /nlt10 no SAP com rotas pré-definidas ou em massa"
         >
-          {isMoverAjusteRunning ? (
+          {isMoverRunning ? (
             <>
               <Loader2 className="h-4 w-4 animate-spin text-[#AEE4FF]" />
               <span>Executando SAP...</span>
@@ -1871,7 +2132,7 @@ export function ResiduaisView({
           ) : (
             <>
               <ArrowRightLeft className="h-4 w-4 text-[#AEE4FF]" />
-              <span>Mover/Ajuste</span>
+              <span>Mover{selectedCount > 0 ? ` (${selectedCount})` : ''}</span>
             </>
           )}
         </Button>
@@ -2417,53 +2678,258 @@ export function ResiduaisView({
         </DialogContent>
       </Dialog>
 
-      {/* Dialog de Confirmação para Mover/Ajuste (SAP movermigo) */}
-      <Dialog open={moverAjusteConfirmOpen} onOpenChange={setMoverAjusteConfirmOpen}>
-        <DialogContent className="sm:max-w-md bg-[#13283E] border-[#2A4D6E] text-white">
+      {/* Dialog Mover Estoque no SAP (/nlt10) */}
+      <Dialog open={moverModalOpen} onOpenChange={setMoverModalOpen}>
+        <DialogContent className="sm:max-w-2xl bg-[#13283E] border-[#2A4D6E] text-white max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-[#AEE4FF] text-base font-bold">
               <ArrowRightLeft className="h-5 w-5 text-[#AEE4FF]" />
-              <span>Executar Mover/Ajuste no SAP (movermigo)</span>
+              <span>Mover Estoque no SAP</span>
+              {moverItems.length > 0 && moverModalMode === 'route' && (
+                <Badge variant="outline" className="border-[#AEE4FF]/40 text-[#AEE4FF] text-[10px] py-0 px-1.5 ml-1">
+                  {moverItems.length} {moverItems.length === 1 ? 'item' : 'itens'}
+                </Badge>
+              )}
             </DialogTitle>
             <DialogDescription className="text-xs text-slate-300 pt-1">
-              Esta ação solicitará ao <strong>Planilha Sync</strong> a execução da automação <code>movermigo</code> na sua sessão aberta do SAP GUI.
+              Transfira itens localizando pelo lote e quantidade exata via <code>/nlt10</code> ou execute mover/ajuste em massa.
             </DialogDescription>
           </DialogHeader>
 
-          <div className="p-3.5 rounded-xl bg-[#1B3550]/80 border border-[#2A4D6E] space-y-2 text-xs">
-            <p className="font-semibold text-[#AEE4FF] flex items-center gap-1.5">
-              <span>Etapas automáticas no SAP (/nlt10):</span>
-            </p>
-            <ul className="list-disc list-inside space-y-1 text-slate-300 text-[11px] font-mono">
-              <li>Transação: <code>/nlt10</code> (Depósito <strong>PES</strong>, Posição <strong>PESAGEM</strong>)</li>
-              <li>Filtro: Tipo de estoque <strong>S</strong> (Bloqueado/Ajuste)</li>
-              <li>Destino: Tipo de depósito <strong>999</strong>, Posição <strong>AJUSTE</strong></li>
-              <li>Confirmação automática da transferência (SQUIT = true)</li>
-            </ul>
-            <p className="text-[10px] text-amber-300 pt-1">
-              ⚠️ Certifique-se de que o SAP GUI está aberto e o Planilha Sync em execução na sua máquina.
-            </p>
+          {/* Alternância de Modo / Função */}
+          <div className="bg-[#0E1D2D] p-1.5 rounded-xl border border-[#2A4D6E] flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => setMoverModalMode('route')}
+              className={cn(
+                "flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2",
+                moverModalMode === 'route'
+                  ? "bg-[#1B3550] text-[#AEE4FF] border border-[#2A4D6E] shadow-sm"
+                  : "text-slate-400 hover:text-white hover:bg-[#1B3550]/40"
+              )}
+            >
+              <ArrowRightLeft className="h-4 w-4 text-[#AEE4FF]" />
+              <span>Mover por Rota (/nlt10)</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setMoverModalMode('bulk_ajuste')}
+              className={cn(
+                "flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2",
+                moverModalMode === 'bulk_ajuste'
+                  ? "bg-purple-950/60 text-purple-300 border border-purple-500/40 shadow-sm"
+                  : "text-slate-400 hover:text-white hover:bg-[#1B3550]/40"
+              )}
+            >
+              <RefreshCw className="h-4 w-4 text-purple-300" />
+              <span>Mover/Ajuste em Massa (Saldo S)</span>
+            </button>
           </div>
+
+          {moverModalMode === 'route' ? (
+            <div className="space-y-4 py-1">
+              {/* 1. Seleção de Rotas Pré-definidas */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                  <Layers className="h-3.5 w-3.5 text-[#AEE4FF]" />
+                  <span>Selecione a Rota de Destino:</span>
+                </label>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {PREDEFINED_MOVER_ROUTES.map((route) => {
+                    const isSelected = selectedMoverRoute === route.id;
+                    return (
+                      <button
+                        key={route.id}
+                        type="button"
+                        onClick={() => setSelectedMoverRoute(route.id)}
+                        className={cn(
+                          "p-2.5 rounded-xl border text-left transition-all flex flex-col justify-between group",
+                          isSelected
+                            ? "bg-[#1B3550] border-[#AEE4FF] text-white shadow-md ring-1 ring-[#AEE4FF]/40"
+                            : "bg-[#0E1D2D] hover:bg-[#1B3550]/60 border-[#2A4D6E] text-slate-300"
+                        )}
+                      >
+                        <div className="flex items-center justify-between w-full mb-1">
+                          <span className={cn("text-xs font-bold font-mono", isSelected ? "text-[#AEE4FF]" : "text-slate-200")}>
+                            {route.label}
+                          </span>
+                          {isSelected && <CheckCircle2 className="h-3.5 w-3.5 text-[#AEE4FF]" />}
+                        </div>
+                        <span className="text-[10px] text-slate-400 leading-tight">
+                          {route.description}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* 2. Itens a Mover */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                    <Package className="h-3.5 w-3.5 text-[#AEE4FF]" />
+                    <span>Itens a Mover ({moverItems.length}):</span>
+                  </label>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleAddManualMoverItem}
+                    className="h-6 px-2 text-[10px] text-[#AEE4FF] hover:bg-[#1B3550]"
+                  >
+                    <Plus className="h-3 w-3 mr-1" />
+                    Adicionar Item
+                  </Button>
+                </div>
+
+                {moverItems.length === 0 ? (
+                  <div className="p-4 text-center text-xs text-slate-400 border border-dashed border-[#2A4D6E] rounded-lg bg-[#0E1D2D]">
+                    Nenhum item selecionado na tabela. Clique em &quot;Adicionar Item&quot; ou feche e selecione os lotes na tabela.
+                  </div>
+                ) : (
+                  <div className="max-h-52 overflow-y-auto rounded-lg border border-[#2A4D6E] bg-[#0E1D2D]">
+                    <table className="w-full text-xs text-left">
+                      <thead className="text-[10px] text-slate-400 uppercase bg-[#1B3550]/80 sticky top-0 border-b border-[#2A4D6E]">
+                        <tr>
+                          <th className="px-2.5 py-1.5">Material</th>
+                          <th className="px-2.5 py-1.5">Lote</th>
+                          <th className="px-2.5 py-1.5">Dep. Origem</th>
+                          <th className="px-2.5 py-1.5 text-right">Qtd</th>
+                          <th className="px-2.5 py-1.5 text-center">UMB</th>
+                          <th className="px-2 py-1.5 text-center w-8"></th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-[#2A4D6E]/40 font-mono text-[11px]">
+                        {moverItems.map((item, idx) => (
+                          <tr key={idx} className="hover:bg-[#1B3550]/40">
+                            <td className="px-2.5 py-1.5">
+                              <Input
+                                value={item.material}
+                                onChange={(e) => handleUpdateMoverItem(idx, 'material', e.target.value)}
+                                placeholder="Material"
+                                className="h-7 bg-[#13283E] border-[#2A4D6E] text-white text-xs font-mono w-28"
+                              />
+                            </td>
+                            <td className="px-2.5 py-1.5">
+                              <Input
+                                value={item.lote}
+                                onChange={(e) => handleUpdateMoverItem(idx, 'lote', e.target.value)}
+                                placeholder="Lote"
+                                className="h-7 bg-[#13283E] border-[#2A4D6E] text-amber-300 font-bold text-xs font-mono w-28"
+                              />
+                            </td>
+                            <td className="px-2.5 py-1.5">
+                              <Input
+                                value={item.depositoOrigem}
+                                onChange={(e) => handleUpdateMoverItem(idx, 'depositoOrigem', e.target.value.toUpperCase())}
+                                placeholder="PES"
+                                className="h-7 bg-[#13283E] border-[#2A4D6E] text-white text-xs font-mono uppercase w-20"
+                              />
+                            </td>
+                            <td className="px-2.5 py-1.5 text-right">
+                              <Input
+                                value={item.quantidade}
+                                onChange={(e) => handleUpdateMoverItem(idx, 'quantidade', e.target.value)}
+                                placeholder="0,00"
+                                className="h-7 bg-[#13283E] border-[#2A4D6E] text-white text-xs font-mono text-right w-24 ml-auto"
+                              />
+                            </td>
+                            <td className="px-2.5 py-1.5 text-center text-slate-300">
+                              <Input
+                                value={item.unidade}
+                                onChange={(e) => handleUpdateMoverItem(idx, 'unidade', e.target.value.toUpperCase())}
+                                placeholder="KG"
+                                className="h-7 bg-[#13283E] border-[#2A4D6E] text-white text-xs font-mono uppercase text-center w-14 mx-auto"
+                              />
+                            </td>
+                            <td className="px-2 py-1.5 text-center">
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleRemoveMoverItem(idx)}
+                                className="h-6 w-6 text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                                title="Remover item"
+                              >
+                                <X className="h-3.5 w-3.5" />
+                              </Button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+
+              {/* Informações da Automação LT10 */}
+              <div className="p-3 rounded-xl bg-[#1B3550]/60 border border-[#2A4D6E] space-y-1.5 text-xs">
+                <p className="font-semibold text-[#AEE4FF] flex items-center gap-1.5">
+                  <span>Execução Automática no SAP (/nlt10):</span>
+                </p>
+                <ul className="list-disc list-inside space-y-0.5 text-slate-300 text-[11px] font-mono">
+                  <li>Centro: <code>wnm</code> | Depósito inicial: <code>***</code></li>
+                  <li>Delimitações dinâmicas: Localiza por Lote, Depósito e Quantidade exata</li>
+                  <li>Executa relatório (F8) ➔ Seleciona item ➔ Transfere em 1º plano (F48)</li>
+                  <li>Destino configurado: <strong>{PREDEFINED_MOVER_ROUTES.find(r => r.id === selectedMoverRoute)?.label}</strong> (Confirmação automática SQUIT)</li>
+                </ul>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-3 py-2">
+              <div className="p-4 rounded-xl bg-[#1B3550]/80 border border-[#2A4D6E] space-y-2 text-xs">
+                <p className="font-semibold text-purple-300 flex items-center gap-1.5 text-sm">
+                  <RefreshCw className="h-4 w-4 text-purple-300" />
+                  <span>Mover/Ajuste em Massa (movermigo padrão)</span>
+                </p>
+                <p className="text-slate-300 text-xs leading-relaxed">
+                  Esta função automatizada transfere todo o saldo com <strong>tipo de estoque S (bloqueado)</strong> localizado em <strong>PES / PESAGEM</strong> para o depósito de destino <strong>999 / AJUSTE</strong> via transação <code>/nlt10</code>.
+                </p>
+                <ul className="list-disc list-inside space-y-1 text-slate-300 text-[11px] font-mono pt-1">
+                  <li>Origem: Tipo <strong>PES</strong>, Posição <strong>PESAGEM</strong>, Tipo de Estoque <strong>S</strong></li>
+                  <li>Destino: Tipo <strong>999</strong>, Posição <strong>AJUSTE</strong></li>
+                  <li>Confirmação automática de OT (SQUIT = true)</li>
+                </ul>
+              </div>
+            </div>
+          )}
 
           <DialogFooter className="gap-2 sm:gap-0 pt-2">
             <Button
               type="button"
               variant="outline"
               size="sm"
-              onClick={() => setMoverAjusteConfirmOpen(false)}
+              onClick={() => setMoverModalOpen(false)}
               className="bg-[#1B3550] border-[#2A4D6E] text-slate-300 hover:text-white"
             >
               Cancelar
             </Button>
-            <Button
-              type="button"
-              size="sm"
-              onClick={handleConfirmMoverAjuste}
-              className="bg-[#AEE4FF] hover:bg-[#86d4fa] text-[#13283E] font-bold gap-1.5"
-            >
-              <Play className="h-3.5 w-3.5 fill-current" />
-              <span>Executar no SAP</span>
-            </Button>
+            {moverModalMode === 'route' ? (
+              <Button
+                type="button"
+                size="sm"
+                onClick={handleConfirmMoverLt10}
+                disabled={moverItems.length === 0 || isMoverRunning}
+                className="bg-[#AEE4FF] hover:bg-[#86d4fa] text-[#13283E] font-bold gap-1.5"
+              >
+                <Play className="h-3.5 w-3.5 fill-current" />
+                <span>
+                  Executar Transferência ({moverItems.length} {moverItems.length === 1 ? 'item' : 'itens'}) no SAP
+                </span>
+              </Button>
+            ) : (
+              <Button
+                type="button"
+                size="sm"
+                onClick={handleConfirmMoverAjusteBulk}
+                disabled={isMoverRunning}
+                className="bg-purple-400 hover:bg-purple-300 text-purple-950 font-bold gap-1.5"
+              >
+                <Play className="h-3.5 w-3.5 fill-current" />
+                <span>Executar Mover/Ajuste em Massa no SAP</span>
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -2615,11 +3081,27 @@ export function ResiduaisView({
                   <span className="text-slate-400 text-[10px] mr-1">Presets:</span>
                   <button
                     type="button"
-                    onClick={() => handleApplyMacroPreset(['bloquear_migo', 'mover_ajuste', 'atualizar_db'])}
+                    onClick={() => handleApplyMacroPreset(['bloquear_migo', 'mover_lt10', 'atualizar_db'])}
                     className="px-2 py-0.5 rounded bg-[#1B3550] hover:bg-[#234465] text-[#AEE4FF] border border-[#2A4D6E] text-[10px] font-semibold transition-colors"
-                    title="Bloquear MIGO ➔ Mover para Ajuste ➔ Atualizar Banco de Dados"
+                    title="Bloquear MIGO ➔ Mover (/nlt10) ➔ Atualizar Banco de Dados"
                   >
                     ⚡ Completo
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleApplyMacroPreset(['mover_lt10', 'atualizar_db'])}
+                    className="px-2 py-0.5 rounded bg-[#1B3550] hover:bg-[#234465] text-indigo-300 border border-[#2A4D6E] text-[10px] font-semibold transition-colors"
+                    title="Mover (/nlt10) ➔ Atualizar Banco de Dados"
+                  >
+                    📦 Mover + DB
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleApplyMacroPreset(['mover_lt10'])}
+                    className="px-2 py-0.5 rounded bg-[#1B3550] hover:bg-[#234465] text-indigo-300 border border-[#2A4D6E] text-[10px] font-semibold transition-colors"
+                    title="Apenas Mover via /nlt10 com Rota Escolhida"
+                  >
+                    🎯 Só Mover
                   </button>
                   <button
                     type="button"
@@ -2656,10 +3138,10 @@ export function ResiduaisView({
                   <button
                     type="button"
                     onClick={() => handleApplyMacroPreset(['mover_ajuste', 'atualizar_db'])}
-                    className="px-2 py-0.5 rounded bg-[#1B3550] hover:bg-[#234465] text-indigo-300 border border-[#2A4D6E] text-[10px] font-semibold transition-colors"
-                    title="Mover para Ajuste ➔ Atualizar Banco de Dados"
+                    className="px-2 py-0.5 rounded bg-[#1B3550] hover:bg-[#234465] text-purple-300 border border-purple-500/30 text-[10px] font-semibold transition-colors"
+                    title="Mover Ajuste em Massa (Saldo S) ➔ Atualizar Banco de Dados"
                   >
-                    📦 Mover + DB
+                    🔄 Mover Ajuste (S)
                   </button>
                 </div>
               </div>
@@ -2690,68 +3172,98 @@ export function ResiduaisView({
                           }
                         }}
                         className={cn(
-                          "flex items-center justify-between p-2 rounded-lg border transition-all duration-200 cursor-grab active:cursor-grabbing",
+                          "flex flex-col p-2.5 rounded-lg border transition-all duration-200 cursor-grab active:cursor-grabbing gap-2",
                           "bg-[#13283E]/90 hover:bg-[#1B3550] border-[#2A4D6E]",
                           draggedMacroIndex === idx && "opacity-50 border-[#AEE4FF]"
                         )}
                       >
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          <GripVertical className="h-4 w-4 text-slate-500 hover:text-slate-300 shrink-0" />
-                          <div className="w-5 h-5 rounded-full bg-[#1B3550] border border-[#2A4D6E] flex items-center justify-center text-[10px] font-bold text-slate-300 shrink-0">
-                            {idx + 1}
-                          </div>
-
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-2">
-                              {step.actionType === 'bloquear_migo' && <Lock className="h-3.5 w-3.5 text-[#AEE4FF] shrink-0" />}
-                              {step.actionType === 'desbloquear_migo' && <Unlock className="h-3.5 w-3.5 text-emerald-300 shrink-0" />}
-                              {step.actionType === 'mover_ajuste' && <ArrowRightLeft className="h-3.5 w-3.5 text-indigo-300 shrink-0" />}
-                              {step.actionType === 'atualizar_db' && <RefreshCw className="h-3.5 w-3.5 text-emerald-300 shrink-0" />}
-                              {step.actionType === 'devolver' && <Undo2 className="h-3.5 w-3.5 text-amber-300 shrink-0" />}
-                              <span className="text-xs font-semibold text-white truncate">
-                                {macroDef.label}
-                              </span>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <GripVertical className="h-4 w-4 text-slate-500 hover:text-slate-300 shrink-0" />
+                            <div className="w-5 h-5 rounded-full bg-[#1B3550] border border-[#2A4D6E] flex items-center justify-center text-[10px] font-bold text-slate-300 shrink-0">
+                              {idx + 1}
                             </div>
-                            <p className="text-[10px] text-slate-400 truncate">
-                              {macroDef.description}
-                            </p>
+
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2">
+                                {step.actionType === 'bloquear_migo' && <Lock className="h-3.5 w-3.5 text-[#AEE4FF] shrink-0" />}
+                                {step.actionType === 'desbloquear_migo' && <Unlock className="h-3.5 w-3.5 text-emerald-300 shrink-0" />}
+                                {step.actionType === 'mover_lt10' && <ArrowRightLeft className="h-3.5 w-3.5 text-indigo-300 shrink-0" />}
+                                {step.actionType === 'mover_ajuste' && <RefreshCw className="h-3.5 w-3.5 text-purple-300 shrink-0" />}
+                                {step.actionType === 'atualizar_db' && <RefreshCw className="h-3.5 w-3.5 text-emerald-300 shrink-0" />}
+                                {step.actionType === 'devolver' && <Undo2 className="h-3.5 w-3.5 text-amber-300 shrink-0" />}
+                                <span className="text-xs font-semibold text-white truncate">
+                                  {macroDef.label}
+                                </span>
+                              </div>
+                              <p className="text-[10px] text-slate-400 truncate">
+                                {macroDef.description}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-1 shrink-0 ml-2">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              disabled={idx === 0}
+                              onClick={() => handleMoveMacroInPipeline(idx, idx - 1)}
+                              className="h-6 w-6 text-slate-400 hover:text-white hover:bg-[#2A4D6E]/50"
+                              title="Mover para cima"
+                            >
+                              <ChevronUp className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              disabled={idx === macroPipeline.length - 1}
+                              onClick={() => handleMoveMacroInPipeline(idx, idx + 1)}
+                              className="h-6 w-6 text-slate-400 hover:text-white hover:bg-[#2A4D6E]/50"
+                              title="Mover para baixo"
+                            >
+                              <ArrowDown className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleRemoveMacroFromPipeline(idx)}
+                              className="h-6 w-6 text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                              title="Remover etapa"
+                            >
+                              <X className="h-3.5 w-3.5" />
+                            </Button>
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-1 shrink-0 ml-2">
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            disabled={idx === 0}
-                            onClick={() => handleMoveMacroInPipeline(idx, idx - 1)}
-                            className="h-6 w-6 text-slate-400 hover:text-white hover:bg-[#2A4D6E]/50"
-                            title="Mover para cima"
-                          >
-                            <ChevronUp className="h-3.5 w-3.5" />
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            disabled={idx === macroPipeline.length - 1}
-                            onClick={() => handleMoveMacroInPipeline(idx, idx + 1)}
-                            className="h-6 w-6 text-slate-400 hover:text-white hover:bg-[#2A4D6E]/50"
-                            title="Mover para baixo"
-                          >
-                            <ArrowDown className="h-3.5 w-3.5" />
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleRemoveMacroFromPipeline(idx)}
-                            className="h-6 w-6 text-red-400 hover:text-red-300 hover:bg-red-500/10"
-                            title="Remover etapa"
-                          >
-                            <X className="h-3.5 w-3.5" />
-                          </Button>
-                        </div>
+                        {/* Seletor de Rota para Etapa de Mover LT10 no Macro */}
+                        {step.actionType === 'mover_lt10' && (
+                          <div className="pl-7 pt-1.5 border-t border-[#2A4D6E]/40 flex flex-wrap items-center gap-2">
+                            <span className="text-[10px] font-bold text-slate-400 uppercase">Rota de Destino:</span>
+                            <div className="flex flex-wrap gap-1.5">
+                              {PREDEFINED_MOVER_ROUTES.map((route) => {
+                                const isCurrentRoute = (step.routeId || 'pes_pesagem') === route.id;
+                                return (
+                                  <button
+                                    key={route.id}
+                                    type="button"
+                                    onClick={() => handleUpdateStepRoute(step.id, route.id)}
+                                    className={cn(
+                                      "px-2 py-0.5 rounded text-[10px] font-mono transition-all border",
+                                      isCurrentRoute
+                                        ? "bg-[#1B3550] border-[#AEE4FF] text-[#AEE4FF] font-bold shadow-xs"
+                                        : "bg-[#0E1D2D] hover:bg-[#1B3550]/50 border-[#2A4D6E] text-slate-400"
+                                    )}
+                                  >
+                                    {route.label}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     );
                   })
@@ -2764,7 +3276,7 @@ export function ResiduaisView({
                   <Plus className="h-3 w-3 text-[#AEE4FF]" />
                   <span>Adicionar Ação ao Pipeline:</span>
                 </label>
-                <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5">
+                <div className="grid grid-cols-2 sm:grid-cols-6 gap-1.5">
                   {AVAILABLE_MACROS.map((macro) => (
                     <button
                       key={macro.type}
@@ -2778,7 +3290,8 @@ export function ResiduaisView({
                       <div className="flex items-center justify-between w-full mb-1">
                         {macro.type === 'bloquear_migo' && <Lock className="h-3.5 w-3.5 text-[#AEE4FF]" />}
                         {macro.type === 'desbloquear_migo' && <Unlock className="h-3.5 w-3.5 text-emerald-300" />}
-                        {macro.type === 'mover_ajuste' && <ArrowRightLeft className="h-3.5 w-3.5 text-indigo-300" />}
+                        {macro.type === 'mover_lt10' && <ArrowRightLeft className="h-3.5 w-3.5 text-indigo-300" />}
+                        {macro.type === 'mover_ajuste' && <RefreshCw className="h-3.5 w-3.5 text-purple-300" />}
                         {macro.type === 'atualizar_db' && <RefreshCw className="h-3.5 w-3.5 text-emerald-300" />}
                         {macro.type === 'devolver' && <Undo2 className="h-3.5 w-3.5 text-amber-300" />}
                         <Plus className="h-3.5 w-3.5 text-slate-400 group-hover:text-white" />
@@ -2814,7 +3327,7 @@ export function ResiduaisView({
               disabled={
                 macroPipeline.length === 0 ||
                 isBloquearMigoRunning ||
-                (macroPipeline.some((m) => m.actionType === 'bloquear_migo') &&
+                (macroPipeline.some((m) => m.actionType === 'bloquear_migo' || m.actionType === 'desbloquear_migo') &&
                   (bloquearSelectedItems.length === 0 ||
                     bloquearSelectedItems.some((it) => !it.material || !it.lote || !it.quantidade)))
               }

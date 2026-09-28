@@ -10,7 +10,10 @@ import {
   DevolverVolumeItem,
   generateBloquearMigoVbs,
   generateDesbloquearMigoVbs,
+  generateMoverLt10Vbs,
   BloquearItemParam,
+  MoverItemParam,
+  PREDEFINED_MOVER_ROUTES,
   MacroActionType,
   MacroActionItem,
   AVAILABLE_MACROS,
@@ -754,11 +757,18 @@ export function ConsultaRapidaView({
     });
   };
 
+  const handleUpdateStepRoute = (stepId: string, routeId: string) => {
+    setMacroPipeline((prev) =>
+      prev.map((s) => (s.id === stepId ? { ...s, routeId } : s))
+    );
+  };
+
   const handleApplyMacroPreset = (presetTypes: MacroActionType[]) => {
     setMacroPipeline(
       presetTypes.map((actionType, i) => ({
         id: `${actionType}-${Date.now()}-${i}`,
         actionType,
+        routeId: actionType === 'mover_lt10' ? 'pes_pesagem' : undefined,
       }))
     );
   };
@@ -856,6 +866,23 @@ export function ConsultaRapidaView({
           const vbsCode = generateDesbloquearMigoVbs(bloquearSelectedItems);
           res = await executeSapJobAndWait(
             'desbloquear_migo',
+            currentUserEmail || 'Mobile / Consulta',
+            vbsCode,
+            Math.max(60, countItems * 25)
+          );
+        } else if (step.actionType === 'mover_lt10') {
+          const targetRoute = PREDEFINED_MOVER_ROUTES.find((r) => r.id === (step.routeId || 'pes_pesagem')) || PREDEFINED_MOVER_ROUTES[0];
+          const moverItemsParam: MoverItemParam[] = bloquearSelectedItems.map((it) => ({
+            material: it.material,
+            lote: it.lote,
+            quantidade: it.quantidade,
+            unidade: it.unidade,
+            depositoOrigem: it.depositoOrigem || 'PES',
+            descricao: it.descricao,
+          }));
+          const vbsCode = generateMoverLt10Vbs(moverItemsParam, { tipo: targetRoute.tipo, posicao: targetRoute.posicao });
+          res = await executeSapJobAndWait(
+            'mover_lt10',
             currentUserEmail || 'Mobile / Consulta',
             vbsCode,
             Math.max(60, countItems * 25)
@@ -1712,10 +1739,17 @@ export function ConsultaRapidaView({
                 <div className="flex flex-wrap items-center gap-1 text-[10px]">
                   <button
                     type="button"
-                    onClick={() => handleApplyMacroPreset(['bloquear_migo', 'mover_ajuste', 'atualizar_db'])}
+                    onClick={() => handleApplyMacroPreset(['bloquear_migo', 'mover_lt10', 'atualizar_db'])}
                     className="px-2 py-0.5 rounded bg-[#1B3550] hover:bg-[#234465] text-[#AEE4FF] border border-[#2A4D6E] font-semibold"
                   >
                     ⚡ Completo
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleApplyMacroPreset(['mover_lt10', 'atualizar_db'])}
+                    className="px-2 py-0.5 rounded bg-[#1B3550] hover:bg-[#234465] text-indigo-300 border border-[#2A4D6E] font-semibold"
+                  >
+                    📦 Mover + DB
                   </button>
                   <button
                     type="button"
@@ -1743,53 +1777,82 @@ export function ConsultaRapidaView({
                   return (
                     <div
                       key={step.id}
-                      className="flex items-center justify-between p-2 rounded-lg bg-[#13283E] border border-[#2A4D6E] text-xs"
+                      className="flex flex-col p-2 rounded-lg bg-[#13283E] border border-[#2A4D6E] text-xs gap-1.5"
                     >
-                      <div className="flex items-center gap-2 min-w-0">
-                        <div className="w-5 h-5 rounded-full bg-[#1B3550] border border-[#2A4D6E] flex items-center justify-center text-[10px] font-bold text-slate-300 shrink-0">
-                          {idx + 1}
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <div className="w-5 h-5 rounded-full bg-[#1B3550] border border-[#2A4D6E] flex items-center justify-center text-[10px] font-bold text-slate-300 shrink-0">
+                            {idx + 1}
+                          </div>
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            {step.actionType === 'bloquear_migo' && <Lock className="h-3.5 w-3.5 text-[#AEE4FF] shrink-0" />}
+                            {step.actionType === 'desbloquear_migo' && <Unlock className="h-3.5 w-3.5 text-emerald-300 shrink-0" />}
+                            {step.actionType === 'mover_lt10' && <ArrowRightLeft className="h-3.5 w-3.5 text-indigo-300 shrink-0" />}
+                            {step.actionType === 'mover_ajuste' && <RefreshCw className="h-3.5 w-3.5 text-purple-300 shrink-0" />}
+                            {step.actionType === 'atualizar_db' && <RefreshCw className="h-3.5 w-3.5 text-emerald-300 shrink-0" />}
+                            {step.actionType === 'devolver' && <Undo2 className="h-3.5 w-3.5 text-amber-300 shrink-0" />}
+                            <span className="font-semibold text-white truncate">{macroDef.label}</span>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-1.5 min-w-0">
-                          {step.actionType === 'bloquear_migo' && <Lock className="h-3.5 w-3.5 text-[#AEE4FF] shrink-0" />}
-                          {step.actionType === 'desbloquear_migo' && <Unlock className="h-3.5 w-3.5 text-emerald-300 shrink-0" />}
-                          {step.actionType === 'mover_ajuste' && <ArrowRightLeft className="h-3.5 w-3.5 text-indigo-300 shrink-0" />}
-                          {step.actionType === 'atualizar_db' && <RefreshCw className="h-3.5 w-3.5 text-emerald-300 shrink-0" />}
-                          {step.actionType === 'devolver' && <Undo2 className="h-3.5 w-3.5 text-amber-300 shrink-0" />}
-                          <span className="font-semibold text-white truncate">{macroDef.label}</span>
+
+                        <div className="flex items-center gap-1 shrink-0 ml-1">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            disabled={idx === 0}
+                            onClick={() => handleMoveMacroInPipeline(idx, idx - 1)}
+                            className="h-6 w-6 text-slate-400 hover:text-white"
+                          >
+                            <ChevronUp className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            disabled={idx === macroPipeline.length - 1}
+                            onClick={() => handleMoveMacroInPipeline(idx, idx + 1)}
+                            className="h-6 w-6 text-slate-400 hover:text-white"
+                          >
+                            <ArrowDown className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleRemoveMacroFromPipeline(idx)}
+                            className="h-6 w-6 text-red-400 hover:text-red-300"
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </Button>
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-1 shrink-0 ml-1">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          disabled={idx === 0}
-                          onClick={() => handleMoveMacroInPipeline(idx, idx - 1)}
-                          className="h-6 w-6 text-slate-400 hover:text-white"
-                        >
-                          <ChevronUp className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          disabled={idx === macroPipeline.length - 1}
-                          onClick={() => handleMoveMacroInPipeline(idx, idx + 1)}
-                          className="h-6 w-6 text-slate-400 hover:text-white"
-                        >
-                          <ArrowDown className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleRemoveMacroFromPipeline(idx)}
-                          className="h-6 w-6 text-red-400 hover:text-red-300"
-                        >
-                          <X className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
+                      {step.actionType === 'mover_lt10' && (
+                        <div className="pl-7 pt-1 border-t border-[#2A4D6E]/40 flex flex-wrap items-center gap-1.5">
+                          <span className="text-[10px] text-slate-400 font-bold uppercase">Rota:</span>
+                          <div className="flex flex-wrap gap-1">
+                            {PREDEFINED_MOVER_ROUTES.map((route) => {
+                              const isCurrentRoute = (step.routeId || 'pes_pesagem') === route.id;
+                              return (
+                                <button
+                                  key={route.id}
+                                  type="button"
+                                  onClick={() => handleUpdateStepRoute(step.id, route.id)}
+                                  className={cn(
+                                    "px-1.5 py-0.5 rounded text-[10px] font-mono border transition-all",
+                                    isCurrentRoute
+                                      ? "bg-[#1B3550] border-[#AEE4FF] text-[#AEE4FF] font-bold"
+                                      : "bg-[#0E1D2D] hover:bg-[#1B3550]/40 border-[#2A4D6E] text-slate-400"
+                                  )}
+                                >
+                                  {route.label}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   );
                 })}
