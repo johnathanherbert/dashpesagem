@@ -539,10 +539,26 @@ export function ConsultaRapidaView({
   };
 
   const somaVolumes = useMemo(() => {
-    return devolverVolumes.reduce((acc, v) => acc + parseQtdNumber(v.quantidade), 0);
+    return (
+      Math.round(
+        devolverVolumes.reduce((acc, v) => {
+          const qtd = parseQtdNumber(v.quantidade);
+          const vol = parseQtdNumber(v.volume);
+          const mult = vol > 0 ? vol : 1;
+          return acc + (qtd * mult);
+        }, 0) * 1000
+      ) / 1000
+    );
   }, [devolverVolumes]);
 
-  const saldoRestante = Math.max(0, devolverSaldoTotal - somaVolumes);
+  const totalVolumesCount = useMemo(() => {
+    return devolverVolumes.reduce((acc, v) => {
+      const vol = parseQtdNumber(v.volume);
+      return acc + (vol > 0 ? vol : 1);
+    }, 0);
+  }, [devolverVolumes]);
+
+  const saldoRestante = Math.max(0, Math.round((devolverSaldoTotal - somaVolumes) * 1000) / 1000);
   const isOverSaldo = somaVolumes > devolverSaldoTotal + 0.0001;
 
   const handleOpenDevolver = (

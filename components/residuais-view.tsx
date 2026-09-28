@@ -853,9 +853,21 @@ export function ResiduaisView({
   const totalDevolvendo = useMemo(() => {
     return (
       Math.round(
-        devolverVolumes.reduce((acc, v) => acc + parseQtdNumber(v.quantidade), 0) * 1000
+        devolverVolumes.reduce((acc, v) => {
+          const qtd = parseQtdNumber(v.quantidade);
+          const vol = parseQtdNumber(v.volume);
+          const mult = vol > 0 ? vol : 1;
+          return acc + (qtd * mult);
+        }, 0) * 1000
       ) / 1000
     );
+  }, [devolverVolumes]);
+
+  const totalVolumesCount = useMemo(() => {
+    return devolverVolumes.reduce((acc, v) => {
+      const vol = parseQtdNumber(v.volume);
+      return acc + (vol > 0 ? vol : 1);
+    }, 0);
   }, [devolverVolumes]);
 
   const saldoRestante = useMemo(() => {
@@ -1900,7 +1912,7 @@ export function ResiduaisView({
 
     setDevolverOpen(false);
     setIsDevolverRunning(true);
-    const countVol = validVolumes.length;
+    const countVol = totalVolumesCount;
     const toastId = toast.loading(
       `Enviando devolução (/nzwm296) de ${countVol} volume(s) do lote ${devolverLote} para o Planilha Sync...`
     );
@@ -2490,7 +2502,7 @@ export function ResiduaisView({
                 <span className="text-xs text-slate-400 ml-1.5 font-semibold">{devolverUnidade}</span>
               </div>
               <span className="text-[10px] text-slate-400 mt-1">
-                Soma de {devolverVolumes.length} volume(s) configurado(s)
+                Soma de {totalVolumesCount} volume(s) configurado(s)
               </span>
             </div>
 
@@ -2669,7 +2681,7 @@ export function ResiduaisView({
                 <>
                   <Undo2 className="h-4 w-4 text-[#13283E]" />
                   <span>
-                    Executar Devolução SAP ({devolverVolumes.length} {devolverVolumes.length === 1 ? 'Volume' : 'Volumes'})
+                    Executar Devolução SAP ({totalVolumesCount} {totalVolumesCount === 1 ? 'Volume' : 'Volumes'})
                   </span>
                 </>
               )}
